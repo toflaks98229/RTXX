@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -8,73 +8,73 @@ public struct Unit_Stat
 {
     // Public member variables
     // Speed
-    /// <summary>À¯´ÖÀÇ ÀÌµ¿ ¼ÓµµÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì´ë™ ì†ë„ì…ë‹ˆë‹¤.</summary>
     public float moveSpeed;
-    /// <summary>À¯´ÖÀÇ È¸Àü ¼ÓµµÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ íšŒì „ ì†ë„ì…ë‹ˆë‹¤.</summary>
     public float rotationSpeed;
-    /// <summary>À¯´ÖÀÇ °¡¼ÓµµÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ê°€ì†ë„ì…ë‹ˆë‹¤.</summary>
     public float acceleration;
-    /// <summary>À¯´ÖÀÇ Áú·®ÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì§ˆëŸ‰ì…ë‹ˆë‹¤.</summary>
     public float mass;
-    /// <summary>À¯´ÖÀÇ ÀúÇ×·Â(µå·¡±×)ÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì €í•­ë ¥(ë“œë˜ê·¸)ì…ë‹ˆë‹¤.</summary>
     public float drag;
 
     // Melee
-    /// <summary>À¯´ÖÀÇ ±ÙÁ¢ °ø°İ·ÂÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ê·¼ì ‘ ê³µê²©ë ¥ì…ë‹ˆë‹¤.</summary>
     public float meleeDamage;
-    /// <summary>À¯´ÖÀÇ ±ÙÁ¢ °ø°İ ¼öÄ¡ÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ê·¼ì ‘ ê³µê²© ìˆ˜ì¹˜ì…ë‹ˆë‹¤.</summary>
     public float meleeAttack;
-    /// <summary>À¯´ÖÀÇ ±ÙÁ¢ °ø°İ ¼ÓµµÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ê·¼ì ‘ ê³µê²© ì†ë„ì…ë‹ˆë‹¤.</summary>
     public float meleeAttackSpeed;
-    /// <summary>À¯´ÖÀÇ ±ÙÁ¢ ¹æ¾î·ÂÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ê·¼ì ‘ ë°©ì–´ë ¥ì…ë‹ˆë‹¤.</summary>
     public float meleeDiffense;
-    /// <summary>À¯´ÖÀÇ ±ÙÁ¢ °ø°İ »ç°Å¸®ÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ê·¼ì ‘ ê³µê²© ì‚¬ê±°ë¦¬ì…ë‹ˆë‹¤.</summary>
     public float meleeRange;
-    /// <summary>±ÙÁ¢ µ¹°İ ¼ÓµµÀÔ´Ï´Ù.</summary>
+    /// <summary>ê·¼ì ‘ ëŒê²© ì†ë„ì…ë‹ˆë‹¤.</summary>
     public float meleeChargeSpeed;
-    /// <summary>±ÙÁ¢ µ¹°İ »ç°Å¸®ÀÔ´Ï´Ù.</summary>
+    /// <summary>ê·¼ì ‘ ëŒê²© ì‚¬ê±°ë¦¬ì…ë‹ˆë‹¤.</summary>
     public float meleeChargeRange;
 
     // Armor
-    /// <summary>À¯´ÖÀÇ °©¿Ê ¹æ¾î·ÂÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ê°‘ì˜· ë°©ì–´ë ¥ì…ë‹ˆë‹¤.</summary>
     public float armor;
-    /// <summary>À¯´ÖÀÇ ¹æÆĞ ¹æ¾î·ÂÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ë°©íŒ¨ ë°©ì–´ë ¥ì…ë‹ˆë‹¤.</summary>
     public float shieldArmor;
 
     // Range
-    /// <summary>¿ø°Å¸® °ø°İ °¡´É ¿©ºÎÀÔ´Ï´Ù.</summary>
+    /// <summary>ì›ê±°ë¦¬ ê³µê²© ê°€ëŠ¥ ì—¬ë¶€ì…ë‹ˆë‹¤.</summary>
     public bool brangeAttackAble;
-    /// <summary>À¯´ÖÀÇ ¿ø°Å¸® °ø°İ·ÂÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì›ê±°ë¦¬ ê³µê²©ë ¥ì…ë‹ˆë‹¤.</summary>
     public float rangeDamage;
-    /// <summary>À¯´ÖÀÇ ¿ø°Å¸® °ø°İ ¼ÓµµÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì›ê±°ë¦¬ ê³µê²© ì†ë„ì…ë‹ˆë‹¤.</summary>
     public float rangeAttackSpeed;
-    /// <summary>À¯´ÖÀÇ ¿ø°Å¸® ¹æ¾î·ÂÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì›ê±°ë¦¬ ë°©ì–´ë ¥ì…ë‹ˆë‹¤.</summary>
     public float rangeDiffense;
-    /// <summary>À¯´ÖÀÇ ¿ø°Å¸® °ø°İ Á¤È®µµÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì›ê±°ë¦¬ ê³µê²© ì •í™•ë„ì…ë‹ˆë‹¤.</summary>
     public float rangeAccuracy;
-    /// <summary>À¯´ÖÀÇ ¿ø°Å¸® °ø°İ »ç°Å¸®ÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì›ê±°ë¦¬ ê³µê²© ì‚¬ê±°ë¦¬ì…ë‹ˆë‹¤.</summary>
     public float rangeRange;
 
     // Attack
-    /// <summary>°ø°İ µô·¹ÀÌ ½Ã°£ÀÔ´Ï´Ù.</summary>
+    /// <summary>ê³µê²© ë”œë ˆì´ ì‹œê°„ì…ë‹ˆë‹¤.</summary>
     public float attackDelay;
 
     // Size
-    /// <summary>À¯´ÖÀÇ Å©±âÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ í¬ê¸°ì…ë‹ˆë‹¤.</summary>
     public float size;
-    /// <summary>À¯´Ö °£ÀÇ °£°İÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹› ê°„ì˜ ê°„ê²©ì…ë‹ˆë‹¤.</summary>
     public float interval;
 
     // Collision
-    /// <summary>À¯´Ö Äİ¶óÀÌ´õÀÇ ¹İÁö¸§ÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹› ì½œë¼ì´ë”ì˜ ë°˜ì§€ë¦„ì…ë‹ˆë‹¤.</summary>
     public float radius;
-    /// <summary>À¯´Ö Äİ¶óÀÌ´õÀÇ ³ôÀÌÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹› ì½œë¼ì´ë”ì˜ ë†’ì´ì…ë‹ˆë‹¤.</summary>
     public float height;
 
     // Health
-    /// <summary>À¯´ÖÀÇ ÃÖ´ë HPÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ìµœëŒ€ HPì…ë‹ˆë‹¤.</summary>
     public float HP;
 
-    /// <summary>À¯´ÖÀÇ ±âº» °ø°İ Å¸ÀÔÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ê¸°ë³¸ ê³µê²© íƒ€ì…ì…ë‹ˆë‹¤.</summary>
     public E_Unit_AttackType e_Unit_AttackType;
 }

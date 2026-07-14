@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Collections;
@@ -8,59 +8,59 @@ using UnityEngine;
 public partial struct Unit_Data
 {
     // Public member variables
-    /// <summary>À¯´ÖÀÇ °íÀ¯ ¹øÈ£ÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ê³ ìœ  ë²ˆí˜¸ì…ë‹ˆë‹¤.</summary>
     public int num;
-    /// <summary>À¯´ÖÀÌ ÇÃ·¹ÀÌ¾î ¼Ò¼ÓÀÎÁö ¿©ºÎÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì´ í”Œë ˆì´ì–´ ì†Œì†ì¸ì§€ ì—¬ë¶€ì…ë‹ˆë‹¤.</summary>
     public bool bPlayer;
-    /// <summary>À¯´ÖÀÇ ÇöÀç À§Ä¡ÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ í˜„ì¬ ìœ„ì¹˜ì…ë‹ˆë‹¤.</summary>
     public Vector3 position;
-    /// <summary>À¯´ÖÀÇ ÇöÀç È¸Àü°ªÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ í˜„ì¬ íšŒì „ê°’ì…ë‹ˆë‹¤.</summary>
     public Quaternion rotation;
-    /// <summary>À¯´ÖÀÌ ¼ÓÇÑ ±º´ëÀÇ µ¥ÀÌÅÍÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì´ ì†í•œ êµ°ëŒ€ì˜ ë°ì´í„°ì…ë‹ˆë‹¤.</summary>
     public Army_Data army_Data;
-    /// <summary>À¯´ÖÀÇ ÇöÀç HPÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ í˜„ì¬ HPì…ë‹ˆë‹¤.</summary>
     public float HP;
-    /// <summary>À¯´ÖÀÇ ÀÌµ¿ »óÅÂÀÔ´Ï´Ù (ÀÌµ¿ Áß, ´ë±â Áß).</summary>
+    /// <summary>ìœ ë‹›ì˜ ì´ë™ ìƒíƒœì…ë‹ˆë‹¤ (ì´ë™ ì¤‘, ëŒ€ê¸° ì¤‘).</summary>
     public E_Unit_Move e_Unit_Move;
-    /// <summary>À¯´ÖÀÌ Æ¯Á¤ ¸ñÇ¥ ÁöÁ¡À¸·Î ÀÌµ¿ ÁßÀÎÁö ¿©ºÎÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì´ íŠ¹ì • ëª©í‘œ ì§€ì ìœ¼ë¡œ ì´ë™ ì¤‘ì¸ì§€ ì—¬ë¶€ì…ë‹ˆë‹¤.</summary>
     public bool btargetMoveTo;
-    /// <summary>À¯´ÖÀÇ ÀÌµ¿ º¤ÅÍÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì´ë™ ë²¡í„°ì…ë‹ˆë‹¤.</summary>
     public Vector3 movementVector;
-    /// <summary>À¯´ÖÀÇ ¸ñÇ¥ À§Ä¡ÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ëª©í‘œ ìœ„ì¹˜ì…ë‹ˆë‹¤.</summary>
     public Vector3 location;
-    /// <summary>À¯´ÖÀÇ ¸ñÇ¥ º¤ÅÍÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ëª©í‘œ ë²¡í„°ì…ë‹ˆë‹¤.</summary>
     public Vector3 targetVector;
-    /// <summary>À¯´ÖÀÇ Á¶Á¾ ¸ñÇ¥ À§Ä¡ÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì¡°ì¢… ëª©í‘œ ìœ„ì¹˜ì…ë‹ˆë‹¤.</summary>
     public Vector3 steeringTarget;
-    /// <summary>À¯´ÖÀÇ ÇöÀç ÀÌµ¿ ¼ÓµµÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ í˜„ì¬ ì´ë™ ì†ë„ì…ë‹ˆë‹¤.</summary>
     public float currentMoveSpeed;
-    /// <summary>À¯´ÖÀÌ ¸ØÃç¾ß ÇÏ´ÂÁö ¿©ºÎÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì´ ë©ˆì¶°ì•¼ í•˜ëŠ”ì§€ ì—¬ë¶€ì…ë‹ˆë‹¤.</summary>
     public bool bstop;
-    /// <summary>À¯´ÖÀÇ ¹æÇâ È¸Àü°ªÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ë°©í–¥ íšŒì „ê°’ì…ë‹ˆë‹¤.</summary>
     public Quaternion direction;
-    /// <summary>È¸Àü °ü·Ã ºÎµ¿ ¼Ò¼öÁ¡ º¯¼öÀÔ´Ï´Ù.</summary>
+    /// <summary>íšŒì „ ê´€ë ¨ ë¶€ë™ ì†Œìˆ˜ì  ë³€ìˆ˜ì…ë‹ˆë‹¤.</summary>
     public float rotateFloat;
-    /// <summary>À¯´ÖÀÇ °ø°İ ¸ñÇ¥ µ¥ÀÌÅÍÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ê³µê²© ëª©í‘œ ë°ì´í„°ì…ë‹ˆë‹¤.</summary>
     public Unit_target_Data unit_Target_Data;
-    /// <summary>À¯´ÖÀÌ °ø°İ ¸ñÇ¥¸¦ °¡Áö°í ÀÖ´ÂÁö ¿©ºÎÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì´ ê³µê²© ëª©í‘œë¥¼ ê°€ì§€ê³  ìˆëŠ”ì§€ ì—¬ë¶€ì…ë‹ˆë‹¤.</summary>
     public bool btarget;
-    /// <summary>À¯´ÖÀÌ ¸ñÇ¥¸¦ °ø°İÇß´ÂÁö ¿©ºÎÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì´ ëª©í‘œë¥¼ ê³µê²©í–ˆëŠ”ì§€ ì—¬ë¶€ì…ë‹ˆë‹¤.</summary>
     public bool bhitTarget;
-    /// <summary>À¯´ÖÀÌ ÇÇÇØ¸¦ ÀÔ¾ú´ÂÁö ¿©ºÎÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì´ í”¼í•´ë¥¼ ì…ì—ˆëŠ”ì§€ ì—¬ë¶€ì…ë‹ˆë‹¤.</summary>
     public bool bgetDamage;
-    /// <summary>ÇÇÇØ¸¦ ÀÔÀº ¹æÇâ°ú Å©±â º¤ÅÍÀÔ´Ï´Ù.</summary>
+    /// <summary>í”¼í•´ë¥¼ ì…ì€ ë°©í–¥ê³¼ í¬ê¸° ë²¡í„°ì…ë‹ˆë‹¤.</summary>
     public Vector3 damageVector;
-    /// <summary>°ø°İ ¼Óµµ Å¸ÀÌ¸ÓÀÔ´Ï´Ù.</summary>
+    /// <summary>ê³µê²© ì†ë„ íƒ€ì´ë¨¸ì…ë‹ˆë‹¤.</summary>
     public Timer timer_AttackSpeed;
-    /// <summary>°ø°İ µô·¹ÀÌ Å¸ÀÌ¸ÓÀÔ´Ï´Ù.</summary>
+    /// <summary>ê³µê²© ë”œë ˆì´ íƒ€ì´ë¨¸ì…ë‹ˆë‹¤.</summary>
     public Timer timer_AttackDelay;
-    /// <summary>À¯´ÖÀÇ ÀüÅõ »óÅÂÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì „íˆ¬ ìƒíƒœì…ë‹ˆë‹¤.</summary>
     public E_Unit_Fight e_Unit_Fight;
-    /// <summary>À¯´ÖÀÇ °ø°İ Å¸ÀÔÀÔ´Ï´Ù (±ÙÁ¢, ¿ø°Å¸®).</summary>
+    /// <summary>ìœ ë‹›ì˜ ê³µê²© íƒ€ì…ì…ë‹ˆë‹¤ (ê·¼ì ‘, ì›ê±°ë¦¬).</summary>
     public E_Unit_AttackType e_Unit_AttackType;
 
     // Public methods
-    /// <summary>Unit_Data ±¸Á¶Ã¼ÀÇ »ı¼ºÀÚÀÔ´Ï´Ù.</summary>
+    /// <summary>Unit_Data êµ¬ì¡°ì²´ì˜ ìƒì„±ìì…ë‹ˆë‹¤.</summary>
     public Unit_Data(Unit unit, int num)
     {
         this.num = num;
@@ -108,7 +108,7 @@ public partial struct Unit_Data
         e_Unit_AttackType = E_Unit_AttackType.Melee;
     }
 
-    /// <summary>À¯´Ö µ¥ÀÌÅÍ¸¦ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹› ë°ì´í„°ë¥¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.</summary>
     public void _Update()
     {
         _Update_Move();
@@ -139,15 +139,15 @@ public enum E_Unit_AttackType
 public struct Unit_target_Data
 {
     // Public member variables
-    /// <summary>¸ñÇ¥ÀÇ À§Ä¡ÀÔ´Ï´Ù.</summary>
+    /// <summary>ëª©í‘œì˜ ìœ„ì¹˜ì…ë‹ˆë‹¤.</summary>
     public Vector3 position;
-    /// <summary>¸ñÇ¥ÀÇ È¸Àü°ªÀÔ´Ï´Ù.</summary>
+    /// <summary>ëª©í‘œì˜ íšŒì „ê°’ì…ë‹ˆë‹¤.</summary>
     public Quaternion rotation;
-    /// <summary>¸ñÇ¥ÀÇ °íÀ¯ ¹øÈ£ÀÔ´Ï´Ù.</summary>
+    /// <summary>ëª©í‘œì˜ ê³ ìœ  ë²ˆí˜¸ì…ë‹ˆë‹¤.</summary>
     public int num;
 
     // Public methods
-    /// <summary>»õ·Î¿î ¸ñÇ¥¸¦ ¼³Á¤ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìƒˆë¡œìš´ ëª©í‘œë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.</summary>
     public void SetTarget(Unit_Data unit_Data)
     {
         position = unit_Data.position;
@@ -155,7 +155,7 @@ public struct Unit_target_Data
         num = unit_Data.num;
     }
 
-    /// <summary>¸ñÇ¥¸¦ Á¦°ÅÇÕ´Ï´Ù.</summary>
+    /// <summary>ëª©í‘œë¥¼ ì œê±°í•©ë‹ˆë‹¤.</summary>
     public void RemoveTarget()
     {
         position = Vector3.positiveInfinity;

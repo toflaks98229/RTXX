@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -9,155 +9,155 @@ using static System.Runtime.CompilerServices.RuntimeHelpers;
 
 public class Camera_Player : MonoBehaviour
 {
-    // °ø°³ ¸â¹ö º¯¼ö
+    // ê³µê°œ ë©¤ë²„ ë³€ìˆ˜
     /// <summary>
-    /// URP(Universal Render Pipeline) ·»´õ·¯ µ¥ÀÌÅÍÀÔ´Ï´Ù.
+    /// URP(Universal Render Pipeline) ë Œë”ëŸ¬ ë°ì´í„°ì…ë‹ˆë‹¤.
     /// </summary>
     public UniversalRendererData rendererData;
     /// <summary>
-    /// ÇÈ¼¿È­ È¿°ú¿¡ »ç¿ëµÉ ·»´õ·¯ ±â´ÉÀÇ ÀÌ¸§ÀÔ´Ï´Ù.
+    /// í”½ì…€í™” íš¨ê³¼ì— ì‚¬ìš©ë  ë Œë”ëŸ¬ ê¸°ëŠ¥ì˜ ì´ë¦„ì…ë‹ˆë‹¤.
     /// </summary>
     public string featureName;
     /// <summary>
-    /// Ä«¸Ş¶óÀÇ Transform ÄÄÆ÷³ÍÆ®ÀÔ´Ï´Ù.
+    /// ì¹´ë©”ë¼ì˜ Transform ì»´í¬ë„ŒíŠ¸ì…ë‹ˆë‹¤.
     /// </summary>
     public Transform cameraTransform;
     /// <summary>
-    /// Ä«¸Ş¶óÀÇ ÀÌµ¿ ¼ÓµµÀÔ´Ï´Ù.
+    /// ì¹´ë©”ë¼ì˜ ì´ë™ ì†ë„ì…ë‹ˆë‹¤.
     /// </summary>
     public float moveSpeed = 10.0f;
     /// <summary>
-    /// Ä«¸Ş¶óÀÇ È¸Àü ¼ÓµµÀÔ´Ï´Ù.
+    /// ì¹´ë©”ë¼ì˜ íšŒì „ ì†ë„ì…ë‹ˆë‹¤.
     /// </summary>
     public float rotatSpeed = 10.0f;
     /// <summary>
-    /// ¿ŞÂÊ ÀÌµ¿ Å° ÄÚµåÀÔ´Ï´Ù.
+    /// ì™¼ìª½ ì´ë™ í‚¤ ì½”ë“œì…ë‹ˆë‹¤.
     /// </summary>
     public KeyCode keyCode_MoveLeft = KeyCode.A;
     /// <summary>
-    /// ¿À¸¥ÂÊ ÀÌµ¿ Å° ÄÚµåÀÔ´Ï´Ù.
+    /// ì˜¤ë¥¸ìª½ ì´ë™ í‚¤ ì½”ë“œì…ë‹ˆë‹¤.
     /// </summary>
     public KeyCode keyCode_MoveRight = KeyCode.D;
     /// <summary>
-    /// ÀüÁø ÀÌµ¿ Å° ÄÚµåÀÔ´Ï´Ù.
+    /// ì „ì§„ ì´ë™ í‚¤ ì½”ë“œì…ë‹ˆë‹¤.
     /// </summary>
     public KeyCode keyCode_MoveForward = KeyCode.W;
     /// <summary>
-    /// ÈÄÁø ÀÌµ¿ Å° ÄÚµåÀÔ´Ï´Ù.
+    /// í›„ì§„ ì´ë™ í‚¤ ì½”ë“œì…ë‹ˆë‹¤.
     /// </summary>
     public KeyCode keyCode_MoveBack = KeyCode.S;
     /// <summary>
-    /// ºü¸£°Ô ÀÌµ¿ÇÏ´Â Å° ÄÚµåÀÔ´Ï´Ù.
+    /// ë¹ ë¥´ê²Œ ì´ë™í•˜ëŠ” í‚¤ ì½”ë“œì…ë‹ˆë‹¤.
     /// </summary>
     public KeyCode keyCode_MoveFast = KeyCode.LeftShift;
     /// <summary>
-    /// ¿ŞÂÊÀ¸·Î È¸ÀüÇÏ´Â Å° ÄÚµåÀÔ´Ï´Ù.
+    /// ì™¼ìª½ìœ¼ë¡œ íšŒì „í•˜ëŠ” í‚¤ ì½”ë“œì…ë‹ˆë‹¤.
     /// </summary>
     public KeyCode keyCode_RotateLeft = KeyCode.Q;
     /// <summary>
-    /// ¿À¸¥ÂÊÀ¸·Î È¸ÀüÇÏ´Â Å° ÄÚµåÀÔ´Ï´Ù.
+    /// ì˜¤ë¥¸ìª½ìœ¼ë¡œ íšŒì „í•˜ëŠ” í‚¤ ì½”ë“œì…ë‹ˆë‹¤.
     /// </summary>
     public KeyCode keyCode_RotateRight = KeyCode.E;
     /// <summary>
-    /// µå·¡±×·Î Ä«¸Ş¶ó¸¦ ÀÌµ¿½ÃÅ°´Â Å° ÄÚµåÀÔ´Ï´Ù.
+    /// ë“œë˜ê·¸ë¡œ ì¹´ë©”ë¼ë¥¼ ì´ë™ì‹œí‚¤ëŠ” í‚¤ ì½”ë“œì…ë‹ˆë‹¤.
     /// </summary>
     public KeyCode keyCode_Drag_Move;
     /// <summary>
-    /// ¸¶¿ì½º ½ºÅ©·Ñ ¹Î°¨µµÀÔ´Ï´Ù.
+    /// ë§ˆìš°ìŠ¤ ìŠ¤í¬ë¡¤ ë¯¼ê°ë„ì…ë‹ˆë‹¤.
     /// </summary>
     public float mouseScrollSensitive = 10.0f;
     /// <summary>
-    /// ÁÜ ¼ÓµµÀÔ´Ï´Ù.
+    /// ì¤Œ ì†ë„ì…ë‹ˆë‹¤.
     /// </summary>
     public float zoomSpeed = 0.1f;
     /// <summary>
-    /// ÃÖ´ë ÁÜ °Å¸®ÀÔ´Ï´Ù.
+    /// ìµœëŒ€ ì¤Œ ê±°ë¦¬ì…ë‹ˆë‹¤.
     /// </summary>
     public float zoomMax = 10.0f;
     /// <summary>
-    /// ÃÖ¼Ò ÁÜ °Å¸®ÀÔ´Ï´Ù.
+    /// ìµœì†Œ ì¤Œ ê±°ë¦¬ì…ë‹ˆë‹¤.
     /// </summary>
     public float zoomMin = 10.0f;
     /// <summary>
-    /// Ä«¸Ş¶ó È®´ë/Ãà¼Ò È¿°ú¿¡ »ç¿ëµÇ´Â ¹Î°¨µµÀÔ´Ï´Ù.
+    /// ì¹´ë©”ë¼ í™•ëŒ€/ì¶•ì†Œ íš¨ê³¼ì— ì‚¬ìš©ë˜ëŠ” ë¯¼ê°ë„ì…ë‹ˆë‹¤.
     /// </summary>
     [Range(0, 50.0f)]
     public float mouseMoveSensitive;
     /// <summary>
-    /// ÇÈ¼¿È­ È¿°úÀÇ ºñÀ²À» Á¶ÀıÇÏ´Â º¯¼öÀÔ´Ï´Ù.
+    /// í”½ì…€í™” íš¨ê³¼ì˜ ë¹„ìœ¨ì„ ì¡°ì ˆí•˜ëŠ” ë³€ìˆ˜ì…ë‹ˆë‹¤.
     /// </summary>
     [Range(0, 128.0f)]
     public float pixelizeRate;
 
-    // ºñ°ø°³ ¸â¹ö º¯¼ö
+    // ë¹„ê³µê°œ ë©¤ë²„ ë³€ìˆ˜
     /// <summary>
-    /// Ä«¸Ş¶óÀÇ ÇöÀç ÁÜ °Å¸®ÀÔ´Ï´Ù.
+    /// ì¹´ë©”ë¼ì˜ í˜„ì¬ ì¤Œ ê±°ë¦¬ì…ë‹ˆë‹¤.
     /// </summary>
     private float zoomlengthcurrent = 10.0f;
     /// <summary>
-    /// Ä«¸Ş¶óÀÇ ¸ñÇ¥ ÁÜ °Å¸®ÀÔ´Ï´Ù.
+    /// ì¹´ë©”ë¼ì˜ ëª©í‘œ ì¤Œ ê±°ë¦¬ì…ë‹ˆë‹¤.
     /// </summary>
     private float zoomlength = 10.0f;
     /// <summary>
-    /// Ä«¸Ş¶ó ÁÜ º¤ÅÍÀÔ´Ï´Ù.
+    /// ì¹´ë©”ë¼ ì¤Œ ë²¡í„°ì…ë‹ˆë‹¤.
     /// </summary>
     private Vector3 zoomVector;
     /// <summary>
-    /// ¸¶¿ì½ºÀÇ ÇöÀç À§Ä¡ÀÔ´Ï´Ù.
+    /// ë§ˆìš°ìŠ¤ì˜ í˜„ì¬ ìœ„ì¹˜ì…ë‹ˆë‹¤.
     /// </summary>
     private Vector2 mousePosition;
     /// <summary>
-    /// È­¸éÀÇ XÃà Å©±âÀÔ´Ï´Ù.
+    /// í™”ë©´ì˜ Xì¶• í¬ê¸°ì…ë‹ˆë‹¤.
     /// </summary>
     private int xScreenSize;
     /// <summary>
-    /// È­¸éÀÇ YÃà Å©±âÀÔ´Ï´Ù.
+    /// í™”ë©´ì˜ Yì¶• í¬ê¸°ì…ë‹ˆë‹¤.
     /// </summary>
     private int yScreenSize;
     /// <summary>
-    /// ¸¶¿ì½º µå·¡±× ½ÃÀÛ À§Ä¡ÀÔ´Ï´Ù.
+    /// ë§ˆìš°ìŠ¤ ë“œë˜ê·¸ ì‹œì‘ ìœ„ì¹˜ì…ë‹ˆë‹¤.
     /// </summary>
     private Vector2 drag_MousePosition;
     /// <summary>
-    /// ·»´õ·¯ ±â´É Áß ÇÈ¼¿È­ ±â´ÉÀ» ÂüÁ¶ÇÕ´Ï´Ù.
+    /// ë Œë”ëŸ¬ ê¸°ëŠ¥ ì¤‘ í”½ì…€í™” ê¸°ëŠ¥ì„ ì°¸ì¡°í•©ë‹ˆë‹¤.
     /// </summary>
     private ScriptableRendererFeature pixelizeRendererFeature;
 
-    // ÀÌµ¿ »óÅÂ¸¦ ³ªÅ¸³»´Â ÇÃ·¡±× º¯¼öµé
+    // ì´ë™ ìƒíƒœë¥¼ ë‚˜íƒ€ë‚´ëŠ” í”Œë˜ê·¸ ë³€ìˆ˜ë“¤
     private bool bmoveLeft = false;
     private bool bmoveRight = false;
     private bool bmoveForward = false;
     private bool bmoveBack = false;
 
-    // Unity ÀÌº¥Æ® ÇÔ¼ö
+    // Unity ì´ë²¤íŠ¸ í•¨ìˆ˜
     /// <summary>
-    /// MonoBehaviour ÀÎ½ºÅÏ½º°¡ »ı¼ºµÉ ¶§ È£ÃâµË´Ï´Ù.
+    /// MonoBehaviour ì¸ìŠ¤í„´ìŠ¤ê°€ ìƒì„±ë  ë•Œ í˜¸ì¶œë©ë‹ˆë‹¤.
     /// </summary>
     private void Awake()
     {
-        // Awake() ÇÔ¼ö´Â ±âº»ÀûÀ¸·Î Á¦°øµÇ¹Ç·Î ºñ¿öµÓ´Ï´Ù.
+        // Awake() í•¨ìˆ˜ëŠ” ê¸°ë³¸ì ìœ¼ë¡œ ì œê³µë˜ë¯€ë¡œ ë¹„ì›Œë‘¡ë‹ˆë‹¤.
     }
 
     /// <summary>
-    /// ½ºÅ©¸³Æ®°¡ Ã³À½ È°¼ºÈ­µÉ ¶§ ÇÑ ¹ø È£ÃâµË´Ï´Ù.
+    /// ìŠ¤í¬ë¦½íŠ¸ê°€ ì²˜ìŒ í™œì„±í™”ë  ë•Œ í•œ ë²ˆ í˜¸ì¶œë©ë‹ˆë‹¤.
     /// </summary>
     private void Start()
     {
-        // °ÔÀÓ ½ÃÀÛ ½Ã ÀüÃ¼ È­¸é ¸ğµå¸¦ ºñÈ°¼ºÈ­ÇÕ´Ï´Ù.
+        // ê²Œì„ ì‹œì‘ ì‹œ ì „ì²´ í™”ë©´ ëª¨ë“œë¥¼ ë¹„í™œì„±í™”í•©ë‹ˆë‹¤.
         Screen.fullScreen = false;
     }
 
     /// <summary>
-    /// ¸Å ÇÁ·¹ÀÓ¸¶´Ù È£ÃâµË´Ï´Ù.
+    /// ë§¤ í”„ë ˆì„ë§ˆë‹¤ í˜¸ì¶œë©ë‹ˆë‹¤.
     /// </summary>
     private void Update()
     {
-        // ¸¶¿ì½ºÀÇ ÇöÀç À§Ä¡¿Í È­¸é Å©±â¸¦ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.
+        // ë§ˆìš°ìŠ¤ì˜ í˜„ì¬ ìœ„ì¹˜ì™€ í™”ë©´ í¬ê¸°ë¥¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.
         mousePosition = Input.mousePosition;
         xScreenSize = Screen.width;
         yScreenSize = Screen.height;
 
-        // µå·¡±× ÀÌµ¿ ±â´É
+        // ë“œë˜ê·¸ ì´ë™ ê¸°ëŠ¥
         if (Input.GetKeyDown(keyCode_Drag_Move))
         {
             drag_MousePosition = mousePosition;
@@ -168,56 +168,56 @@ public class Camera_Player : MonoBehaviour
 
             if (vector2.magnitude > 1)
             {
-                // ÀÌ ºÎºĞÀº ÇöÀç ºñ¾îÀÖÀ¸¸ç, µå·¡±× ÀÌµ¿ ·ÎÁ÷À» Ãß°¡ÇÒ ¼ö ÀÖ½À´Ï´Ù.
+                // ì´ ë¶€ë¶„ì€ í˜„ì¬ ë¹„ì–´ìˆìœ¼ë©°, ë“œë˜ê·¸ ì´ë™ ë¡œì§ì„ ì¶”ê°€í•  ìˆ˜ ìˆìŠµë‹ˆë‹¤.
             }
 
             drag_MousePosition = mousePosition;
         }
 
-        // Ä«¸Ş¶ó ÀÌµ¿, È¸Àü, ÁÜ ±â´ÉÀ» È£ÃâÇÕ´Ï´Ù.
+        // ì¹´ë©”ë¼ ì´ë™, íšŒì „, ì¤Œ ê¸°ëŠ¥ì„ í˜¸ì¶œí•©ë‹ˆë‹¤.
         Move();
         Rotate();
         Zoom();
 
-        // Ä«¸Ş¶ó°¡ ÇÃ·¹ÀÌ¾î(ÀÌ ½ºÅ©¸³Æ®°¡ ºÎÂøµÈ ¿ÀºêÁ§Æ®)¸¦ ¹Ù¶óº¸µµ·Ï ¼³Á¤ÇÕ´Ï´Ù.
+        // ì¹´ë©”ë¼ê°€ í”Œë ˆì´ì–´(ì´ ìŠ¤í¬ë¦½íŠ¸ê°€ ë¶€ì°©ëœ ì˜¤ë¸Œì íŠ¸)ë¥¼ ë°”ë¼ë³´ë„ë¡ ì„¤ì •í•©ë‹ˆë‹¤.
         cameraTransform.LookAt(transform);
     }
 
-    // ºñ°ø°³ ¸Ş¼­µå
+    // ë¹„ê³µê°œ ë©”ì„œë“œ
     /// <summary>
-    /// Å°º¸µå ÀÔ·Â ¹× ¸¶¿ì½º À§Ä¡¿¡ µû¶ó Ä«¸Ş¶ó¸¦ ÀÌµ¿½ÃÅµ´Ï´Ù.
+    /// í‚¤ë³´ë“œ ì…ë ¥ ë° ë§ˆìš°ìŠ¤ ìœ„ì¹˜ì— ë”°ë¼ ì¹´ë©”ë¼ë¥¼ ì´ë™ì‹œí‚µë‹ˆë‹¤.
     /// </summary>
     void Move()
     {
-        // ÀÌµ¿ ÇÃ·¡±×µéÀ» ÃÊ±âÈ­ÇÕ´Ï´Ù.
+        // ì´ë™ í”Œë˜ê·¸ë“¤ì„ ì´ˆê¸°í™”í•©ë‹ˆë‹¤.
         bmoveLeft = false;
         bmoveRight = false;
         bmoveForward = false;
         bmoveBack = false;
 
-        // ÇöÀç ÁÜ °Å¸®¿¡ µû¶ó ÀÌµ¿ ¼Óµµ¸¦ º¸Á¤ÇÕ´Ï´Ù.
+        // í˜„ì¬ ì¤Œ ê±°ë¦¬ì— ë”°ë¼ ì´ë™ ì†ë„ë¥¼ ë³´ì •í•©ë‹ˆë‹¤.
         float moveSpeed = this.moveSpeed * Time.deltaTime * zoomlengthcurrent * 0.1f;
 
-        // ºü¸£°Ô ÀÌµ¿ÇÏ´Â Å°°¡ ´­·È´ÂÁö È®ÀÎÇÕ´Ï´Ù.
+        // ë¹ ë¥´ê²Œ ì´ë™í•˜ëŠ” í‚¤ê°€ ëˆŒë ¸ëŠ”ì§€ í™•ì¸í•©ë‹ˆë‹¤.
         if (Input.GetKey(keyCode_MoveFast))
         {
             moveSpeed = moveSpeed * 2.0f;
         }
 
-        // Å°º¸µå ÀÔ·Â¿¡ µû¶ó ÀÌµ¿ ÇÃ·¡±×¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+        // í‚¤ë³´ë“œ ì…ë ¥ì— ë”°ë¼ ì´ë™ í”Œë˜ê·¸ë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.
         if (Input.GetKey(keyCode_MoveLeft)) bmoveLeft = true;
         if (Input.GetKey(keyCode_MoveRight)) bmoveRight = true;
         if (Input.GetKey(keyCode_MoveForward)) bmoveForward = true;
         if (Input.GetKey(keyCode_MoveBack)) bmoveBack = true;
 
-        // È­¸é °æ°è¿¡ ¸¶¿ì½º°¡ À§Ä¡ÇÏ¸é ÀÌµ¿ ÇÃ·¡±×¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+        // í™”ë©´ ê²½ê³„ì— ë§ˆìš°ìŠ¤ê°€ ìœ„ì¹˜í•˜ë©´ ì´ë™ í”Œë˜ê·¸ë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.
         if (mousePosition.x < xScreenSize * mouseMoveSensitive * 0.01f) bmoveLeft = true;
         else if (mousePosition.x > xScreenSize * (100.0f - mouseMoveSensitive) * 0.01f) bmoveRight = true;
 
         if (mousePosition.y > yScreenSize * (100.0f - mouseMoveSensitive) * 0.01f) bmoveForward = true;
         else if (mousePosition.y < yScreenSize * mouseMoveSensitive * 0.01f) bmoveBack = true;
 
-        // ¼³Á¤µÈ ÇÃ·¡±×¿¡ µû¶ó Ä«¸Ş¶ó¸¦ ÀÌµ¿½ÃÅµ´Ï´Ù.
+        // ì„¤ì •ëœ í”Œë˜ê·¸ì— ë”°ë¼ ì¹´ë©”ë¼ë¥¼ ì´ë™ì‹œí‚µë‹ˆë‹¤.
         if (bmoveLeft) transform.Translate(Vector3.left * moveSpeed);
         if (bmoveRight) transform.Translate(Vector3.right * moveSpeed);
         if (bmoveForward) transform.Translate(Vector3.forward * moveSpeed);
@@ -225,7 +225,7 @@ public class Camera_Player : MonoBehaviour
     }
 
     /// <summary>
-    /// Å°º¸µå ÀÔ·Â¿¡ µû¶ó Ä«¸Ş¶ó¸¦ È¸Àü½ÃÅµ´Ï´Ù.
+    /// í‚¤ë³´ë“œ ì…ë ¥ì— ë”°ë¼ ì¹´ë©”ë¼ë¥¼ íšŒì „ì‹œí‚µë‹ˆë‹¤.
     /// </summary>
     void Rotate()
     {
@@ -240,18 +240,18 @@ public class Camera_Player : MonoBehaviour
     }
 
     /// <summary>
-    /// ¸¶¿ì½º ÈÙ ÀÔ·Â¿¡ µû¶ó Ä«¸Ş¶ó¸¦ È®´ë/Ãà¼ÒÇÕ´Ï´Ù.
+    /// ë§ˆìš°ìŠ¤ íœ  ì…ë ¥ì— ë”°ë¼ ì¹´ë©”ë¼ë¥¼ í™•ëŒ€/ì¶•ì†Œí•©ë‹ˆë‹¤.
     /// </summary>
     void Zoom()
     {
-        // ÁÜ ¹æÇâ º¤ÅÍ¸¦ °è»êÇÕ´Ï´Ù.
+        // ì¤Œ ë°©í–¥ ë²¡í„°ë¥¼ ê³„ì‚°í•©ë‹ˆë‹¤.
         zoomVector = cameraTransform.position - transform.position;
         zoomVector = Vector3.Normalize(zoomVector);
 
-        // ¸¶¿ì½º ÈÙ ÀÔ·ÂÀ» °¡Á®¿É´Ï´Ù.
+        // ë§ˆìš°ìŠ¤ íœ  ì…ë ¥ì„ ê°€ì ¸ì˜µë‹ˆë‹¤.
         float wheelInput = Input.GetAxis("Mouse ScrollWheel");
 
-        // ¸¶¿ì½º ÈÙ ¹æÇâ¿¡ µû¶ó ¸ñÇ¥ ÁÜ °Å¸®¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+        // ë§ˆìš°ìŠ¤ íœ  ë°©í–¥ì— ë”°ë¼ ëª©í‘œ ì¤Œ ê±°ë¦¬ë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.
         if (wheelInput > 0)
         {
             zoomlength = zoomlength - mouseScrollSensitive;
@@ -263,18 +263,18 @@ public class Camera_Player : MonoBehaviour
             if (zoomlength > zoomMax) zoomlength = zoomMax;
         }
 
-        // ÇöÀç ÁÜ °Å¸®¸¦ ¸ñÇ¥ ÁÜ °Å¸®·Î ºÎµå·´°Ô º¸°£ÇÕ´Ï´Ù.
+        // í˜„ì¬ ì¤Œ ê±°ë¦¬ë¥¼ ëª©í‘œ ì¤Œ ê±°ë¦¬ë¡œ ë¶€ë“œëŸ½ê²Œ ë³´ê°„í•©ë‹ˆë‹¤.
         zoomlengthcurrent = Mathf.Lerp(zoomlengthcurrent, zoomlength, Time.deltaTime * zoomSpeed);
         zoomlengthcurrent = Mathf.Floor(zoomlengthcurrent * 100f) / 100f;
 
-        // ¸ğµç Ä«¸Ş¶óÀÇ Orthographic ¹× Field of View Å©±â¸¦ ÁÜ °Å¸®¿¡ µû¶ó ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.
+        // ëª¨ë“  ì¹´ë©”ë¼ì˜ Orthographic ë° Field of View í¬ê¸°ë¥¼ ì¤Œ ê±°ë¦¬ì— ë”°ë¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.
         foreach (Camera camera in Camera.allCameras)
         {
             foreach (ScriptableRendererFeature feature in rendererData.rendererFeatures)
             {
                 if (feature.name == featureName)
                 {
-                    // PixelizeFeature¿¡ ´ëÇÑ ÇÈ¼¿È­ ºñÀ²À» ÁÜ °Å¸®¿¡ µû¶ó ¼³Á¤ÇÕ´Ï´Ù.
+                    // PixelizeFeatureì— ëŒ€í•œ í”½ì…€í™” ë¹„ìœ¨ì„ ì¤Œ ê±°ë¦¬ì— ë”°ë¼ ì„¤ì •í•©ë‹ˆë‹¤.
                     PixelizeFeature pixelizeFeature = (PixelizeFeature)feature;
                     int pixelizeint = (int)(pixelizeRate * zoomlengthcurrent);
                     //pixelizeFeature.settings.screenHeight = pixelizeint;

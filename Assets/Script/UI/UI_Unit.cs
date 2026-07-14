@@ -1,61 +1,61 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class UI_Unit : MonoBehaviour
 {
-    // ºñ°ø°³ ¸â¹ö º¯¼ö
+    // ë¹„ê³µê°œ ë©¤ë²„ ë³€ìˆ˜
     /// <summary>
-    /// À¯´ÖÀÇ UI¸¦ ·»´õ¸µÇÏ´Â µ¥ »ç¿ëµÇ´Â ½ºÇÁ¶óÀÌÆ® ·»´õ·¯ ÄÄÆ÷³ÍÆ®ÀÔ´Ï´Ù.
+    /// ìœ ë‹›ì˜ UIë¥¼ ë Œë”ë§í•˜ëŠ” ë° ì‚¬ìš©ë˜ëŠ” ìŠ¤í”„ë¼ì´íŠ¸ ë Œë”ëŸ¬ ì»´í¬ë„ŒíŠ¸ìž…ë‹ˆë‹¤.
     /// </summary>
     SpriteRenderer spriteRenderer;
 
-    // Unity ÀÌº¥Æ® ÇÔ¼ö
+    // Unity ì´ë²¤íŠ¸ í•¨ìˆ˜
     /// <summary>
-    /// MonoBehaviour°¡ È°¼ºÈ­µÉ ¶§ ÇÑ ¹ø È£ÃâµË´Ï´Ù. ¿©±â¼­´Â »ç¿ëÇÏÁö ¾Ê½À´Ï´Ù.
+    /// MonoBehaviourê°€ í™œì„±í™”ë  ë•Œ í•œ ë²ˆ í˜¸ì¶œë©ë‹ˆë‹¤. ì—¬ê¸°ì„œëŠ” ì‚¬ìš©í•˜ì§€ ì•ŠìŠµë‹ˆë‹¤.
     /// </summary>
     public void Start()
     {
-        // Start() ÇÔ¼ö´Â ±âº»ÀûÀ¸·Î Á¦°øµÇ¹Ç·Î ºñ¿öµÓ´Ï´Ù.
+        // Start() í•¨ìˆ˜ëŠ” ê¸°ë³¸ì ìœ¼ë¡œ ì œê³µë˜ë¯€ë¡œ ë¹„ì›Œë‘¡ë‹ˆë‹¤.
     }
 
-    // °ø°³ ¸Þ¼­µå
+    // ê³µê°œ ë©”ì„œë“œ
     /// <summary>
-    /// UI À¯´ÖÀ» ÃÊ±âÈ­ÇÕ´Ï´Ù.
+    /// UI ìœ ë‹›ì„ ì´ˆê¸°í™”í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="army_Data">ÃÊ±âÈ­¿¡ »ç¿ëµÉ ºÎ´ë µ¥ÀÌÅÍÀÔ´Ï´Ù.</param>
+    /// <param name="army_Data">ì´ˆê¸°í™”ì— ì‚¬ìš©ë  ë¶€ëŒ€ ë°ì´í„°ìž…ë‹ˆë‹¤.</param>
     public void _Start(Army_Data army_Data)
     {
-        // ÀÌ ½ºÅ©¸³Æ®¸¦ ºñÈ°¼ºÈ­ÇÏ¿© Start()¿Í Update()°¡ ÀÚµ¿À¸·Î È£ÃâµÇÁö ¾Êµµ·Ï ÇÕ´Ï´Ù.
-        // ÀÌ ½ºÅ©¸³Æ®ÀÇ ·ÎÁ÷Àº ¼öµ¿À¸·Î È£ÃâµÇ´Â _Update(Vector3, Vector3)¿¡ ÀÇÇØ Á¦¾îµË´Ï´Ù.
+        // ì´ ìŠ¤í¬ë¦½íŠ¸ë¥¼ ë¹„í™œì„±í™”í•˜ì—¬ Start()ì™€ Update()ê°€ ìžë™ìœ¼ë¡œ í˜¸ì¶œë˜ì§€ ì•Šë„ë¡ í•©ë‹ˆë‹¤.
+        // ì´ ìŠ¤í¬ë¦½íŠ¸ì˜ ë¡œì§ì€ ìˆ˜ë™ìœ¼ë¡œ í˜¸ì¶œë˜ëŠ” _Update(Vector3, Vector3)ì— ì˜í•´ ì œì–´ë©ë‹ˆë‹¤.
         enabled = false;
 
-        // SpriteRenderer ÄÄÆ÷³ÍÆ®¸¦ °¡Á®¿À°í ÃÊ±â¿¡´Â ºñÈ°¼ºÈ­ÇÕ´Ï´Ù.
+        // SpriteRenderer ì»´í¬ë„ŒíŠ¸ë¥¼ ê°€ì ¸ì˜¤ê³  ì´ˆê¸°ì—ëŠ” ë¹„í™œì„±í™”í•©ë‹ˆë‹¤.
         spriteRenderer = GetComponent<SpriteRenderer>();
         spriteRenderer.enabled = false;
 
-        // ºÎ´ë µ¥ÀÌÅÍ¿¡ µû¶ó À¯´Ö UIÀÇ Å©±â¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+        // ë¶€ëŒ€ ë°ì´í„°ì— ë”°ë¼ ìœ ë‹› UIì˜ í¬ê¸°ë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.
         float size = army_Data.GetSize();
         transform.localScale = new Vector3(size, size, size);
     }
 
     /// <summary>
-    /// À¯´Ö UIÀÇ À§Ä¡¿Í ¹æÇâÀ» ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.
+    /// ìœ ë‹› UIì˜ ìœ„ì¹˜ì™€ ë°©í–¥ì„ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="position">À¯´ÖÀÇ ÇöÀç À§Ä¡ÀÔ´Ï´Ù.</param>
-    /// <param name="direction">À¯´ÖÀÇ ÇöÀç Àü¹æ ¹æÇâ º¤ÅÍÀÔ´Ï´Ù.</param>
+    /// <param name="position">ìœ ë‹›ì˜ í˜„ìž¬ ìœ„ì¹˜ìž…ë‹ˆë‹¤.</param>
+    /// <param name="direction">ìœ ë‹›ì˜ í˜„ìž¬ ì „ë°© ë°©í–¥ ë²¡í„°ìž…ë‹ˆë‹¤.</param>
     public void _Update(Vector3 position, Vector3 direction)
     {
-        // À¯´ÖÀÇ À§Ä¡¿¡ ¸ÂÃç UI À§Ä¡¸¦ ¾÷µ¥ÀÌÆ®ÇÏ°í, ¾à°£ À§·Î ¶ç¿ó´Ï´Ù.
+        // ìœ ë‹›ì˜ ìœ„ì¹˜ì— ë§žì¶° UI ìœ„ì¹˜ë¥¼ ì—…ë°ì´íŠ¸í•˜ê³ , ì•½ê°„ ìœ„ë¡œ ë„ì›ë‹ˆë‹¤.
         transform.position = position + new Vector3(0, 0.1f, 0);
-        // À¯´ÖÀÇ ¹æÇâÀ» ÇâÇÏµµ·Ï UIÀÇ È¸ÀüÀ» ¼³Á¤ÇÕ´Ï´Ù.
+        // ìœ ë‹›ì˜ ë°©í–¥ì„ í–¥í•˜ë„ë¡ UIì˜ íšŒì „ì„ ì„¤ì •í•©ë‹ˆë‹¤.
         transform.rotation = Quaternion.LookRotation(direction);
-        // SpriteRenderer°¡ Á¤¸éÀ» ¹Ù¶óº¸µµ·Ï XÃàÀ¸·Î 90µµ È¸ÀüÇÕ´Ï´Ù.
+        // SpriteRendererê°€ ì •ë©´ì„ ë°”ë¼ë³´ë„ë¡ Xì¶•ìœ¼ë¡œ 90ë„ íšŒì „í•©ë‹ˆë‹¤.
         transform.Rotate(new Vector3(90, 0, 0));
     }
 
     /// <summary>
-    /// À¯´Ö UI¸¦ º¸ÀÌ°Ô ÇÕ´Ï´Ù.
+    /// ìœ ë‹› UIë¥¼ ë³´ì´ê²Œ í•©ë‹ˆë‹¤.
     /// </summary>
     public void Visible()
     {
@@ -63,7 +63,7 @@ public class UI_Unit : MonoBehaviour
     }
 
     /// <summary>
-    /// À¯´Ö UI¸¦ ¼û±é´Ï´Ù.
+    /// ìœ ë‹› UIë¥¼ ìˆ¨ê¹ë‹ˆë‹¤.
     /// </summary>
     public void Invisible()
     {

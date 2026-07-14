@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -8,7 +8,7 @@ using Unity.Collections;
 using Unity.Jobs;
 
 /// <summary>
-/// ºÎ´ë µ¥ÀÌÅÍ¸¦ ¾÷µ¥ÀÌÆ®ÇÏ´Â ÀâÀÔ´Ï´Ù.
+/// ë¶€ëŒ€ ë°ì´í„°ë¥¼ ì—…ë°ì´íŠ¸í•˜ëŠ” ì¡ì…ë‹ˆë‹¤.
 /// </summary>
 [BurstCompile]
 public struct Army_Job : IJobParallelFor
@@ -17,9 +17,9 @@ public struct Army_Job : IJobParallelFor
     public NativeArray<Army_Data> army_Datas;
 
     /// <summary>
-    /// ÀâÀ» ½ÇÇàÇÕ´Ï´Ù.
+    /// ì¡ì„ ì‹¤í–‰í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="index">ÇöÀç ½ÇÇà ÁßÀÎ ÀÎµ¦½ºÀÔ´Ï´Ù.</param>
+    /// <param name="index">í˜„ì¬ ì‹¤í–‰ ì¤‘ì¸ ì¸ë±ìŠ¤ì…ë‹ˆë‹¤.</param>
     public void Execute(int index)
     {
         Army_Data army_Data = army_Datas[index];
@@ -29,7 +29,7 @@ public struct Army_Job : IJobParallelFor
 }
 
 /// <summary>
-/// À¯´ÖÀÇ Åë°è µ¥ÀÌÅÍ¸¦ ¾÷µ¥ÀÌÆ®ÇÏ´Â ÀâÀÔ´Ï´Ù.
+/// ìœ ë‹›ì˜ í†µê³„ ë°ì´í„°ë¥¼ ì—…ë°ì´íŠ¸í•˜ëŠ” ì¡ì…ë‹ˆë‹¤.
 /// </summary>
 [BurstCompile]
 public struct Unit_Stat_Job : IJobParallelFor
@@ -38,9 +38,9 @@ public struct Unit_Stat_Job : IJobParallelFor
     public Army_Data army_Data;
 
     /// <summary>
-    /// ÀâÀ» ½ÇÇàÇÕ´Ï´Ù.
+    /// ì¡ì„ ì‹¤í–‰í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="index">ÇöÀç ½ÇÇà ÁßÀÎ ÀÎµ¦½ºÀÔ´Ï´Ù.</param>
+    /// <param name="index">í˜„ì¬ ì‹¤í–‰ ì¤‘ì¸ ì¸ë±ìŠ¤ì…ë‹ˆë‹¤.</param>
     public void Execute(int index)
     {
         Unit_Data unit_Data = unit_Datas[index];
@@ -50,7 +50,7 @@ public struct Unit_Stat_Job : IJobParallelFor
 }
 
 /// <summary>
-/// ÁøÇü À§Ä¡¸¦ °è»êÇÏ´Â ÀâÀÔ´Ï´Ù.
+/// ì§„í˜• ìœ„ì¹˜ë¥¼ ê³„ì‚°í•˜ëŠ” ì¡ì…ë‹ˆë‹¤.
 /// </summary>
 [BurstCompile]
 public struct Formation_Job : IJobParallelFor
@@ -62,9 +62,9 @@ public struct Formation_Job : IJobParallelFor
     public Vector3 formation_Start;
 
     /// <summary>
-    /// ÀâÀ» ½ÇÇàÇÏ¿© °¢ À¯´ÖÀÇ ÁøÇü À§Ä¡¸¦ °è»êÇÕ´Ï´Ù.
+    /// ì¡ì„ ì‹¤í–‰í•˜ì—¬ ê° ìœ ë‹›ì˜ ì§„í˜• ìœ„ì¹˜ë¥¼ ê³„ì‚°í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="index">ÇöÀç ½ÇÇà ÁßÀÎ ÀÎµ¦½ºÀÔ´Ï´Ù.</param>
+    /// <param name="index">í˜„ì¬ ì‹¤í–‰ ì¤‘ì¸ ì¸ë±ìŠ¤ì…ë‹ˆë‹¤.</param>
     public void Execute(int index)
     {
         Vector3 vector3 = formation_Start;

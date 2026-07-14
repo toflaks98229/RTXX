@@ -1,22 +1,22 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Collections;
 using Unity.Jobs;
 
 /// <summary>
-/// ºÎ´ëÀÇ ÁøÇü °ü·Ã ·ÎÁ÷À» ´ã´çÇÏ´Â ºÎºĞ Å¬·¡½ºÀÔ´Ï´Ù.
+/// ë¶€ëŒ€ì˜ ì§„í˜• ê´€ë ¨ ë¡œì§ì„ ë‹´ë‹¹í•˜ëŠ” ë¶€ë¶„ í´ë˜ìŠ¤ì…ë‹ˆë‹¤.
 /// </summary>
 partial class Army
 {
-    // ºñ°ø°³ ¸â¹ö º¯¼ö (Army.cs¿¡¼­ °ü¸®)
-    // °ø°³ ¸Ş¼­µå (Army.cs¿¡¼­ °ü¸®)
-    // Unity ÀÌº¥Æ® ÇÔ¼ö (Army.cs¿¡¼­ °ü¸®)
+    // ë¹„ê³µê°œ ë©¤ë²„ ë³€ìˆ˜ (Army.csì—ì„œ ê´€ë¦¬)
+    // ê³µê°œ ë©”ì„œë“œ (Army.csì—ì„œ ê´€ë¦¬)
+    // Unity ì´ë²¤íŠ¸ í•¨ìˆ˜ (Army.csì—ì„œ ê´€ë¦¬)
 
-    // ºñ°ø°³ ¸Ş¼­µå
+    // ë¹„ê³µê°œ ë©”ì„œë“œ
     /// <summary>
-    /// À¯´ÖµéÀÇ Æ÷¸ŞÀÌ¼Ç »óÅÂ¸¦ ¾÷µ¥ÀÌÆ®ÇÏ´Â ÇÔ¼öÀÔ´Ï´Ù.
-    /// À¯´ÖÀÇ Àı¹İ ÀÌ»óÀÌ Æ÷Áö¼Ç¿¡ ÀÖÀ¸¸é Æ÷¸ŞÀÌ¼Ç »óÅÂ·Î ¼³Á¤ÇÕ´Ï´Ù.
+    /// ìœ ë‹›ë“¤ì˜ í¬ë©”ì´ì…˜ ìƒíƒœë¥¼ ì—…ë°ì´íŠ¸í•˜ëŠ” í•¨ìˆ˜ì…ë‹ˆë‹¤.
+    /// ìœ ë‹›ì˜ ì ˆë°˜ ì´ìƒì´ í¬ì§€ì…˜ì— ìˆìœ¼ë©´ í¬ë©”ì´ì…˜ ìƒíƒœë¡œ ì„¤ì •í•©ë‹ˆë‹¤.
     /// </summary>
     void _Update_Formation()
     {
@@ -39,22 +39,22 @@ partial class Army
         }
     }
 
-    // °ø°³ ¸Ş¼­µå
+    // ê³µê°œ ë©”ì„œë“œ
     /// <summary>
-    /// ±âº» Æ÷¸ŞÀÌ¼Ç µ¥ÀÌÅÍ¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+    /// ê¸°ë³¸ í¬ë©”ì´ì…˜ ë°ì´í„°ë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <returns>¼³Á¤µÈ Formation_DataÀÔ´Ï´Ù.</returns>
+    /// <returns>ì„¤ì •ëœ Formation_Dataì…ë‹ˆë‹¤.</returns>
     public Formation_Data Set_Formation()
     {
         return Set_Formation(GetFormation_Data());
     }
 
     /// <summary>
-    /// ¹æÇâ°ú À§Ä¡¸¦ ÀÌ¿ëÇØ Æ÷¸ŞÀÌ¼Ç µ¥ÀÌÅÍ¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+    /// ë°©í–¥ê³¼ ìœ„ì¹˜ë¥¼ ì´ìš©í•´ í¬ë©”ì´ì…˜ ë°ì´í„°ë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="direction">ÁøÇüÀÇ ¹æÇâÀÔ´Ï´Ù.</param>
-    /// <param name="position">ÁøÇüÀÇ À§Ä¡ÀÔ´Ï´Ù.</param>
-    /// <returns>¼³Á¤µÈ Formation_DataÀÔ´Ï´Ù.</returns>
+    /// <param name="direction">ì§„í˜•ì˜ ë°©í–¥ì…ë‹ˆë‹¤.</param>
+    /// <param name="position">ì§„í˜•ì˜ ìœ„ì¹˜ì…ë‹ˆë‹¤.</param>
+    /// <returns>ì„¤ì •ëœ Formation_Dataì…ë‹ˆë‹¤.</returns>
     public Formation_Data Set_Formation(Vector3 direction, Vector3 position)
     {
         float num = formation_Data.GetNum();
@@ -62,10 +62,10 @@ partial class Army
     }
 
     /// <summary>
-    /// ±âÁ¸ Formation_Data¸¦ ÀÌ¿ëÇØ Æ÷¸ŞÀÌ¼ÇÀ» ¼³Á¤ÇÕ´Ï´Ù.
+    /// ê¸°ì¡´ Formation_Dataë¥¼ ì´ìš©í•´ í¬ë©”ì´ì…˜ì„ ì„¤ì •í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="formation_Data">»ç¿ëÇÒ Formation_DataÀÔ´Ï´Ù.</param>
-    /// <returns>¼³Á¤µÈ Formation_DataÀÔ´Ï´Ù.</returns>
+    /// <param name="formation_Data">ì‚¬ìš©í•  Formation_Dataì…ë‹ˆë‹¤.</param>
+    /// <returns>ì„¤ì •ëœ Formation_Dataì…ë‹ˆë‹¤.</returns>
     public Formation_Data Set_Formation(Formation_Data formation_Data)
     {
         float length = GetFormation_Length();
@@ -75,12 +75,12 @@ partial class Army
     }
 
     /// <summary>
-    /// ±æÀÌ, ¹æÇâ, À§Ä¡¸¦ ÀÌ¿ëÇØ Æ÷¸ŞÀÌ¼Ç µ¥ÀÌÅÍ¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+    /// ê¸¸ì´, ë°©í–¥, ìœ„ì¹˜ë¥¼ ì´ìš©í•´ í¬ë©”ì´ì…˜ ë°ì´í„°ë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="length">ÁøÇüÀÇ ±æÀÌÀÔ´Ï´Ù.</param>
-    /// <param name="direction">ÁøÇüÀÇ ¹æÇâÀÔ´Ï´Ù.</param>
-    /// <param name="position">ÁøÇüÀÇ À§Ä¡ÀÔ´Ï´Ù.</param>
-    /// <returns>¼³Á¤µÈ Formation_DataÀÔ´Ï´Ù.</returns>
+    /// <param name="length">ì§„í˜•ì˜ ê¸¸ì´ì…ë‹ˆë‹¤.</param>
+    /// <param name="direction">ì§„í˜•ì˜ ë°©í–¥ì…ë‹ˆë‹¤.</param>
+    /// <param name="position">ì§„í˜•ì˜ ìœ„ì¹˜ì…ë‹ˆë‹¤.</param>
+    /// <returns>ì„¤ì •ëœ Formation_Dataì…ë‹ˆë‹¤.</returns>
     public Formation_Data Set_Formation(float length, Vector3 direction, Vector3 position)
     {
         Vector3 add_vertical;
@@ -135,12 +135,12 @@ partial class Army
     }
 
     /// <summary>
-    /// À¯´Ö ¼ö, ¹æÇâ, À§Ä¡¸¦ ÀÌ¿ëÇØ Æ÷¸ŞÀÌ¼Ç µ¥ÀÌÅÍ¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+    /// ìœ ë‹› ìˆ˜, ë°©í–¥, ìœ„ì¹˜ë¥¼ ì´ìš©í•´ í¬ë©”ì´ì…˜ ë°ì´í„°ë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="num">ÁøÇüÀÇ ³Êºñ¸¦ °áÁ¤ÇÏ´Â À¯´Ö ¼öÀÔ´Ï´Ù.</param>
-    /// <param name="direction">ÁøÇüÀÇ ¹æÇâÀÔ´Ï´Ù.</param>
-    /// <param name="position">ÁøÇüÀÇ À§Ä¡ÀÔ´Ï´Ù.</param>
-    /// <returns>¼³Á¤µÈ Formation_DataÀÔ´Ï´Ù.</returns>
+    /// <param name="num">ì§„í˜•ì˜ ë„ˆë¹„ë¥¼ ê²°ì •í•˜ëŠ” ìœ ë‹› ìˆ˜ì…ë‹ˆë‹¤.</param>
+    /// <param name="direction">ì§„í˜•ì˜ ë°©í–¥ì…ë‹ˆë‹¤.</param>
+    /// <param name="position">ì§„í˜•ì˜ ìœ„ì¹˜ì…ë‹ˆë‹¤.</param>
+    /// <returns>ì„¤ì •ëœ Formation_Dataì…ë‹ˆë‹¤.</returns>
     public Formation_Data Set_Formation(int num, Vector3 direction, Vector3 position)
     {
         Vector3 add_vertical;
@@ -194,7 +194,7 @@ partial class Army
     }
 
     /// <summary>
-    /// Æ÷¸ŞÀÌ¼Ç ÀÌµ¿À» À§ÇÑ µ¥ÀÌÅÍ¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+    /// í¬ë©”ì´ì…˜ ì´ë™ì„ ìœ„í•œ ë°ì´í„°ë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.
     /// </summary>
     public void Set_Formation_Move()
     {
@@ -239,12 +239,12 @@ partial class Army
     }
 
     /// <summary>
-    /// Á¤Áö »óÅÂ¿¡¼­ ÁøÇü µ¥ÀÌÅÍ¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+    /// ì •ì§€ ìƒíƒœì—ì„œ ì§„í˜• ë°ì´í„°ë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="length">ÁøÇüÀÇ ±æÀÌÀÔ´Ï´Ù.</param>
-    /// <param name="direction">ÁøÇüÀÇ ¹æÇâÀÔ´Ï´Ù.</param>
-    /// <param name="position">ÁøÇüÀÇ À§Ä¡ÀÔ´Ï´Ù.</param>
-    /// <returns>¼³Á¤µÈ Formation_DataÀÔ´Ï´Ù.</returns>
+    /// <param name="length">ì§„í˜•ì˜ ê¸¸ì´ì…ë‹ˆë‹¤.</param>
+    /// <param name="direction">ì§„í˜•ì˜ ë°©í–¥ì…ë‹ˆë‹¤.</param>
+    /// <param name="position">ì§„í˜•ì˜ ìœ„ì¹˜ì…ë‹ˆë‹¤.</param>
+    /// <returns>ì„¤ì •ëœ Formation_Dataì…ë‹ˆë‹¤.</returns>
     public Formation_Data Set_Formation_Stop(float length, Vector3 direction, Vector3 position)
     {
         Vector3 add_vertical;
@@ -299,75 +299,75 @@ partial class Army
     }
 
     /// <summary>
-    /// ÇöÀç ÁøÇü µ¥ÀÌÅÍ¸¦ ¹İÈ¯ÇÕ´Ï´Ù.
+    /// í˜„ì¬ ì§„í˜• ë°ì´í„°ë¥¼ ë°˜í™˜í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <returns>Formation_Data ÀÎ½ºÅÏ½ºÀÔ´Ï´Ù.</returns>
+    /// <returns>Formation_Data ì¸ìŠ¤í„´ìŠ¤ì…ë‹ˆë‹¤.</returns>
     public Formation_Data GetFormation_Data()
     {
         return formation_Data;
     }
 
     /// <summary>
-    /// ÇöÀç ÁøÇüÀÇ ¹æÇâÀ» ¹İÈ¯ÇÕ´Ï´Ù.
+    /// í˜„ì¬ ì§„í˜•ì˜ ë°©í–¥ì„ ë°˜í™˜í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <returns>¹æÇâ º¤ÅÍÀÔ´Ï´Ù.</returns>
+    /// <returns>ë°©í–¥ ë²¡í„°ì…ë‹ˆë‹¤.</returns>
     public Vector3 GetFormation_Direction()
     {
         return formation_Data.GetDirection();
     }
 
     /// <summary>
-    /// ÇöÀç ÁøÇüÀÇ À§Ä¡¸¦ ¹İÈ¯ÇÕ´Ï´Ù.
+    /// í˜„ì¬ ì§„í˜•ì˜ ìœ„ì¹˜ë¥¼ ë°˜í™˜í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <returns>À§Ä¡ º¤ÅÍÀÔ´Ï´Ù.</returns>
+    /// <returns>ìœ„ì¹˜ ë²¡í„°ì…ë‹ˆë‹¤.</returns>
     public Vector3 GetFormation_Position()
     {
         return formation_Data.GetPosition();
     }
 
     /// <summary>
-    /// ÇöÀç ÁøÇüÀÇ ³Êºñ¸¦ ¹İÈ¯ÇÕ´Ï´Ù.
+    /// í˜„ì¬ ì§„í˜•ì˜ ë„ˆë¹„ë¥¼ ë°˜í™˜í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <returns>³Êºñ °ªÀÔ´Ï´Ù.</returns>
+    /// <returns>ë„ˆë¹„ ê°’ì…ë‹ˆë‹¤.</returns>
     public int GetFormation_Num()
     {
         return formation_Data.GetNum();
     }
 
     /// <summary>
-    /// ÇöÀç ÁøÇüÀÇ ±æÀÌ¸¦ °è»êÇÏ¿© ¹İÈ¯ÇÕ´Ï´Ù.
+    /// í˜„ì¬ ì§„í˜•ì˜ ê¸¸ì´ë¥¼ ê³„ì‚°í•˜ì—¬ ë°˜í™˜í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <returns>ÁøÇü ±æÀÌÀÔ´Ï´Ù.</returns>
+    /// <returns>ì§„í˜• ê¸¸ì´ì…ë‹ˆë‹¤.</returns>
     public float GetFormation_Length()
     {
         return formation_Data.GetNum() * army_Data.GetInterval();
     }
 
     /// <summary>
-    /// ÁøÇüÀÌ ÃÖ´ë ±æÀÌÀÎÁö ¿©ºÎ¸¦ È®ÀÎÇÕ´Ï´Ù.
+    /// ì§„í˜•ì´ ìµœëŒ€ ê¸¸ì´ì¸ì§€ ì—¬ë¶€ë¥¼ í™•ì¸í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <returns>ÃÖ´ë ±æÀÌ¸é true, ¾Æ´Ï¸é falseÀÔ´Ï´Ù.</returns>
+    /// <returns>ìµœëŒ€ ê¸¸ì´ë©´ true, ì•„ë‹ˆë©´ falseì…ë‹ˆë‹¤.</returns>
     public bool IsFormation_Max()
     {
         return formation_Data.GetNum() >= formationLength_Max;
     }
 
     /// <summary>
-    /// ÁøÇü µ¥ÀÌÅÍ¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+    /// ì§„í˜• ë°ì´í„°ë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="formation_Data">¼³Á¤ÇÒ Formation_DataÀÔ´Ï´Ù.</param>
+    /// <param name="formation_Data">ì„¤ì •í•  Formation_Dataì…ë‹ˆë‹¤.</param>
     public void Set_Formation_Data(Formation_Data formation_Data)
     {
         this.formation_Data.Set_Formation_Data(formation_Data);
     }
 
     /// <summary>
-    /// ÁøÇü µ¥ÀÌÅÍ¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+    /// ì§„í˜• ë°ì´í„°ë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="num">ÁøÇüÀÇ ³ÊºñÀÔ´Ï´Ù.</param>
-    /// <param name="direction">ÁøÇüÀÇ ¹æÇâÀÔ´Ï´Ù.</param>
-    /// <param name="position">ÁøÇüÀÇ À§Ä¡ÀÔ´Ï´Ù.</param>
-    /// <param name="formation">À¯´ÖµéÀÇ ÁøÇü À§Ä¡ ¸®½ºÆ®ÀÔ´Ï´Ù.</param>
+    /// <param name="num">ì§„í˜•ì˜ ë„ˆë¹„ì…ë‹ˆë‹¤.</param>
+    /// <param name="direction">ì§„í˜•ì˜ ë°©í–¥ì…ë‹ˆë‹¤.</param>
+    /// <param name="position">ì§„í˜•ì˜ ìœ„ì¹˜ì…ë‹ˆë‹¤.</param>
+    /// <param name="formation">ìœ ë‹›ë“¤ì˜ ì§„í˜• ìœ„ì¹˜ ë¦¬ìŠ¤íŠ¸ì…ë‹ˆë‹¤.</param>
     public void Set_Formation_Data(int num, Vector3 direction, Vector3 position, List<Vector3> formation)
     {
         formation_Data.Set_Formation_Data(num, direction, position, formation);

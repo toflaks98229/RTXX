@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
@@ -9,17 +9,17 @@ using Unity.Collections;
 using Unity.Jobs;
 
 /// <summary>
-/// ºÎ´ëÀÇ ÀÌµ¿ °ü·Ã ·ÎÁ÷À» ´ã´çÇÏ´Â ºÎºÐ Å¬·¡½ºÀÔ´Ï´Ù.
+/// ë¶€ëŒ€ì˜ ì´ë™ ê´€ë ¨ ë¡œì§ì„ ë‹´ë‹¹í•˜ëŠ” ë¶€ë¶„ í´ëž˜ìŠ¤ìž…ë‹ˆë‹¤.
 /// </summary>
 partial class Army
 {
-    // ºñ°ø°³ ¸â¹ö º¯¼ö (Army.cs¿¡¼­ °ü¸®)
-    // °ø°³ ¸Þ¼­µå (Army.cs¿¡¼­ °ü¸®)
-    // Unity ÀÌº¥Æ® ÇÔ¼ö (Army.cs¿¡¼­ °ü¸®)
+    // ë¹„ê³µê°œ ë©¤ë²„ ë³€ìˆ˜ (Army.csì—ì„œ ê´€ë¦¬)
+    // ê³µê°œ ë©”ì„œë“œ (Army.csì—ì„œ ê´€ë¦¬)
+    // Unity ì´ë²¤íŠ¸ í•¨ìˆ˜ (Army.csì—ì„œ ê´€ë¦¬)
 
-    // ºñ°ø°³ ¸Þ¼­µå
+    // ë¹„ê³µê°œ ë©”ì„œë“œ
     /// <summary>
-    /// ºÎ´ëÀÇ ÀÌµ¿ »óÅÂ¿¡ µû¶ó µ¿ÀÛÀ» ¼öÇàÇÕ´Ï´Ù.
+    /// ë¶€ëŒ€ì˜ ì´ë™ ìƒíƒœì— ë”°ë¼ ë™ìž‘ì„ ìˆ˜í–‰í•©ë‹ˆë‹¤.
     /// </summary>
     void _Update_Move()
     {
@@ -40,7 +40,7 @@ partial class Army
     }
 
     /// <summary>
-    /// ºÎ´ë¸¦ ¸ñÇ¥ ¹æÇâÀ¸·Î È¸Àü½ÃÅµ´Ï´Ù.
+    /// ë¶€ëŒ€ë¥¼ ëª©í‘œ ë°©í–¥ìœ¼ë¡œ íšŒì „ì‹œí‚µë‹ˆë‹¤.
     /// </summary>
     void Rotation()
     {
@@ -50,9 +50,9 @@ partial class Army
     }
 
     /// <summary>
-    /// ºÎ´ëÀÇ ÇöÀç Æò±Õ À§Ä¡¸¦ °è»êÇÏ¿© ¹ÝÈ¯ÇÕ´Ï´Ù.
+    /// ë¶€ëŒ€ì˜ í˜„ìž¬ í‰ê·  ìœ„ì¹˜ë¥¼ ê³„ì‚°í•˜ì—¬ ë°˜í™˜í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <returns>ºÎ´ëÀÇ Æò±Õ À§Ä¡ÀÔ´Ï´Ù.</returns>
+    /// <returns>ë¶€ëŒ€ì˜ í‰ê·  ìœ„ì¹˜ìž…ë‹ˆë‹¤.</returns>
     public Vector3 GetPosition()
     {
         Vector3 position = new Vector3();
@@ -68,7 +68,7 @@ partial class Army
     }
 
     /// <summary>
-    /// ºÎ´ë ÀÌµ¿ÀÇ ±âÁØÀÌ µÇ´Â À§Ä¡¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+    /// ë¶€ëŒ€ ì´ë™ì˜ ê¸°ì¤€ì´ ë˜ëŠ” ìœ„ì¹˜ë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.
     /// </summary>
     void Set_Army_Move_Position()
     {
@@ -93,9 +93,9 @@ partial class Army
         formation_Move_Transform.position = position;
     }
 
-    // °ø°³ ¸Þ¼­µå
+    // ê³µê°œ ë©”ì„œë“œ
     /// <summary>
-    /// ±âº» ¼³Á¤À» »ç¿ëÇÏ¿© ÀÌµ¿À» ½ÃÀÛÇÕ´Ï´Ù.
+    /// ê¸°ë³¸ ì„¤ì •ì„ ì‚¬ìš©í•˜ì—¬ ì´ë™ì„ ì‹œìž‘í•©ë‹ˆë‹¤.
     /// </summary>
     public void Move_Start()
     {
@@ -103,21 +103,21 @@ partial class Army
     }
 
     /// <summary>
-    /// ¹æÇâ°ú À§Ä¡¸¦ ±â¹ÝÀ¸·Î ÀÌµ¿À» ½ÃÀÛÇÕ´Ï´Ù.
+    /// ë°©í–¥ê³¼ ìœ„ì¹˜ë¥¼ ê¸°ë°˜ìœ¼ë¡œ ì´ë™ì„ ì‹œìž‘í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="direction">ÀÌµ¿ ¹æÇâÀÔ´Ï´Ù.</param>
-    /// <param name="position">ÀÌµ¿ À§Ä¡ÀÔ´Ï´Ù.</param>
+    /// <param name="direction">ì´ë™ ë°©í–¥ìž…ë‹ˆë‹¤.</param>
+    /// <param name="position">ì´ë™ ìœ„ì¹˜ìž…ë‹ˆë‹¤.</param>
     public void Move_Start(Vector3 direction, Vector3 position)
     {
         Move_Start(GetFormation_Num(), direction, position);
     }
 
     /// <summary>
-    /// ÁøÇü ±æÀÌ, ¹æÇâ, À§Ä¡¸¦ ±â¹ÝÀ¸·Î ÀÌµ¿À» ½ÃÀÛÇÕ´Ï´Ù.
+    /// ì§„í˜• ê¸¸ì´, ë°©í–¥, ìœ„ì¹˜ë¥¼ ê¸°ë°˜ìœ¼ë¡œ ì´ë™ì„ ì‹œìž‘í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="length">ÁøÇü ±æÀÌÀÔ´Ï´Ù.</param>
-    /// <param name="direction">ÀÌµ¿ ¹æÇâÀÔ´Ï´Ù.</param>
-    /// <param name="position">ÀÌµ¿ À§Ä¡ÀÔ´Ï´Ù.</param>
+    /// <param name="length">ì§„í˜• ê¸¸ì´ìž…ë‹ˆë‹¤.</param>
+    /// <param name="direction">ì´ë™ ë°©í–¥ìž…ë‹ˆë‹¤.</param>
+    /// <param name="position">ì´ë™ ìœ„ì¹˜ìž…ë‹ˆë‹¤.</param>
     public void Move_Start(float length, Vector3 direction, Vector3 position)
     {
         bformation_Move = false;
@@ -154,11 +154,11 @@ partial class Army
     }
 
     /// <summary>
-    /// ÁøÇü À¯´Ö ¼ö¸¦ ±â¹ÝÀ¸·Î ÀÌµ¿À» ½ÃÀÛÇÕ´Ï´Ù.
+    /// ì§„í˜• ìœ ë‹› ìˆ˜ë¥¼ ê¸°ë°˜ìœ¼ë¡œ ì´ë™ì„ ì‹œìž‘í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="num">ÁøÇü À¯´Ö ¼öÀÔ´Ï´Ù.</param>
-    /// <param name="direction">ÀÌµ¿ ¹æÇâÀÔ´Ï´Ù.</param>
-    /// <param name="position">ÀÌµ¿ À§Ä¡ÀÔ´Ï´Ù.</param>
+    /// <param name="num">ì§„í˜• ìœ ë‹› ìˆ˜ìž…ë‹ˆë‹¤.</param>
+    /// <param name="direction">ì´ë™ ë°©í–¥ìž…ë‹ˆë‹¤.</param>
+    /// <param name="position">ì´ë™ ìœ„ì¹˜ìž…ë‹ˆë‹¤.</param>
     public void Move_Start(int num, Vector3 direction, Vector3 position)
     {
         bformation_Move = false;
@@ -195,7 +195,7 @@ partial class Army
     }
 
     /// <summary>
-    /// Æ÷¸ÞÀÌ¼Ç ³» ÀÌµ¿À» ½ÃÀÛÇÕ´Ï´Ù.
+    /// í¬ë©”ì´ì…˜ ë‚´ ì´ë™ì„ ì‹œìž‘í•©ë‹ˆë‹¤.
     /// </summary>
     void Move_Formation()
     {
@@ -209,7 +209,7 @@ partial class Army
     }
 
     /// <summary>
-    /// ºÎ´ë¸¦ ÀÌµ¿½ÃÅµ´Ï´Ù.
+    /// ë¶€ëŒ€ë¥¼ ì´ë™ì‹œí‚µë‹ˆë‹¤.
     /// </summary>
     void Move()
     {
@@ -233,7 +233,7 @@ partial class Army
 
             if (army_InPosition_Num < army_Data.unit_Num * 0.5f)
             {
-                // ·ÎÁ÷ Ãß°¡ °¡´É
+                // ë¡œì§ ì¶”ê°€ ê°€ëŠ¥
             }
 
             if (Vector3.Distance(formation_Move_Transform.position, locationMoveTo) < GetFormation_Length() * 0.5f)
@@ -262,7 +262,7 @@ partial class Army
     }
 
     /// <summary>
-    /// ºÎ´ëÀÇ ÀÌµ¿À» ÁßÁöÇÕ´Ï´Ù.
+    /// ë¶€ëŒ€ì˜ ì´ë™ì„ ì¤‘ì§€í•©ë‹ˆë‹¤.
     /// </summary>
     void Move_Stop()
     {
@@ -274,7 +274,7 @@ partial class Army
     }
 
     /// <summary>
-    /// ºÎ´ë ÀÌµ¿À» Ãë¼ÒÇÏ°í À¯´ÖµéÀÇ ÀÌµ¿À» ÁßÁö½ÃÅµ´Ï´Ù.
+    /// ë¶€ëŒ€ ì´ë™ì„ ì·¨ì†Œí•˜ê³  ìœ ë‹›ë“¤ì˜ ì´ë™ì„ ì¤‘ì§€ì‹œí‚µë‹ˆë‹¤.
     /// </summary>
     void Move_Cancel()
     {
@@ -286,7 +286,7 @@ partial class Army
     }
 
     /// <summary>
-    /// ÀçÆí¼º ÀÌµ¿À» ½ÃÀÛÇÕ´Ï´Ù.
+    /// ìž¬íŽ¸ì„± ì´ë™ì„ ì‹œìž‘í•©ë‹ˆë‹¤.
     /// </summary>
     void Move_Reformation()
     {

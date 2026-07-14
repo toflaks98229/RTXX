@@ -1,70 +1,70 @@
-using System;
+ï»¿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-// ¿­°ÅÇü (Enums)
+// ì—´ê±°í˜• (Enums)
 /// <summary>
-/// ºÎ´ëÀÇ ÀÌµ¿ »óÅÂ¸¦ ³ªÅ¸³»´Â ¿­°ÅÇüÀÔ´Ï´Ù.
+/// ë¶€ëŒ€ì˜ ì´ë™ ìƒíƒœë¥¼ ë‚˜íƒ€ë‚´ëŠ” ì—´ê±°í˜•ìž…ë‹ˆë‹¤.
 /// </summary>
 public enum E_Army_Move
 {
-    Move,       // ÀÏ¹Ý ÀÌµ¿
-    MoveToTarget, // Å¸°ÙÀ¸·Î ÀÌµ¿
-    MoveEscape,   // µµÁÖ
-    MoveCharge,   // µ¹°Ý
-    Idle        // ´ë±â
+    Move,       // ì¼ë°˜ ì´ë™
+    MoveToTarget, // íƒ€ê²Ÿìœ¼ë¡œ ì´ë™
+    MoveEscape,   // ë„ì£¼
+    MoveCharge,   // ëŒê²©
+    Idle        // ëŒ€ê¸°
 }
 
 /// <summary>
-/// ºÎ´ëÀÇ ÁøÇü »óÅÂ¸¦ ³ªÅ¸³»´Â ¿­°ÅÇüÀÔ´Ï´Ù.
+/// ë¶€ëŒ€ì˜ ì§„í˜• ìƒíƒœë¥¼ ë‚˜íƒ€ë‚´ëŠ” ì—´ê±°í˜•ìž…ë‹ˆë‹¤.
 /// </summary>
 public enum E_Army_Formation
 {
-    Formation,      // ÁøÇü »óÅÂ
-    NonFormation  // ºñÁøÇü »óÅÂ
+    Formation,      // ì§„í˜• ìƒíƒœ
+    NonFormation  // ë¹„ì§„í˜• ìƒíƒœ
 }
 
 /// <summary>
-/// ºÎ´ëÀÇ ÀüÅõ »óÅÂ¸¦ ³ªÅ¸³»´Â ¿­°ÅÇüÀÔ´Ï´Ù.
+/// ë¶€ëŒ€ì˜ ì „íˆ¬ ìƒíƒœë¥¼ ë‚˜íƒ€ë‚´ëŠ” ì—´ê±°í˜•ìž…ë‹ˆë‹¤.
 /// </summary>
 public enum E_Army_Fight
 {
-    Melee, // ±ÙÁ¢ ÀüÅõ
-    Range, // ¿ø°Å¸® ÀüÅõ
-    Non    // ºñÀüÅõ
+    Melee, // ê·¼ì ‘ ì „íˆ¬
+    Range, // ì›ê±°ë¦¬ ì „íˆ¬
+    Non    // ë¹„ì „íˆ¬
 }
 
-// Å¬·¡½º
+// í´ëž˜ìŠ¤
 /// <summary>
-/// ºÎ´ëÀÇ ÁøÇü¿¡ ´ëÇÑ µ¥ÀÌÅÍ¸¦ ´ã°í ÀÖ´Â Å¬·¡½ºÀÔ´Ï´Ù.
+/// ë¶€ëŒ€ì˜ ì§„í˜•ì— ëŒ€í•œ ë°ì´í„°ë¥¼ ë‹´ê³  ìžˆëŠ” í´ëž˜ìŠ¤ìž…ë‹ˆë‹¤.
 /// </summary>
 [Serializable]
 public class Formation_Data
 {
-    // °ø°³ ¸â¹ö º¯¼ö
+    // ê³µê°œ ë©¤ë²„ ë³€ìˆ˜
     /// <summary>
-    /// °¢ À¯´ÖÀÇ ¸ñÇ¥ À§Ä¡ ¸®½ºÆ®ÀÔ´Ï´Ù.
+    /// ê° ìœ ë‹›ì˜ ëª©í‘œ ìœ„ì¹˜ ë¦¬ìŠ¤íŠ¸ìž…ë‹ˆë‹¤.
     /// </summary>
     public List<Vector3> formation;
     /// <summary>
-    /// ÁøÇüÀÇ Àü¹æ ¹æÇâÀÔ´Ï´Ù.
+    /// ì§„í˜•ì˜ ì „ë°© ë°©í–¥ìž…ë‹ˆë‹¤.
     /// </summary>
     public Vector3 direction;
     /// <summary>
-    /// ÁøÇüÀÇ Áß½É À§Ä¡ÀÔ´Ï´Ù.
+    /// ì§„í˜•ì˜ ì¤‘ì‹¬ ìœ„ì¹˜ìž…ë‹ˆë‹¤.
     /// </summary>
     public Vector3 position;
     /// <summary>
-    /// ÁøÇüÀÇ ³Êºñ¸¦ °áÁ¤ÇÏ´Â À¯´Ö ¼öÀÔ´Ï´Ù.
+    /// ì§„í˜•ì˜ ë„ˆë¹„ë¥¼ ê²°ì •í•˜ëŠ” ìœ ë‹› ìˆ˜ìž…ë‹ˆë‹¤.
     /// </summary>
     public int num;
 
-    // »ý¼ºÀÚ
+    // ìƒì„±ìž
     /// <summary>
-    /// ´Ù¸¥ Formation_Data ÀÎ½ºÅÏ½º¸¦ º¹»çÇÏ¿© »õ·Î¿î ÀÎ½ºÅÏ½º¸¦ »ý¼ºÇÕ´Ï´Ù.
+    /// ë‹¤ë¥¸ Formation_Data ì¸ìŠ¤í„´ìŠ¤ë¥¼ ë³µì‚¬í•˜ì—¬ ìƒˆë¡œìš´ ì¸ìŠ¤í„´ìŠ¤ë¥¼ ìƒì„±í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="formation_Data">º¹»çÇÒ Formation_Data ÀÎ½ºÅÏ½ºÀÔ´Ï´Ù.</param>
+    /// <param name="formation_Data">ë³µì‚¬í•  Formation_Data ì¸ìŠ¤í„´ìŠ¤ìž…ë‹ˆë‹¤.</param>
     public Formation_Data(Formation_Data formation_Data)
     {
         position = formation_Data.position;
@@ -74,12 +74,12 @@ public class Formation_Data
     }
 
     /// <summary>
-    /// ¸ðµç ÁøÇü µ¥ÀÌÅÍ¸¦ ÀÎ¼ö·Î ¹Þ¾Æ »õ·Î¿î ÀÎ½ºÅÏ½º¸¦ »ý¼ºÇÕ´Ï´Ù.
+    /// ëª¨ë“  ì§„í˜• ë°ì´í„°ë¥¼ ì¸ìˆ˜ë¡œ ë°›ì•„ ìƒˆë¡œìš´ ì¸ìŠ¤í„´ìŠ¤ë¥¼ ìƒì„±í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="num">ÁøÇüÀÇ ³ÊºñÀÔ´Ï´Ù.</param>
-    /// <param name="direction">ÁøÇüÀÇ ¹æÇâÀÔ´Ï´Ù.</param>
-    /// <param name="position">ÁøÇüÀÇ À§Ä¡ÀÔ´Ï´Ù.</param>
-    /// <param name="formation">À¯´ÖµéÀÇ ÁøÇü À§Ä¡ ¸®½ºÆ®ÀÔ´Ï´Ù.</param>
+    /// <param name="num">ì§„í˜•ì˜ ë„ˆë¹„ìž…ë‹ˆë‹¤.</param>
+    /// <param name="direction">ì§„í˜•ì˜ ë°©í–¥ìž…ë‹ˆë‹¤.</param>
+    /// <param name="position">ì§„í˜•ì˜ ìœ„ì¹˜ìž…ë‹ˆë‹¤.</param>
+    /// <param name="formation">ìœ ë‹›ë“¤ì˜ ì§„í˜• ìœ„ì¹˜ ë¦¬ìŠ¤íŠ¸ìž…ë‹ˆë‹¤.</param>
     public Formation_Data(int num, Vector3 direction, Vector3 position, List<Vector3> formation)
     {
         this.num = num;
@@ -88,23 +88,23 @@ public class Formation_Data
         this.formation = formation;
     }
 
-    // °ø°³ ¸Þ¼­µå
+    // ê³µê°œ ë©”ì„œë“œ
     /// <summary>
-    /// ÇöÀç Formation_Data ÀÎ½ºÅÏ½º¸¦ ¹ÝÈ¯ÇÕ´Ï´Ù.
+    /// í˜„ìž¬ Formation_Data ì¸ìŠ¤í„´ìŠ¤ë¥¼ ë°˜í™˜í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <returns>Formation_Data ÀÎ½ºÅÏ½ºÀÔ´Ï´Ù.</returns>
+    /// <returns>Formation_Data ì¸ìŠ¤í„´ìŠ¤ìž…ë‹ˆë‹¤.</returns>
     public Formation_Data GetFormation_Data()
     {
         return this;
     }
 
     /// <summary>
-    /// ÁøÇü µ¥ÀÌÅÍ¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+    /// ì§„í˜• ë°ì´í„°ë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="num">ÁøÇüÀÇ ³ÊºñÀÔ´Ï´Ù.</param>
-    /// <param name="direction">ÁøÇüÀÇ ¹æÇâÀÔ´Ï´Ù.</param>
-    /// <param name="position">ÁøÇüÀÇ À§Ä¡ÀÔ´Ï´Ù.</param>
-    /// <param name="formation">À¯´ÖµéÀÇ ÁøÇü À§Ä¡ ¸®½ºÆ®ÀÔ´Ï´Ù.</param>
+    /// <param name="num">ì§„í˜•ì˜ ë„ˆë¹„ìž…ë‹ˆë‹¤.</param>
+    /// <param name="direction">ì§„í˜•ì˜ ë°©í–¥ìž…ë‹ˆë‹¤.</param>
+    /// <param name="position">ì§„í˜•ì˜ ìœ„ì¹˜ìž…ë‹ˆë‹¤.</param>
+    /// <param name="formation">ìœ ë‹›ë“¤ì˜ ì§„í˜• ìœ„ì¹˜ ë¦¬ìŠ¤íŠ¸ìž…ë‹ˆë‹¤.</param>
     public void Set_Formation_Data(int num, Vector3 direction, Vector3 position, List<Vector3> formation)
     {
         this.num = num;
@@ -114,9 +114,9 @@ public class Formation_Data
     }
 
     /// <summary>
-    /// ´Ù¸¥ Formation_Data ÀÎ½ºÅÏ½ºÀÇ µ¥ÀÌÅÍ·Î ÇöÀç ÀÎ½ºÅÏ½º¸¦ µ¤¾î¾¹´Ï´Ù.
+    /// ë‹¤ë¥¸ Formation_Data ì¸ìŠ¤í„´ìŠ¤ì˜ ë°ì´í„°ë¡œ í˜„ìž¬ ì¸ìŠ¤í„´ìŠ¤ë¥¼ ë®ì–´ì”ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="formation_Data">µ¤¾î¾µ Formation_Data ÀÎ½ºÅÏ½ºÀÔ´Ï´Ù.</param>
+    /// <param name="formation_Data">ë®ì–´ì“¸ Formation_Data ì¸ìŠ¤í„´ìŠ¤ìž…ë‹ˆë‹¤.</param>
     public void Set_Formation_Data(Formation_Data formation_Data)
     {
         position = formation_Data.position;
@@ -126,105 +126,105 @@ public class Formation_Data
     }
 
     /// <summary>
-    /// ÁøÇüÀÇ ¹æÇâÀ» ¹ÝÈ¯ÇÕ´Ï´Ù.
+    /// ì§„í˜•ì˜ ë°©í–¥ì„ ë°˜í™˜í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <returns>ÁøÇüÀÇ ¹æÇâ º¤ÅÍÀÔ´Ï´Ù.</returns>
+    /// <returns>ì§„í˜•ì˜ ë°©í–¥ ë²¡í„°ìž…ë‹ˆë‹¤.</returns>
     public Vector3 GetDirection()
     {
         return direction;
     }
 
     /// <summary>
-    /// ÁøÇüÀÇ À§Ä¡¸¦ ¹ÝÈ¯ÇÕ´Ï´Ù.
+    /// ì§„í˜•ì˜ ìœ„ì¹˜ë¥¼ ë°˜í™˜í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <returns>ÁøÇüÀÇ À§Ä¡ º¤ÅÍÀÔ´Ï´Ù.</returns>
+    /// <returns>ì§„í˜•ì˜ ìœ„ì¹˜ ë²¡í„°ìž…ë‹ˆë‹¤.</returns>
     public Vector3 GetPosition()
     {
         return position;
     }
 
     /// <summary>
-    /// ÁøÇüÀÇ ³Êºñ¸¦ ¹ÝÈ¯ÇÕ´Ï´Ù.
+    /// ì§„í˜•ì˜ ë„ˆë¹„ë¥¼ ë°˜í™˜í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <returns>ÁøÇüÀÇ ³ÊºñÀÔ´Ï´Ù.</returns>
+    /// <returns>ì§„í˜•ì˜ ë„ˆë¹„ìž…ë‹ˆë‹¤.</returns>
     public int GetNum()
     {
         return num;
     }
 }
 
-// ±¸Á¶Ã¼
+// êµ¬ì¡°ì²´
 /// <summary>
-/// ºÎ´ëÀÇ Àü¹ÝÀûÀÎ µ¥ÀÌÅÍ¸¦ ´ã°í ÀÖ´Â ±¸Á¶Ã¼ÀÔ´Ï´Ù.
+/// ë¶€ëŒ€ì˜ ì „ë°˜ì ì¸ ë°ì´í„°ë¥¼ ë‹´ê³  ìžˆëŠ” êµ¬ì¡°ì²´ìž…ë‹ˆë‹¤.
 /// </summary>
 [Serializable]
 public struct Army_Data
 {
-    // °ø°³ ¸â¹ö º¯¼ö
+    // ê³µê°œ ë©¤ë²„ ë³€ìˆ˜
     /// <summary>
-    /// ºÎ´ëÀÇ ÇöÀç À§Ä¡ÀÔ´Ï´Ù.
+    /// ë¶€ëŒ€ì˜ í˜„ìž¬ ìœ„ì¹˜ìž…ë‹ˆë‹¤.
     /// </summary>
     public Vector3 position;
     /// <summary>
-    /// ºÎ´ëÀÇ ÇöÀç È¸Àü °ªÀÔ´Ï´Ù.
+    /// ë¶€ëŒ€ì˜ í˜„ìž¬ íšŒì „ ê°’ìž…ë‹ˆë‹¤.
     /// </summary>
     public Quaternion rotation;
     /// <summary>
-    /// ºÎ´ë°¡ ÇÃ·¹ÀÌ¾î ¼ÒÀ¯ÀÎÁö ¿©ºÎÀÔ´Ï´Ù.
+    /// ë¶€ëŒ€ê°€ í”Œë ˆì´ì–´ ì†Œìœ ì¸ì§€ ì—¬ë¶€ìž…ë‹ˆë‹¤.
     /// </summary>
     public bool bplayer;
     /// <summary>
-    /// ¸í·É »óÅÂÀÎÁö ¿©ºÎÀÔ´Ï´Ù.
+    /// ëª…ë ¹ ìƒíƒœì¸ì§€ ì—¬ë¶€ìž…ë‹ˆë‹¤.
     /// </summary>
     public bool bonCommand;
     /// <summary>
-    /// ºÎ´ëÀÇ À¯´Ö Åë°è µ¥ÀÌÅÍÀÔ´Ï´Ù.
+    /// ë¶€ëŒ€ì˜ ìœ ë‹› í†µê³„ ë°ì´í„°ìž…ë‹ˆë‹¤.
     /// </summary>
     public Unit_Stat unit_Stat;
     /// <summary>
-    /// ºÎ´ë ÀüÃ¼ÀÇ ÃÑ HPÀÔ´Ï´Ù.
+    /// ë¶€ëŒ€ ì „ì²´ì˜ ì´ HPìž…ë‹ˆë‹¤.
     /// </summary>
     public float HP_All;
     /// <summary>
-    /// ÇöÀç ºÎ´ëÀÇ À¯´Ö ¼öÀÔ´Ï´Ù.
+    /// í˜„ìž¬ ë¶€ëŒ€ì˜ ìœ ë‹› ìˆ˜ìž…ë‹ˆë‹¤.
     /// </summary>
     public int unit_Num;
     /// <summary>
-    /// ºÎ´ë°¡ °¡Áú ¼ö ÀÖ´Â ÃÖ´ë À¯´Ö ¼öÀÔ´Ï´Ù.
+    /// ë¶€ëŒ€ê°€ ê°€ì§ˆ ìˆ˜ ìžˆëŠ” ìµœëŒ€ ìœ ë‹› ìˆ˜ìž…ë‹ˆë‹¤.
     /// </summary>
     public int unit_Num_Max;
     /// <summary>
-    /// ¹æ¾î »óÅÂÀÎÁö ¿©ºÎÀÔ´Ï´Ù.
+    /// ë°©ì–´ ìƒíƒœì¸ì§€ ì—¬ë¶€ìž…ë‹ˆë‹¤.
     /// </summary>
     public bool bdefense;
     /// <summary>
-    /// ºÎ´ëÀÇ ÀüÅõ »óÅÂÀÔ´Ï´Ù.
+    /// ë¶€ëŒ€ì˜ ì „íˆ¬ ìƒíƒœìž…ë‹ˆë‹¤.
     /// </summary>
     public E_Army_Fight e_Army_Fight;
     /// <summary>
-    /// ºÎ´ëÀÇ ÀÌµ¿ »óÅÂÀÔ´Ï´Ù.
+    /// ë¶€ëŒ€ì˜ ì´ë™ ìƒíƒœìž…ë‹ˆë‹¤.
     /// </summary>
     public E_Army_Move e_Army_Move;
     /// <summary>
-    /// ºÎ´ëÀÇ ÁøÇü »óÅÂÀÔ´Ï´Ù.
+    /// ë¶€ëŒ€ì˜ ì§„í˜• ìƒíƒœìž…ë‹ˆë‹¤.
     /// </summary>
     public E_Army_Formation e_Army_Formation;
     /// <summary>
-    /// ¸í·É »óÅÂ Áö¼Ó ½Ã°£À» ÃøÁ¤ÇÏ´Â Å¸ÀÌ¸ÓÀÔ´Ï´Ù.
+    /// ëª…ë ¹ ìƒíƒœ ì§€ì† ì‹œê°„ì„ ì¸¡ì •í•˜ëŠ” íƒ€ì´ë¨¸ìž…ë‹ˆë‹¤.
     /// </summary>
     public Timer timer_On_Command;
     /// <summary>
-    /// ÀçÆí¼º »óÅÂ¸¦ ³ªÅ¸³»´Â Å¸ÀÌ¸ÓÀÔ´Ï´Ù.
+    /// ìž¬íŽ¸ì„± ìƒíƒœë¥¼ ë‚˜íƒ€ë‚´ëŠ” íƒ€ì´ë¨¸ìž…ë‹ˆë‹¤.
     /// </summary>
     public Timer timer_Reformation;
     /// <summary>
-    /// ÀçÆí¼ºÀÌ ÇÊ¿äÇÑÁö ¿©ºÎ¸¦ ³ªÅ¸³»´Â ÇÃ·¡±×ÀÔ´Ï´Ù.
+    /// ìž¬íŽ¸ì„±ì´ í•„ìš”í•œì§€ ì—¬ë¶€ë¥¼ ë‚˜íƒ€ë‚´ëŠ” í”Œëž˜ê·¸ìž…ë‹ˆë‹¤.
     /// </summary>
     public bool breformation;
 
-    // °ø°³ ¸Þ¼­µå
+    // ê³µê°œ ë©”ì„œë“œ
     /// <summary>
-    /// ºÎ´ë µ¥ÀÌÅÍ¸¦ ÃÊ±âÈ­ÇÕ´Ï´Ù.
+    /// ë¶€ëŒ€ ë°ì´í„°ë¥¼ ì´ˆê¸°í™”í•©ë‹ˆë‹¤.
     /// </summary>
     public void _Start()
     {
@@ -233,7 +233,7 @@ public struct Army_Data
     }
 
     /// <summary>
-    /// ºÎ´ë µ¥ÀÌÅÍ¸¦ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.
+    /// ë¶€ëŒ€ ë°ì´í„°ë¥¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.
     /// </summary>
     public void _Update()
     {
@@ -259,9 +259,9 @@ public struct Army_Data
     }
 
     /// <summary>
-    /// ºÎ´ë ÀüÃ¼ÀÇ ÃÑ HP¸¦ ¹ÝÈ¯ÇÕ´Ï´Ù.
+    /// ë¶€ëŒ€ ì „ì²´ì˜ ì´ HPë¥¼ ë°˜í™˜í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <returns>ÃÑ HPÀÔ´Ï´Ù.</returns>
+    /// <returns>ì´ HPìž…ë‹ˆë‹¤.</returns>
     public float GetAllHP()
     {
         if (HP_All < 0) return 0;
@@ -269,15 +269,15 @@ public struct Army_Data
     }
 
     /// <summary>
-    /// ºÎ´ë ÀüÃ¼ÀÇ ÃÑ HP¸¦ Áõ°¡½ÃÅµ´Ï´Ù.
+    /// ë¶€ëŒ€ ì „ì²´ì˜ ì´ HPë¥¼ ì¦ê°€ì‹œí‚µë‹ˆë‹¤.
     /// </summary>
-    /// <param name="addFloat">Ãß°¡ÇÒ HP °ªÀÔ´Ï´Ù.</param>
+    /// <param name="addFloat">ì¶”ê°€í•  HP ê°’ìž…ë‹ˆë‹¤.</param>
     public void AddAllHP(float addFloat)
     {
         HP_All += addFloat;
     }
 
-    // Åë°è °ü·Ã ¸Þ¼­µå
+    // í†µê³„ ê´€ë ¨ ë©”ì„œë“œ
     public float GetMoveSpeed()
     {
         if (unit_Stat.moveSpeed < 0) return 0;
@@ -333,7 +333,7 @@ public struct Army_Data
         unit_Stat.drag += addFloat;
     }
 
-    // ±ÙÁ¢ ÀüÅõ °ü·Ã ¸Þ¼­µå
+    // ê·¼ì ‘ ì „íˆ¬ ê´€ë ¨ ë©”ì„œë“œ
     public float GetMeleeDamage()
     {
         if (unit_Stat.meleeDamage < 0) return 0;
@@ -411,7 +411,7 @@ public struct Army_Data
         unit_Stat.meleeChargeRange += addFloat;
     }
 
-    // ¹æ¾î±¸ °ü·Ã ¸Þ¼­µå
+    // ë°©ì–´êµ¬ ê´€ë ¨ ë©”ì„œë“œ
     public float GetArmor()
     {
         if (unit_Stat.armor < 0) return 0;
@@ -434,7 +434,7 @@ public struct Army_Data
         unit_Stat.shieldArmor += addFloat;
     }
 
-    // ¿ø°Å¸® °ø°Ý °ü·Ã ¸Þ¼­µå
+    // ì›ê±°ë¦¬ ê³µê²© ê´€ë ¨ ë©”ì„œë“œ
     public bool IsRangeAttackAble()
     {
         return unit_Stat.brangeAttackAble;
@@ -500,7 +500,7 @@ public struct Army_Data
         unit_Stat.rangeRange += addFloat;
     }
 
-    // °ø°Ý Áö¿¬ °ü·Ã ¸Þ¼­µå
+    // ê³µê²© ì§€ì—° ê´€ë ¨ ë©”ì„œë“œ
     public float GetAttackDelay()
     {
         if (unit_Stat.attackDelay < 0) return 0;
@@ -512,7 +512,7 @@ public struct Army_Data
         unit_Stat.attackDelay += addFloat;
     }
 
-    // Å©±â °ü·Ã ¸Þ¼­µå
+    // í¬ê¸° ê´€ë ¨ ë©”ì„œë“œ
     public float GetSize()
     {
         if (unit_Stat.size <= 0) return 0f;
@@ -535,7 +535,7 @@ public struct Army_Data
         unit_Stat.interval += addFloat;
     }
 
-    // Ãæµ¹ °ü·Ã ¸Þ¼­µå
+    // ì¶©ëŒ ê´€ë ¨ ë©”ì„œë“œ
     public float GetRadius()
     {
         return unit_Stat.radius;
@@ -546,7 +546,7 @@ public struct Army_Data
         return unit_Stat.height;
     }
 
-    // Ã¼·Â °ü·Ã ¸Þ¼­µå
+    // ì²´ë ¥ ê´€ë ¨ ë©”ì„œë“œ
     public float GetHP()
     {
         if (unit_Stat.HP < 0) return 0;
@@ -558,7 +558,7 @@ public struct Army_Data
         unit_Stat.HP += addFloat;
     }
 
-    // °ø°Ý Å¸ÀÔ °ü·Ã ¸Þ¼­µå
+    // ê³µê²© íƒ€ìž… ê´€ë ¨ ë©”ì„œë“œ
     public E_Unit_AttackType GetE_Unit_AttackType()
     {
         return unit_Stat.e_Unit_AttackType;

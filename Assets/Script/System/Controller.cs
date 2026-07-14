@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
@@ -13,114 +13,114 @@ using static Unity.Collections.AllocatorManager;
 
 public class Controller : MonoBehaviour
 {
-    // °ø°³ ¸â¹ö º¯¼ö
+    // ê³µê°œ ë©¤ë²„ ë³€ìˆ˜
     /// <summary>
-    /// °ÔÀÓ ³» ¸ğµç À¯´ÖµéÀ» ÀúÀåÇÏ´Â ¸®½ºÆ®ÀÔ´Ï´Ù.
+    /// ê²Œì„ ë‚´ ëª¨ë“  ìœ ë‹›ë“¤ì„ ì €ì¥í•˜ëŠ” ë¦¬ìŠ¤íŠ¸ì…ë‹ˆë‹¤.
     /// </summary>
     public List<Unit> units;
     /// <summary>
-    /// °ÔÀÓ ³» ¸ğµç ºÎ´ëµéÀ» ÀúÀåÇÏ´Â ¸®½ºÆ®ÀÔ´Ï´Ù.
+    /// ê²Œì„ ë‚´ ëª¨ë“  ë¶€ëŒ€ë“¤ì„ ì €ì¥í•˜ëŠ” ë¦¬ìŠ¤íŠ¸ì…ë‹ˆë‹¤.
     /// </summary>
     public List<Army> armies;
     /// <summary>
-    /// ÇöÀç ¼±ÅÃµÈ ºÎ´ëµéÀ» ÀúÀåÇÏ´Â ¸®½ºÆ®ÀÔ´Ï´Ù.
+    /// í˜„ì¬ ì„ íƒëœ ë¶€ëŒ€ë“¤ì„ ì €ì¥í•˜ëŠ” ë¦¬ìŠ¤íŠ¸ì…ë‹ˆë‹¤.
     /// </summary>
     public List<Army> armies_Selected;
     /// <summary>
-    /// Áö¸é ·¹ÀÌ¾î ¸¶½ºÅ©ÀÔ´Ï´Ù.
+    /// ì§€ë©´ ë ˆì´ì–´ ë§ˆìŠ¤í¬ì…ë‹ˆë‹¤.
     /// </summary>
     public LayerMask layer_Ground;
     /// <summary>
-    /// Å¬¸¯ °¡´ÉÇÑ ¿ÀºêÁ§Æ® ·¹ÀÌ¾î ¸¶½ºÅ©ÀÔ´Ï´Ù.
+    /// í´ë¦­ ê°€ëŠ¥í•œ ì˜¤ë¸Œì íŠ¸ ë ˆì´ì–´ ë§ˆìŠ¤í¬ì…ë‹ˆë‹¤.
     /// </summary>
     public LayerMask layer_Clickable;
     /// <summary>
-    /// ¼±ÅÃ ÇØÁ¦ ±â´ÉÀ» ºñÈ°¼ºÈ­ÇÏ´Â Å° ÄÚµåÀÔ´Ï´Ù.
+    /// ì„ íƒ í•´ì œ ê¸°ëŠ¥ì„ ë¹„í™œì„±í™”í•˜ëŠ” í‚¤ ì½”ë“œì…ë‹ˆë‹¤.
     /// </summary>
     public KeyCode keyCode_disable_clear = KeyCode.LeftControl;
     /// <summary>
-    /// ¸ğµç À¯´ÖÀ» ¼±ÅÃÇÏ´Â Å° ÄÚµåÀÔ´Ï´Ù. (ÇöÀç »ç¿ëµÇÁö ¾ÊÀ½)
+    /// ëª¨ë“  ìœ ë‹›ì„ ì„ íƒí•˜ëŠ” í‚¤ ì½”ë“œì…ë‹ˆë‹¤. (í˜„ì¬ ì‚¬ìš©ë˜ì§€ ì•ŠìŒ)
     /// </summary>
     public KeyCode keyCode_select_All;
     /// <summary>
-    /// ¼±ÅÃ ±â´ÉÀ» À§ÇÑ ¸¶¿ì½º Å° ÄÚµåÀÔ´Ï´Ù (±âº»: ¸¶¿ì½º ¿ŞÂÊ).
+    /// ì„ íƒ ê¸°ëŠ¥ì„ ìœ„í•œ ë§ˆìš°ìŠ¤ í‚¤ ì½”ë“œì…ë‹ˆë‹¤ (ê¸°ë³¸: ë§ˆìš°ìŠ¤ ì™¼ìª½).
     /// </summary>
     public KeyCode keyCode_Select = KeyCode.Mouse0;
     /// <summary>
-    /// ¸í·É ±â´ÉÀ» À§ÇÑ ¸¶¿ì½º Å° ÄÚµåÀÔ´Ï´Ù (±âº»: ¸¶¿ì½º ¿À¸¥ÂÊ).
+    /// ëª…ë ¹ ê¸°ëŠ¥ì„ ìœ„í•œ ë§ˆìš°ìŠ¤ í‚¤ ì½”ë“œì…ë‹ˆë‹¤ (ê¸°ë³¸: ë§ˆìš°ìŠ¤ ì˜¤ë¥¸ìª½).
     /// </summary>
     public KeyCode keyCode_Command = KeyCode.Mouse1;
     /// <summary>
-    /// µå·¡±× ¼±ÅÃ ÁßÀÓÀ» ³ªÅ¸³»´Â ÇÃ·¡±×ÀÔ´Ï´Ù.
+    /// ë“œë˜ê·¸ ì„ íƒ ì¤‘ì„ì„ ë‚˜íƒ€ë‚´ëŠ” í”Œë˜ê·¸ì…ë‹ˆë‹¤.
     /// </summary>
     public bool bselect;
     /// <summary>
-    /// µå·¡±× ¼±ÅÃ ½ÃÀÛÁ¡ÀÔ´Ï´Ù.
+    /// ë“œë˜ê·¸ ì„ íƒ ì‹œì‘ì ì…ë‹ˆë‹¤.
     /// </summary>
     public Vector2 select_Start;
     /// <summary>
-    /// µå·¡±× ¼±ÅÃ ³¡Á¡ÀÔ´Ï´Ù.
+    /// ë“œë˜ê·¸ ì„ íƒ ëì ì…ë‹ˆë‹¤.
     /// </summary>
     public Vector2 select_End;
     /// <summary>
-    /// µå·¡±× ¼±ÅÃ UI ¹Ú½º¸¦ ³ªÅ¸³»´Â RectTransformÀÔ´Ï´Ù.
+    /// ë“œë˜ê·¸ ì„ íƒ UI ë°•ìŠ¤ë¥¼ ë‚˜íƒ€ë‚´ëŠ” RectTransformì…ë‹ˆë‹¤.
     /// </summary>
     [SerializeField]
     public RectTransform select_UI_Box;
     /// <summary>
-    /// ¸í·É µå·¡±× ÁßÀÓÀ» ³ªÅ¸³»´Â ÇÃ·¡±×ÀÔ´Ï´Ù.
+    /// ëª…ë ¹ ë“œë˜ê·¸ ì¤‘ì„ì„ ë‚˜íƒ€ë‚´ëŠ” í”Œë˜ê·¸ì…ë‹ˆë‹¤.
     /// </summary>
     public bool bdrag;
     /// <summary>
-    /// ÁøÇü Çü¼º ÁßÀÓÀ» ³ªÅ¸³»´Â ÇÃ·¡±×ÀÔ´Ï´Ù.
+    /// ì§„í˜• í˜•ì„± ì¤‘ì„ì„ ë‚˜íƒ€ë‚´ëŠ” í”Œë˜ê·¸ì…ë‹ˆë‹¤.
     /// </summary>
     public bool bformation;
     /// <summary>
-    /// ÁøÇü ½ÃÀÛ À§Ä¡ÀÔ´Ï´Ù.
+    /// ì§„í˜• ì‹œì‘ ìœ„ì¹˜ì…ë‹ˆë‹¤.
     /// </summary>
     public Vector3 formation_Start;
     /// <summary>
-    /// ÁøÇü ³¡ À§Ä¡ÀÔ´Ï´Ù.
+    /// ì§„í˜• ë ìœ„ì¹˜ì…ë‹ˆë‹¤.
     /// </summary>
     public Vector3 formation_End;
     /// <summary>
-    /// µå·¡±×·Î ÁøÇüÀ» Çü¼ºÇÒ ¶§ Ç¥½ÃµÇ´Â ±ê¹ß 1¹øÀÔ´Ï´Ù.
+    /// ë“œë˜ê·¸ë¡œ ì§„í˜•ì„ í˜•ì„±í•  ë•Œ í‘œì‹œë˜ëŠ” ê¹ƒë°œ 1ë²ˆì…ë‹ˆë‹¤.
     /// </summary>
     public Transform Flag1;
     /// <summary>
-    /// µå·¡±×·Î ÁøÇüÀ» Çü¼ºÇÒ ¶§ Ç¥½ÃµÇ´Â ±ê¹ß 2¹øÀÔ´Ï´Ù.
+    /// ë“œë˜ê·¸ë¡œ ì§„í˜•ì„ í˜•ì„±í•  ë•Œ í‘œì‹œë˜ëŠ” ê¹ƒë°œ 2ë²ˆì…ë‹ˆë‹¤.
     /// </summary>
     public Transform Flag2;
 
-    // ºñ°ø°³ ¸â¹ö º¯¼ö
+    // ë¹„ê³µê°œ ë©¤ë²„ ë³€ìˆ˜
     /// <summary>
-    /// µå·¡±× ¼±ÅÃ ¿µ¿ªÀ» ÀúÀåÇÏ´Â Rect ±¸Á¶Ã¼ÀÔ´Ï´Ù.
+    /// ë“œë˜ê·¸ ì„ íƒ ì˜ì—­ì„ ì €ì¥í•˜ëŠ” Rect êµ¬ì¡°ì²´ì…ë‹ˆë‹¤.
     /// </summary>
     private Rect select_Box;
 
-    // Unity ÀÌº¥Æ® ÇÔ¼ö
+    // Unity ì´ë²¤íŠ¸ í•¨ìˆ˜
     /// <summary>
-    /// MonoBehaviour ÀÎ½ºÅÏ½º°¡ »ı¼ºµÉ ¶§ È£ÃâµË´Ï´Ù.
+    /// MonoBehaviour ì¸ìŠ¤í„´ìŠ¤ê°€ ìƒì„±ë  ë•Œ í˜¸ì¶œë©ë‹ˆë‹¤.
     /// </summary>
     private void Awake()
     {
-        // ¾ÖÇÃ¸®ÄÉÀÌ¼ÇÀÇ ¸ñÇ¥ ÇÁ·¹ÀÓ ¼Óµµ¸¦ 60À¸·Î ¼³Á¤ÇÕ´Ï´Ù.
+        // ì• í”Œë¦¬ì¼€ì´ì…˜ì˜ ëª©í‘œ í”„ë ˆì„ ì†ë„ë¥¼ 60ìœ¼ë¡œ ì„¤ì •í•©ë‹ˆë‹¤.
         Application.targetFrameRate = 60;
     }
 
     /// <summary>
-    /// ½ºÅ©¸³Æ®°¡ Ã³À½ È°¼ºÈ­µÉ ¶§ ÇÑ ¹ø È£ÃâµË´Ï´Ù.
+    /// ìŠ¤í¬ë¦½íŠ¸ê°€ ì²˜ìŒ í™œì„±í™”ë  ë•Œ í•œ ë²ˆ í˜¸ì¶œë©ë‹ˆë‹¤.
     /// </summary>
     private void Start()
     {
-        // ¸ğµç ºÎ´ë¸¦ ÃÊ±âÈ­ÇÏ°í À¯´Ö ¸®½ºÆ®¸¦ Ã¤¿ó´Ï´Ù.
+        // ëª¨ë“  ë¶€ëŒ€ë¥¼ ì´ˆê¸°í™”í•˜ê³  ìœ ë‹› ë¦¬ìŠ¤íŠ¸ë¥¼ ì±„ì›ë‹ˆë‹¤.
         for (int i = 0; i < armies.Count; i++)
         {
             armies[i]._Start();
             units.AddRange(armies[i].units);
         }
 
-        // ¸ğµç À¯´ÖÀ» ÃÊ±âÈ­ÇÕ´Ï´Ù.
+        // ëª¨ë“  ìœ ë‹›ì„ ì´ˆê¸°í™”í•©ë‹ˆë‹¤.
         for (int i = 0; i < units.Count; i++)
         {
             units[i]._Start(i);
@@ -128,21 +128,21 @@ public class Controller : MonoBehaviour
     }
 
     /// <summary>
-    /// ¸Å ÇÁ·¹ÀÓ¸¶´Ù È£ÃâµË´Ï´Ù.
+    /// ë§¤ í”„ë ˆì„ë§ˆë‹¤ í˜¸ì¶œë©ë‹ˆë‹¤.
     /// </summary>
     private void Update()
     {
-        // ¸¶¿ì½º ¹öÆ° ÀÔ·Â¿¡ µû¸¥ ¼±ÅÃ ¹× ¸í·É ¾÷µ¥ÀÌÆ®¸¦ Ã³¸®ÇÕ´Ï´Ù.
+        // ë§ˆìš°ìŠ¤ ë²„íŠ¼ ì…ë ¥ì— ë”°ë¥¸ ì„ íƒ ë° ëª…ë ¹ ì—…ë°ì´íŠ¸ë¥¼ ì²˜ë¦¬í•©ë‹ˆë‹¤.
         _Update_MouseButton_Select();
         _Update_MouseButton_Command();
     }
 
     /// <summary>
-    /// °íÁ¤µÈ ½Ã°£ °£°İÀ¸·Î È£ÃâµË´Ï´Ù.
+    /// ê³ ì •ëœ ì‹œê°„ ê°„ê²©ìœ¼ë¡œ í˜¸ì¶œë©ë‹ˆë‹¤.
     /// </summary>
     private void FixedUpdate()
     {
-        // µå·¡±× ÁßÀÎ °æ¿ì ÁøÇü Çü¼º ·ÎÁ÷À» Ã³¸®ÇÕ´Ï´Ù.
+        // ë“œë˜ê·¸ ì¤‘ì¸ ê²½ìš° ì§„í˜• í˜•ì„± ë¡œì§ì„ ì²˜ë¦¬í•©ë‹ˆë‹¤.
         if (bdrag)
         {
             RaycastHit raycastHit;
@@ -164,13 +164,13 @@ public class Controller : MonoBehaviour
                 Drag_Formaion();
             }
         }
-        // ºÎ´ë »óÅÂ¸¦ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.
+        // ë¶€ëŒ€ ìƒíƒœë¥¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.
         _Update_Army();
     }
 
-    // ºñ°ø°³ ¸Ş¼­µå
+    // ë¹„ê³µê°œ ë©”ì„œë“œ
     /// <summary>
-    /// ¼±ÅÃ ±â´ÉÀ» À§ÇÑ ¸¶¿ì½º ¹öÆ° ÀÔ·ÂÀ» Ã³¸®ÇÕ´Ï´Ù.
+    /// ì„ íƒ ê¸°ëŠ¥ì„ ìœ„í•œ ë§ˆìš°ìŠ¤ ë²„íŠ¼ ì…ë ¥ì„ ì²˜ë¦¬í•©ë‹ˆë‹¤.
     /// </summary>
     private void _Update_MouseButton_Select()
     {
@@ -183,7 +183,7 @@ public class Controller : MonoBehaviour
                 Erase_Formation_UI();
             }
 
-            // Ctrl Å°¸¦ ´©¸£Áö ¾Ê¾ÒÀ» °æ¿ì, ¼±ÅÃµÈ ºÎ´ë¸¦ ¸ğµÎ ÇØÁ¦ÇÕ´Ï´Ù.
+            // Ctrl í‚¤ë¥¼ ëˆ„ë¥´ì§€ ì•Šì•˜ì„ ê²½ìš°, ì„ íƒëœ ë¶€ëŒ€ë¥¼ ëª¨ë‘ í•´ì œí•©ë‹ˆë‹¤.
             if (!Input.GetKey(keyCode_disable_clear))
             {
                 for (int i = 0; i < armies_Selected.Count; i++)
@@ -193,7 +193,7 @@ public class Controller : MonoBehaviour
                 armies_Selected.Clear();
             }
 
-            // ¸¶¿ì½º Å¬¸¯ À§Ä¡¿¡ ÀÖ´Â À¯´ÖÀ» ¼±ÅÃÇÕ´Ï´Ù.
+            // ë§ˆìš°ìŠ¤ í´ë¦­ ìœ„ì¹˜ì— ìˆëŠ” ìœ ë‹›ì„ ì„ íƒí•©ë‹ˆë‹¤.
             RaycastHit raycastHit;
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
 
@@ -210,7 +210,7 @@ public class Controller : MonoBehaviour
             }
             else
             {
-                // Å¬¸¯ÇÑ °÷¿¡ À¯´ÖÀÌ ¾øÀ» °æ¿ì µå·¡±× ¼±ÅÃÀ» ½ÃÀÛÇÕ´Ï´Ù.
+                // í´ë¦­í•œ ê³³ì— ìœ ë‹›ì´ ì—†ì„ ê²½ìš° ë“œë˜ê·¸ ì„ íƒì„ ì‹œì‘í•©ë‹ˆë‹¤.
                 bselect = true;
                 select_Start = Input.mousePosition;
             }
@@ -237,7 +237,7 @@ public class Controller : MonoBehaviour
     }
 
     /// <summary>
-    /// ¸í·É ±â´ÉÀ» À§ÇÑ ¸¶¿ì½º ¹öÆ° ÀÔ·ÂÀ» Ã³¸®ÇÕ´Ï´Ù.
+    /// ëª…ë ¹ ê¸°ëŠ¥ì„ ìœ„í•œ ë§ˆìš°ìŠ¤ ë²„íŠ¼ ì…ë ¥ì„ ì²˜ë¦¬í•©ë‹ˆë‹¤.
     /// </summary>
     private void _Update_MouseButton_Command()
     {
@@ -249,7 +249,7 @@ public class Controller : MonoBehaviour
                 Erase_Drag_UI();
             }
 
-            // ¸¶¿ì½º Å¬¸¯ À§Ä¡¿¡ ÀÖ´Â Áö¸éÀ» °¨ÁöÇÏ¿© ¸í·É µå·¡±×¸¦ ½ÃÀÛÇÕ´Ï´Ù.
+            // ë§ˆìš°ìŠ¤ í´ë¦­ ìœ„ì¹˜ì— ìˆëŠ” ì§€ë©´ì„ ê°ì§€í•˜ì—¬ ëª…ë ¹ ë“œë˜ê·¸ë¥¼ ì‹œì‘í•©ë‹ˆë‹¤.
             RaycastHit raycastHit;
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
 
@@ -263,7 +263,7 @@ public class Controller : MonoBehaviour
 
         if (Input.GetKey(keyCode_Command))
         {
-            // µå·¡±× ÁßÀÎ »óÅÂ¸¦ À¯ÁöÇÕ´Ï´Ù.
+            // ë“œë˜ê·¸ ì¤‘ì¸ ìƒíƒœë¥¼ ìœ ì§€í•©ë‹ˆë‹¤.
         }
 
         if (Input.GetKeyUp(keyCode_Command))
@@ -293,7 +293,7 @@ public class Controller : MonoBehaviour
     }
 
     /// <summary>
-    /// µå·¡±× ¼±ÅÃ UI ¹Ú½º¸¦ È­¸é¿¡ ±×¸³´Ï´Ù.
+    /// ë“œë˜ê·¸ ì„ íƒ UI ë°•ìŠ¤ë¥¼ í™”ë©´ì— ê·¸ë¦½ë‹ˆë‹¤.
     /// </summary>
     void Draw_Drag_UI_Box()
     {
@@ -304,7 +304,7 @@ public class Controller : MonoBehaviour
     }
 
     /// <summary>
-    /// µå·¡±× ¼±ÅÃ UI¸¦ Áö¿ì°í º¯¼ö¸¦ ÃÊ±âÈ­ÇÕ´Ï´Ù.
+    /// ë“œë˜ê·¸ ì„ íƒ UIë¥¼ ì§€ìš°ê³  ë³€ìˆ˜ë¥¼ ì´ˆê¸°í™”í•©ë‹ˆë‹¤.
     /// </summary>
     void Erase_Drag_UI()
     {
@@ -314,11 +314,11 @@ public class Controller : MonoBehaviour
     }
 
     /// <summary>
-    /// µå·¡±× ¿µ¿ª ³»ÀÇ ¸ğµç À¯´ÖÀ» ¼±ÅÃÇÕ´Ï´Ù.
+    /// ë“œë˜ê·¸ ì˜ì—­ ë‚´ì˜ ëª¨ë“  ìœ ë‹›ì„ ì„ íƒí•©ë‹ˆë‹¤.
     /// </summary>
     void Select_Drag()
     {
-        // µå·¡±× ¿µ¿ªÀÇ Rect¸¦ °è»êÇÕ´Ï´Ù.
+        // ë“œë˜ê·¸ ì˜ì—­ì˜ Rectë¥¼ ê³„ì‚°í•©ë‹ˆë‹¤.
         if (select_Start.x > select_End.x)
         {
             select_Box.xMax = select_Start.x;
@@ -341,7 +341,7 @@ public class Controller : MonoBehaviour
             select_Box.yMin = select_Start.y;
         }
 
-        // µå·¡±× ¿µ¿ª¿¡ Æ÷ÇÔµÈ À¯´ÖÀ» Ã£¾Æ ¼±ÅÃÇÕ´Ï´Ù.
+        // ë“œë˜ê·¸ ì˜ì—­ì— í¬í•¨ëœ ìœ ë‹›ì„ ì°¾ì•„ ì„ íƒí•©ë‹ˆë‹¤.
         foreach (Unit unit in units)
         {
             if (unit == null) continue;
@@ -357,7 +357,7 @@ public class Controller : MonoBehaviour
     }
 
     /// <summary>
-    /// ºÎ´ëÀÇ ÁøÇüÀ» µå·¡±×ÇÏ¿© Çü¼ºÇÕ´Ï´Ù.
+    /// ë¶€ëŒ€ì˜ ì§„í˜•ì„ ë“œë˜ê·¸í•˜ì—¬ í˜•ì„±í•©ë‹ˆë‹¤.
     /// </summary>
     void Drag_Formaion()
     {
@@ -365,7 +365,7 @@ public class Controller : MonoBehaviour
     }
 
     /// <summary>
-    /// ¼±ÅÃµÈ ºÎ´ëÀÇ ÁøÇü UI¸¦ ±×¸³´Ï´Ù.
+    /// ì„ íƒëœ ë¶€ëŒ€ì˜ ì§„í˜• UIë¥¼ ê·¸ë¦½ë‹ˆë‹¤.
     /// </summary>
     void Draw_Formation_UI()
     {
@@ -376,7 +376,7 @@ public class Controller : MonoBehaviour
     }
 
     /// <summary>
-    /// ¼±ÅÃµÈ ºÎ´ëÀÇ ÁøÇü UI¸¦ Áö¿ó´Ï´Ù.
+    /// ì„ íƒëœ ë¶€ëŒ€ì˜ ì§„í˜• UIë¥¼ ì§€ì›ë‹ˆë‹¤.
     /// </summary>
     void Erase_Formation_UI()
     {
@@ -387,7 +387,7 @@ public class Controller : MonoBehaviour
     }
 
     /// <summary>
-    /// µå·¡±×ÇÏ¿© Çü¼ºµÈ ÁøÇüÀ¸·Î ºÎ´ë ÀÌµ¿À» ½ÃÀÛÇÕ´Ï´Ù.
+    /// ë“œë˜ê·¸í•˜ì—¬ í˜•ì„±ëœ ì§„í˜•ìœ¼ë¡œ ë¶€ëŒ€ ì´ë™ì„ ì‹œì‘í•©ë‹ˆë‹¤.
     /// </summary>
     void Start_Move_Drag()
     {
@@ -395,7 +395,7 @@ public class Controller : MonoBehaviour
     }
 
     /// <summary>
-    /// Å¬¸¯ ÁöÁ¡À¸·Î ºÎ´ë ÀÌµ¿À» ½ÃÀÛÇÕ´Ï´Ù.
+    /// í´ë¦­ ì§€ì ìœ¼ë¡œ ë¶€ëŒ€ ì´ë™ì„ ì‹œì‘í•©ë‹ˆë‹¤.
     /// </summary>
     void Start_Move_Click()
     {
@@ -407,14 +407,14 @@ public class Controller : MonoBehaviour
         Vector3 formation_Direction;
         Vector3 armies_Position = new Vector3();
 
-        // ¼±ÅÃµÈ ¸ğµç ºÎ´ëÀÇ Æò±Õ À§Ä¡¸¦ °è»êÇÕ´Ï´Ù.
+        // ì„ íƒëœ ëª¨ë“  ë¶€ëŒ€ì˜ í‰ê·  ìœ„ì¹˜ë¥¼ ê³„ì‚°í•©ë‹ˆë‹¤.
         for (int i = 0; i < armies_Selected.Count; i++)
         {
             armies_Position = armies_Position + armies_Selected[i].GetPosition();
         }
         armies_Position = armies_Position / armies_Selected.Count;
 
-        // ÁøÇü ¹æÇâÀ» ¼³Á¤ÇÕ´Ï´Ù.
+        // ì§„í˜• ë°©í–¥ì„ ì„¤ì •í•©ë‹ˆë‹¤.
         formation_Direction = formation_Start - armies_Position;
         formation_Direction = Quaternion.AngleAxis(90, Vector3.up) * formation_Direction;
 
@@ -436,7 +436,7 @@ public class Controller : MonoBehaviour
                 * armies_Selected[i].army_Data.GetInterval();
         }
 
-        // Çë°¡¸®¾È ¾Ë°í¸®ÁòÀ» »ç¿ëÇÏ¿© ºÎ´ë¿Í ÁøÇü À§Ä¡¸¦ ¸ÅÄªÇÕ´Ï´Ù.
+        // í—ê°€ë¦¬ì•ˆ ì•Œê³ ë¦¬ì¦˜ì„ ì‚¬ìš©í•˜ì—¬ ë¶€ëŒ€ì™€ ì§„í˜• ìœ„ì¹˜ë¥¼ ë§¤ì¹­í•©ë‹ˆë‹¤.
         List<Vector3> armies_position = new List<Vector3>();
         List<Vector3> armies_formation_position = new List<Vector3>();
 
@@ -460,9 +460,9 @@ public class Controller : MonoBehaviour
     }
 
     /// <summary>
-    /// ¼±ÅÃµÈ ºÎ´ëÀÇ ÁøÇüÀ» ¼³Á¤ÇÏ°í ÀÌµ¿À» ½ÃÀÛÇÕ´Ï´Ù.
+    /// ì„ íƒëœ ë¶€ëŒ€ì˜ ì§„í˜•ì„ ì„¤ì •í•˜ê³  ì´ë™ì„ ì‹œì‘í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="bMove">ÀÌµ¿À» ½ÃÀÛÇÒÁö ¿©ºÎÀÔ´Ï´Ù.</param>
+    /// <param name="bMove">ì´ë™ì„ ì‹œì‘í• ì§€ ì—¬ë¶€ì…ë‹ˆë‹¤.</param>
     public void Set_Army_Formation(bool bMove)
     {
         if (armies_Selected.Count == 0)
@@ -470,11 +470,11 @@ public class Controller : MonoBehaviour
             return;
         }
 
-        // ÁøÇü ½ÃÀÛ ¹× ³¡ ÁöÁ¡¿¡ ±ê¹ßÀ» Ç¥½ÃÇÕ´Ï´Ù.
+        // ì§„í˜• ì‹œì‘ ë° ë ì§€ì ì— ê¹ƒë°œì„ í‘œì‹œí•©ë‹ˆë‹¤.
         Flag1.position = formation_Start;
         Flag2.position = formation_End;
 
-        // ÁøÇü ¹æÇâ°ú À§Ä¡¸¦ °è»êÇÕ´Ï´Ù.
+        // ì§„í˜• ë°©í–¥ê³¼ ìœ„ì¹˜ë¥¼ ê³„ì‚°í•©ë‹ˆë‹¤.
         float m1;
         float n1;
 
@@ -492,7 +492,7 @@ public class Controller : MonoBehaviour
             else floatList.Add(-x);
         }
 
-        // ºÎ´ë À§Ä¡¸¦ ±âÁØÀ¸·Î Á¤·ÄÇÕ´Ï´Ù.
+        // ë¶€ëŒ€ ìœ„ì¹˜ë¥¼ ê¸°ì¤€ìœ¼ë¡œ ì •ë ¬í•©ë‹ˆë‹¤.
         for (int i = 0; i < armies_Selected.Count; i++)
         {
             for (int j = 0; j < armies_Selected.Count; j++)
@@ -580,11 +580,11 @@ public class Controller : MonoBehaviour
     }
 
     /// <summary>
-    /// ¸ğµç ºÎ´ëÀÇ µ¥ÀÌÅÍ¸¦ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.
+    /// ëª¨ë“  ë¶€ëŒ€ì˜ ë°ì´í„°ë¥¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.
     /// </summary>
     private void _Update_Army()
     {
-        // 1. ¸ğµç À¯´ÖÀÇ ID¿Í µ¥ÀÌÅÍ¸¦ ´ãÀ» NativeHashMapÀ» »ı¼ºÇÕ´Ï´Ù.
+        // 1. ëª¨ë“  ìœ ë‹›ì˜ IDì™€ ë°ì´í„°ë¥¼ ë‹´ì„ NativeHashMapì„ ìƒì„±í•©ë‹ˆë‹¤.
         var unitDataMap = new NativeHashMap<int, Unit_Data>(units.Count, Allocator.TempJob);
         for (int i = 0; i < units.Count; i++)
         {
@@ -617,13 +617,13 @@ public class Controller : MonoBehaviour
 
         army_Datas.Dispose();
 
-        // 2. °¢ ArmyÀÇ _Update ÇÔ¼ö¿¡ Á¶È¸ Å×ÀÌºíÀ» Àü´ŞÇÕ´Ï´Ù.
+        // 2. ê° Armyì˜ _Update í•¨ìˆ˜ì— ì¡°íšŒ í…Œì´ë¸”ì„ ì „ë‹¬í•©ë‹ˆë‹¤.
         for (int i = 0; i < armies.Count; i++)
         {
             armies[i]._Update(unitDataMap);
         }
 
-        // 3. ¸ğµç ÀÛ¾÷ÀÌ ³¡³­ ÈÄ NativeHashMapÀÇ ¸Ş¸ğ¸®¸¦ ÇØÁ¦ÇÕ´Ï´Ù.
+        // 3. ëª¨ë“  ì‘ì—…ì´ ëë‚œ í›„ NativeHashMapì˜ ë©”ëª¨ë¦¬ë¥¼ í•´ì œí•©ë‹ˆë‹¤.
         unitDataMap.Dispose();
     }
 }

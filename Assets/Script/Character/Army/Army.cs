@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
@@ -10,24 +10,24 @@ using Unity.Jobs;
 using Unity.VisualScripting;
 
 /// <summary>
-/// ´Ù¸¥ ºÎ´ë¿ÍÀÇ Á¢ÃË Á¤º¸¸¦ ÀúÀåÇÏ´Â Å¬·¡½ºÀÔ´Ï´Ù.
+/// ë‹¤ë¥¸ ë¶€ëŒ€ì™€ì˜ ì ‘ì´‰ ì •ë³´ë¥¼ ì €ì¥í•˜ëŠ” í´ë˜ìŠ¤ì…ë‹ˆë‹¤.
 /// </summary>
 public class Army_Count
 {
     /// <summary>
-    /// Á¢ÃËÇÑ ºÎ´ëÀÇ ¼öÀÔ´Ï´Ù.
+    /// ì ‘ì´‰í•œ ë¶€ëŒ€ì˜ ìˆ˜ì…ë‹ˆë‹¤.
     /// </summary>
     public int num;
     /// <summary>
-    /// Á¢ÃËÇÑ ºÎ´ëÀÔ´Ï´Ù.
+    /// ì ‘ì´‰í•œ ë¶€ëŒ€ì…ë‹ˆë‹¤.
     /// </summary>
     public Army army;
 
     /// <summary>
-    /// Army_Count Å¬·¡½ºÀÇ »ı¼ºÀÚÀÔ´Ï´Ù.
+    /// Army_Count í´ë˜ìŠ¤ì˜ ìƒì„±ìì…ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="army">Á¢ÃËÇÑ ºÎ´ë ÀÎ½ºÅÏ½ºÀÔ´Ï´Ù.</param>
-    /// <param name="num">Á¢ÃËÇÑ È½¼öÀÔ´Ï´Ù.</param>
+    /// <param name="army">ì ‘ì´‰í•œ ë¶€ëŒ€ ì¸ìŠ¤í„´ìŠ¤ì…ë‹ˆë‹¤.</param>
+    /// <param name="num">ì ‘ì´‰í•œ íšŸìˆ˜ì…ë‹ˆë‹¤.</param>
     public Army_Count(Army army, int num)
     {
         this.army = army;
@@ -36,118 +36,118 @@ public class Army_Count
 }
 
 /// <summary>
-/// À¯´ÖµéÀÇ ÁıÇÕÀÎ ºÎ´ë¸¦ Á¦¾îÇÏ´Â ÁÖ ½ºÅ©¸³Æ®ÀÔ´Ï´Ù.
-/// ºÎ´ë ÀÌµ¿, ÀüÅõ, »óÅÂ °ü¸® µî Àü¹İÀûÀÎ ºÎ´ë Á¦¾î ·ÎÁ÷À» Æ÷ÇÔÇÕ´Ï´Ù.
+/// ìœ ë‹›ë“¤ì˜ ì§‘í•©ì¸ ë¶€ëŒ€ë¥¼ ì œì–´í•˜ëŠ” ì£¼ ìŠ¤í¬ë¦½íŠ¸ì…ë‹ˆë‹¤.
+/// ë¶€ëŒ€ ì´ë™, ì „íˆ¬, ìƒíƒœ ê´€ë¦¬ ë“± ì „ë°˜ì ì¸ ë¶€ëŒ€ ì œì–´ ë¡œì§ì„ í¬í•¨í•©ë‹ˆë‹¤.
 /// </summary>
 public partial class Army : MonoBehaviour
 {
-    // °ø°³ ¸â¹ö º¯¼ö
+    // ê³µê°œ ë©¤ë²„ ë³€ìˆ˜
     /// <summary>
-    /// ºÎ´ëÀÇ Àü¹İÀûÀÎ µ¥ÀÌÅÍ¸¦ ´ã°í ÀÖ´Â ±¸Á¶Ã¼ÀÔ´Ï´Ù.
+    /// ë¶€ëŒ€ì˜ ì „ë°˜ì ì¸ ë°ì´í„°ë¥¼ ë‹´ê³  ìˆëŠ” êµ¬ì¡°ì²´ì…ë‹ˆë‹¤.
     /// </summary>
     public Army_Data army_Data;
     /// <summary>
-    /// À¯´ÖÀÇ ½ºÇÁ¶óÀÌÆ® ÀÌ¹ÌÁö ¸®½ºÆ®ÀÔ´Ï´Ù.
+    /// ìœ ë‹›ì˜ ìŠ¤í”„ë¼ì´íŠ¸ ì´ë¯¸ì§€ ë¦¬ìŠ¤íŠ¸ì…ë‹ˆë‹¤.
     /// </summary>
     public List<Sprite> images_Unit;
     /// <summary>
-    /// ¹«±â ½ºÇÁ¶óÀÌÆ® ÀÌ¹ÌÁö ¸®½ºÆ®ÀÔ´Ï´Ù.
+    /// ë¬´ê¸° ìŠ¤í”„ë¼ì´íŠ¸ ì´ë¯¸ì§€ ë¦¬ìŠ¤íŠ¸ì…ë‹ˆë‹¤.
     /// </summary>
     public List<Sprite> images_Weapon;
     /// <summary>
-    /// ¹æÆĞ ½ºÇÁ¶óÀÌÆ® ÀÌ¹ÌÁö ¸®½ºÆ®ÀÔ´Ï´Ù.
+    /// ë°©íŒ¨ ìŠ¤í”„ë¼ì´íŠ¸ ì´ë¯¸ì§€ ë¦¬ìŠ¤íŠ¸ì…ë‹ˆë‹¤.
     /// </summary>
     public List<Sprite> images_Shield;
     /// <summary>
-    /// »ı¼ºÇÒ À¯´Ö ÇÁ¸®ÆÕÀÔ´Ï´Ù.
+    /// ìƒì„±í•  ìœ ë‹› í”„ë¦¬íŒ¹ì…ë‹ˆë‹¤.
     /// </summary>
     public GameObject unit;
     /// <summary>
-    /// »ı¼ºµÈ ¸ğµç À¯´Ö ÀÎ½ºÅÏ½º ¸®½ºÆ®ÀÔ´Ï´Ù.
+    /// ìƒì„±ëœ ëª¨ë“  ìœ ë‹› ì¸ìŠ¤í„´ìŠ¤ ë¦¬ìŠ¤íŠ¸ì…ë‹ˆë‹¤.
     /// </summary>
     public List<Unit> units;
     /// <summary>
-    /// ºÎ´ëÀÇ ±ê¹ß ¿ÀºêÁ§Æ®ÀÔ´Ï´Ù.
+    /// ë¶€ëŒ€ì˜ ê¹ƒë°œ ì˜¤ë¸Œì íŠ¸ì…ë‹ˆë‹¤.
     /// </summary>
     public Transform Flag;
     /// <summary>
-    /// ±ê¹ßÀ» µé°í ÀÖ´Â À¯´ÖÀÔ´Ï´Ù.
+    /// ê¹ƒë°œì„ ë“¤ê³  ìˆëŠ” ìœ ë‹›ì…ë‹ˆë‹¤.
     /// </summary>
     public Unit unit_Bearing_Flag;
     /// <summary>
-    /// ºÎ´ëÀÇ ÀÌµ¿À» Á¦¾îÇÏ´Â NavMeshAgent ÄÄÆ÷³ÍÆ®ÀÔ´Ï´Ù.
+    /// ë¶€ëŒ€ì˜ ì´ë™ì„ ì œì–´í•˜ëŠ” NavMeshAgent ì»´í¬ë„ŒíŠ¸ì…ë‹ˆë‹¤.
     /// </summary>
     public NavMeshAgent navMeshAgent;
     /// <summary>
-    /// ºÎ´ë°¡ ÀÌµ¿ÇÒ ¸ñÇ¥ À§Ä¡ÀÔ´Ï´Ù.
+    /// ë¶€ëŒ€ê°€ ì´ë™í•  ëª©í‘œ ìœ„ì¹˜ì…ë‹ˆë‹¤.
     /// </summary>
     public Vector3 locationMoveTo;
     /// <summary>
-    /// ÇöÀç ºÎ´ëÀÇ ÁøÇü µ¥ÀÌÅÍÀÔ´Ï´Ù.
+    /// í˜„ì¬ ë¶€ëŒ€ì˜ ì§„í˜• ë°ì´í„°ì…ë‹ˆë‹¤.
     /// </summary>
     public Formation_Data formation_Data;
     /// <summary>
-    /// Æ÷¸ŞÀÌ¼Ç ÀÌµ¿ ÁßÀÎÁö ¿©ºÎ¸¦ ³ªÅ¸³»´Â ÇÃ·¡±×ÀÔ´Ï´Ù.
+    /// í¬ë©”ì´ì…˜ ì´ë™ ì¤‘ì¸ì§€ ì—¬ë¶€ë¥¼ ë‚˜íƒ€ë‚´ëŠ” í”Œë˜ê·¸ì…ë‹ˆë‹¤.
     /// </summary>
     public bool bformation_Move = false;
     /// <summary>
-    /// ºÎ´ë ÀÌµ¿ÀÇ ±âÁØÀÌ µÇ´Â TransformÀÔ´Ï´Ù.
+    /// ë¶€ëŒ€ ì´ë™ì˜ ê¸°ì¤€ì´ ë˜ëŠ” Transformì…ë‹ˆë‹¤.
     /// </summary>
     public Transform formation_Move_Transform;
     /// <summary>
-    /// °¢ À¯´ÖÀÇ Æ÷¸ŞÀÌ¼Ç ¸ñÇ¥ À§Ä¡¸¦ ³ªÅ¸³»´Â Transform ¸®½ºÆ®ÀÔ´Ï´Ù.
+    /// ê° ìœ ë‹›ì˜ í¬ë©”ì´ì…˜ ëª©í‘œ ìœ„ì¹˜ë¥¼ ë‚˜íƒ€ë‚´ëŠ” Transform ë¦¬ìŠ¤íŠ¸ì…ë‹ˆë‹¤.
     /// </summary>
     public List<Transform> formation_Moves;
     /// <summary>
-    /// ÇöÀç ºÎ´ë°¡ ¼±ÅÃµÇ¾ú´ÂÁö ¿©ºÎ¸¦ ³ªÅ¸³»´Â ÇÃ·¡±×ÀÔ´Ï´Ù.
+    /// í˜„ì¬ ë¶€ëŒ€ê°€ ì„ íƒë˜ì—ˆëŠ”ì§€ ì—¬ë¶€ë¥¼ ë‚˜íƒ€ë‚´ëŠ” í”Œë˜ê·¸ì…ë‹ˆë‹¤.
     /// </summary>
     public bool bselected;
     /// <summary>
-    /// Å½ÁöµÈ ´Ù¸¥ ºÎ´ëµéÀÇ ¸®½ºÆ®ÀÔ´Ï´Ù.
+    /// íƒì§€ëœ ë‹¤ë¥¸ ë¶€ëŒ€ë“¤ì˜ ë¦¬ìŠ¤íŠ¸ì…ë‹ˆë‹¤.
     /// </summary>
     public List<Army_Count> army_Detected;
     /// <summary>
-    /// ÇöÀç ºÎ´ëÀÇ °ø°İ ¸ñÇ¥ÀÎ ´Ù¸¥ ºÎ´ëÀÔ´Ï´Ù.
+    /// í˜„ì¬ ë¶€ëŒ€ì˜ ê³µê²© ëª©í‘œì¸ ë‹¤ë¥¸ ë¶€ëŒ€ì…ë‹ˆë‹¤.
     /// </summary>
     public Army targetArmy;
     /// <summary>
-    /// Æ÷¸ŞÀÌ¼ÇÀÇ ÃÖ´ë ±æÀÌÀÔ´Ï´Ù.
+    /// í¬ë©”ì´ì…˜ì˜ ìµœëŒ€ ê¸¸ì´ì…ë‹ˆë‹¤.
     /// </summary>
     public int formationLength_Max;
     /// <summary>
-    /// À¯´Ö UI ÇÁ¸®ÆÕÀÔ´Ï´Ù.
+    /// ìœ ë‹› UI í”„ë¦¬íŒ¹ì…ë‹ˆë‹¤.
     /// </summary>
     public GameObject UIData;
     /// <summary>
-    /// »ı¼ºµÈ À¯´Ö UI ÀÎ½ºÅÏ½º ¸®½ºÆ®ÀÔ´Ï´Ù.
+    /// ìƒì„±ëœ ìœ ë‹› UI ì¸ìŠ¤í„´ìŠ¤ ë¦¬ìŠ¤íŠ¸ì…ë‹ˆë‹¤.
     /// </summary>
     public List<UI_Unit> uI_Units;
 
-    // ºñ°ø°³ ¸â¹ö º¯¼ö
+    // ë¹„ê³µê°œ ë©¤ë²„ ë³€ìˆ˜
     /// <summary>
-    /// À¯´ÖµéÀÇ µ¥ÀÌÅÍ¸¦ ÀúÀåÇÏ´Â NativeArrayÀÔ´Ï´Ù. Àâ ½Ã½ºÅÛ¿¡ »ç¿ëµË´Ï´Ù.
+    /// ìœ ë‹›ë“¤ì˜ ë°ì´í„°ë¥¼ ì €ì¥í•˜ëŠ” NativeArrayì…ë‹ˆë‹¤. ì¡ ì‹œìŠ¤í…œì— ì‚¬ìš©ë©ë‹ˆë‹¤.
     /// </summary>
     private NativeArray<Unit_Data> unit_Datas;
     /// <summary>
-    /// Å¸°Ù À¯´ÖµéÀÇ µ¥ÀÌÅÍ¸¦ ÀúÀåÇÏ´Â NativeArrayÀÔ´Ï´Ù. Àâ ½Ã½ºÅÛ¿¡ »ç¿ëµË´Ï´Ù.
+    /// íƒ€ê²Ÿ ìœ ë‹›ë“¤ì˜ ë°ì´í„°ë¥¼ ì €ì¥í•˜ëŠ” NativeArrayì…ë‹ˆë‹¤. ì¡ ì‹œìŠ¤í…œì— ì‚¬ìš©ë©ë‹ˆë‹¤.
     /// </summary>
     private NativeArray<Unit_Data> target_Unit_Datas;
     /// <summary>
-    /// Å¸°Ù Àç¼³Á¤À» À§ÇÑ Å¸ÀÌ¸ÓÀÔ´Ï´Ù.
+    /// íƒ€ê²Ÿ ì¬ì„¤ì •ì„ ìœ„í•œ íƒ€ì´ë¨¸ì…ë‹ˆë‹¤.
     /// </summary>
     private Timer timer_ReTarget;
 
-    // Unity ÀÌº¥Æ® ÇÔ¼ö
+    // Unity ì´ë²¤íŠ¸ í•¨ìˆ˜
     /// <summary>
-    /// ½ºÅ©¸³Æ®°¡ Ã³À½ È°¼ºÈ­µÉ ¶§ ÇÑ ¹ø È£ÃâµË´Ï´Ù.
+    /// ìŠ¤í¬ë¦½íŠ¸ê°€ ì²˜ìŒ í™œì„±í™”ë  ë•Œ í•œ ë²ˆ í˜¸ì¶œë©ë‹ˆë‹¤.
     /// </summary>
     public void _Start()
     {
-        // ÀÌ ½ºÅ©¸³Æ®¸¦ ºñÈ°¼ºÈ­ÇÏ¿© Start()¿Í Update()°¡ ÀÚµ¿À¸·Î È£ÃâµÇÁö ¾Êµµ·Ï ÇÕ´Ï´Ù.
-        // ÀÌ ½ºÅ©¸³Æ®ÀÇ ·ÎÁ÷Àº ¼öµ¿À¸·Î È£ÃâµÇ´Â _Update(NativeHashMap<int, Unit_Data>)¿¡ ÀÇÇØ Á¦¾îµË´Ï´Ù.
+        // ì´ ìŠ¤í¬ë¦½íŠ¸ë¥¼ ë¹„í™œì„±í™”í•˜ì—¬ Start()ì™€ Update()ê°€ ìë™ìœ¼ë¡œ í˜¸ì¶œë˜ì§€ ì•Šë„ë¡ í•©ë‹ˆë‹¤.
+        // ì´ ìŠ¤í¬ë¦½íŠ¸ì˜ ë¡œì§ì€ ìˆ˜ë™ìœ¼ë¡œ í˜¸ì¶œë˜ëŠ” _Update(NativeHashMap<int, Unit_Data>)ì— ì˜í•´ ì œì–´ë©ë‹ˆë‹¤.
         enabled = false;
 
-        Spawn_Units(); // À¯´ÖµéÀ» »ı¼ºÇÕ´Ï´Ù.
+        Spawn_Units(); // ìœ ë‹›ë“¤ì„ ìƒì„±í•©ë‹ˆë‹¤.
 
         army_Data._Start();
         army_Data.position = formation_Move_Transform.position;
@@ -162,12 +162,12 @@ public partial class Army : MonoBehaviour
         timer_ReTarget = new Timer(Constant.time_ReTarget);
     }
 
-    // °ø°³ ¸Ş¼­µå
+    // ê³µê°œ ë©”ì„œë“œ
     /// <summary>
-    /// ºÎ´ë ÀüÃ¼¸¦ ¾÷µ¥ÀÌÆ®ÇÏ´Â ÇÔ¼öÀÔ´Ï´Ù.
-    /// À¯´Ö µ¥ÀÌÅÍ, ÀÌµ¿, Å¸°Ù Å½Áö, Åë°è, ÁøÇü »óÅÂ µîÀ» °»½ÅÇÕ´Ï´Ù.
+    /// ë¶€ëŒ€ ì „ì²´ë¥¼ ì—…ë°ì´íŠ¸í•˜ëŠ” í•¨ìˆ˜ì…ë‹ˆë‹¤.
+    /// ìœ ë‹› ë°ì´í„°, ì´ë™, íƒ€ê²Ÿ íƒì§€, í†µê³„, ì§„í˜• ìƒíƒœ ë“±ì„ ê°±ì‹ í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="unitDataMap">¸ğµç À¯´ÖÀÇ µ¥ÀÌÅÍ¸¦ ´ã°í ÀÖ´Â ÇØ½Ã¸ÊÀÔ´Ï´Ù.</param>
+    /// <param name="unitDataMap">ëª¨ë“  ìœ ë‹›ì˜ ë°ì´í„°ë¥¼ ë‹´ê³  ìˆëŠ” í•´ì‹œë§µì…ë‹ˆë‹¤.</param>
     public void _Update(NativeHashMap<int, Unit_Data> unitDataMap)
     {
         for (int i = 0; i < units.Count; i++)
@@ -179,8 +179,8 @@ public partial class Army : MonoBehaviour
             }
         }
 
-        _Upadate_Data(); // ºÎ´ë µ¥ÀÌÅÍ ¾÷µ¥ÀÌÆ®
-        _Update_Move(); // ÀÌµ¿ »óÅÂ ¾÷µ¥ÀÌÆ®
+        _Upadate_Data(); // ë¶€ëŒ€ ë°ì´í„° ì—…ë°ì´íŠ¸
+        _Update_Move(); // ì´ë™ ìƒíƒœ ì—…ë°ì´íŠ¸
 
         unit_Datas = new NativeArray<Unit_Data>(units.Count, Allocator.TempJob);
         for (int i = 0; i < units.Count; i++)
@@ -188,11 +188,11 @@ public partial class Army : MonoBehaviour
             unit_Datas[i] = units[i].unit_Data;
         }
 
-        _Update_Flag(); // ±ê¹ß À§Ä¡ ¾÷µ¥ÀÌÆ®
-        _Update_Unit(unitDataMap); // À¯´Ö »óÅÂ ¾÷µ¥ÀÌÆ®
-        _Update_Target(); // Å¸°Ù »óÅÂ ¾÷µ¥ÀÌÆ®
-        _Update_Stat(); // Åë°è ¾÷µ¥ÀÌÆ®
-        _Update_Formation(); // ÁøÇü »óÅÂ ¾÷µ¥ÀÌÆ®
+        _Update_Flag(); // ê¹ƒë°œ ìœ„ì¹˜ ì—…ë°ì´íŠ¸
+        _Update_Unit(unitDataMap); // ìœ ë‹› ìƒíƒœ ì—…ë°ì´íŠ¸
+        _Update_Target(); // íƒ€ê²Ÿ ìƒíƒœ ì—…ë°ì´íŠ¸
+        _Update_Stat(); // í†µê³„ ì—…ë°ì´íŠ¸
+        _Update_Formation(); // ì§„í˜• ìƒíƒœ ì—…ë°ì´íŠ¸
 
         for (int i = 0; i < units.Count; i++)
         {
@@ -204,7 +204,7 @@ public partial class Army : MonoBehaviour
     }
 
     /// <summary>
-    /// ºÎ´ë µ¥ÀÌÅÍ¸¦ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.
+    /// ë¶€ëŒ€ ë°ì´í„°ë¥¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.
     /// </summary>
     public void _Upadate_Data()
     {
@@ -213,7 +213,7 @@ public partial class Army : MonoBehaviour
     }
 
     /// <summary>
-    /// ¸ğµç À¯´ÖÀ» »ı¼ºÇÏ°í ÃÊ±â À§Ä¡¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+    /// ëª¨ë“  ìœ ë‹›ì„ ìƒì„±í•˜ê³  ì´ˆê¸° ìœ„ì¹˜ë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.
     /// </summary>
     void Spawn_Units()
     {
@@ -249,18 +249,18 @@ public partial class Army : MonoBehaviour
     }
 
     /// <summary>
-    /// À¯´ÖÀÇ »óÅÂ¸¦ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.
+    /// ìœ ë‹›ì˜ ìƒíƒœë¥¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="unitDataMap">¸ğµç À¯´ÖÀÇ µ¥ÀÌÅÍ¸¦ ´ã°í ÀÖ´Â ÇØ½Ã¸ÊÀÔ´Ï´Ù.</param>
+    /// <param name="unitDataMap">ëª¨ë“  ìœ ë‹›ì˜ ë°ì´í„°ë¥¼ ë‹´ê³  ìˆëŠ” í•´ì‹œë§µì…ë‹ˆë‹¤.</param>
     public void _Update_Unit(NativeHashMap<int, Unit_Data> unitDataMap)
     {
         if (units.Count == 0) return;
 
-        // 1. ·¹ÀÌÄ³½ºÆ® ¸í·É°ú °á°ú¸¦ ´ãÀ» NativeArray ÁØºñ
+        // 1. ë ˆì´ìºìŠ¤íŠ¸ ëª…ë ¹ê³¼ ê²°ê³¼ë¥¼ ë‹´ì„ NativeArray ì¤€ë¹„
         var commands = new NativeArray<RaycastCommand>(units.Count, Allocator.TempJob);
         var results = new NativeArray<RaycastHit>(units.Count, Allocator.TempJob);
 
-        // 2. °¢ À¯´Ö¿¡ ´ëÇÑ ·¹ÀÌÄ³½ºÆ® ¸í·É »ı¼º
+        // 2. ê° ìœ ë‹›ì— ëŒ€í•œ ë ˆì´ìºìŠ¤íŠ¸ ëª…ë ¹ ìƒì„±
         for (int i = 0; i < units.Count; i++)
         {
             Vector3 origin = units[i].transform.position;
@@ -271,16 +271,16 @@ public partial class Army : MonoBehaviour
             commands[i] = new RaycastCommand(origin, direction, maxDistance, layerMask);
         }
 
-        // 3. ·¹ÀÌÄ³½ºÆ® ¹èÄ¡ Àâ(Batch Job) ½ºÄÉÁÙ¸µ
+        // 3. ë ˆì´ìºìŠ¤íŠ¸ ë°°ì¹˜ ì¡(Batch Job) ìŠ¤ì¼€ì¤„ë§
         JobHandle raycastHandle = RaycastCommand.ScheduleBatch(commands, results, 1);
 
-        // 4. Unit_Job¿¡ ÇÊ¿äÇÑ µ¥ÀÌÅÍ Àü´Ş
+        // 4. Unit_Jobì— í•„ìš”í•œ ë°ì´í„° ì „ë‹¬
         Unit_Job unit_Job = new Unit_Job();
         unit_Job.unit_Datas = unit_Datas;
         unit_Job.raycastHits = results;
         unit_Job.unitDataMap = unitDataMap;
 
-        // raycastHandleÀÌ ¿Ï·áµÈ ÈÄ¿¡ unit_JobÀ» ½ÇÇàÇÏµµ·Ï ÀÇÁ¸¼º ¼³Á¤
+        // raycastHandleì´ ì™„ë£Œëœ í›„ì— unit_Jobì„ ì‹¤í–‰í•˜ë„ë¡ ì˜ì¡´ì„± ì„¤ì •
         JobHandle unitJobHandle = unit_Job.Schedule(units.Count, 1, raycastHandle);
 
         var unit_Animation_Datas = new NativeArray<Unit_Animation_Data>(units.Count, Allocator.TempJob);
@@ -297,13 +297,13 @@ public partial class Army : MonoBehaviour
         unit_Animation_Job.cam_Position = Camera.main.transform.position;
         unit_Animation_Job.cam_Rotation = Camera.main.transform.rotation;
 
-        // 5. ¾Ö´Ï¸ŞÀÌ¼Ç ÀâÀº Unit_JobÀÌ ³¡³­ ÈÄ¿¡ ½ÇÇàµÇµµ·Ï ÀÇÁ¸¼º Ã¼ÀÎ ¿¬°á
+        // 5. ì• ë‹ˆë©”ì´ì…˜ ì¡ì€ Unit_Jobì´ ëë‚œ í›„ì— ì‹¤í–‰ë˜ë„ë¡ ì˜ì¡´ì„± ì²´ì¸ ì—°ê²°
         JobHandle animationJobHandle = unit_Animation_Job.Schedule(units.Count, 1, unitJobHandle);
 
-        // 6. ¸ğµç Àâ(·¹ÀÌÄ³½ºÆ® -> À¯´Ö -> ¾Ö´Ï¸ŞÀÌ¼Ç)ÀÌ ³¡³¯ ¶§±îÁö ´ë±â
+        // 6. ëª¨ë“  ì¡(ë ˆì´ìºìŠ¤íŠ¸ -> ìœ ë‹› -> ì• ë‹ˆë©”ì´ì…˜)ì´ ëë‚  ë•Œê¹Œì§€ ëŒ€ê¸°
         animationJobHandle.Complete();
 
-        // 7. °á°ú ¹İ¿µ ¹× ¸Ş¸ğ¸® ÇØÁ¦
+        // 7. ê²°ê³¼ ë°˜ì˜ ë° ë©”ëª¨ë¦¬ í•´ì œ
         for (int i = 0; i < units.Count; i++)
         {
             units[i].unit_Animation.unit_Animation_Data = unit_Animation_Datas[i];
@@ -320,18 +320,18 @@ public partial class Army : MonoBehaviour
     }
 
     /// <summary>
-    /// ¸ğµç À¯´Ö ÀÎ½ºÅÏ½º ¸®½ºÆ®¸¦ ¹İÈ¯ÇÕ´Ï´Ù.
+    /// ëª¨ë“  ìœ ë‹› ì¸ìŠ¤í„´ìŠ¤ ë¦¬ìŠ¤íŠ¸ë¥¼ ë°˜í™˜í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <returns>À¯´Ö ¸®½ºÆ®ÀÔ´Ï´Ù.</returns>
+    /// <returns>ìœ ë‹› ë¦¬ìŠ¤íŠ¸ì…ë‹ˆë‹¤.</returns>
     public List<Unit> GetUnits()
     {
         return units;
     }
 
     /// <summary>
-    /// Å½ÁöµÈ ºÎ´ë ¸®½ºÆ®¿¡ »õ·Î¿î ºÎ´ë¸¦ Ãß°¡ÇÕ´Ï´Ù.
+    /// íƒì§€ëœ ë¶€ëŒ€ ë¦¬ìŠ¤íŠ¸ì— ìƒˆë¡œìš´ ë¶€ëŒ€ë¥¼ ì¶”ê°€í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="army">Å½ÁöµÈ ºÎ´ë ÀÎ½ºÅÏ½ºÀÔ´Ï´Ù.</param>
+    /// <param name="army">íƒì§€ëœ ë¶€ëŒ€ ì¸ìŠ¤í„´ìŠ¤ì…ë‹ˆë‹¤.</param>
     public void Add_Army_Detected(Army army)
     {
         if (this == army) return;
@@ -354,9 +354,9 @@ public partial class Army : MonoBehaviour
     }
 
     /// <summary>
-    /// Å½ÁöµÈ ºÎ´ë ¸®½ºÆ®¿¡¼­ ºÎ´ë¸¦ Á¦°ÅÇÕ´Ï´Ù.
+    /// íƒì§€ëœ ë¶€ëŒ€ ë¦¬ìŠ¤íŠ¸ì—ì„œ ë¶€ëŒ€ë¥¼ ì œê±°í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="army">Á¦°ÅÇÒ ºÎ´ë ÀÎ½ºÅÏ½ºÀÔ´Ï´Ù.</param>
+    /// <param name="army">ì œê±°í•  ë¶€ëŒ€ ì¸ìŠ¤í„´ìŠ¤ì…ë‹ˆë‹¤.</param>
     public void Remove_Army_Detected(Army army)
     {
         if (this == army) return;
@@ -375,16 +375,16 @@ public partial class Army : MonoBehaviour
     }
 
     /// <summary>
-    /// ºÎ´ë°¡ ¼±ÅÃµÇ¾ú´ÂÁö ¿©ºÎ¸¦ ¹İÈ¯ÇÕ´Ï´Ù.
+    /// ë¶€ëŒ€ê°€ ì„ íƒë˜ì—ˆëŠ”ì§€ ì—¬ë¶€ë¥¼ ë°˜í™˜í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <returns>¼±ÅÃµÇ¾úÀ¸¸é true, ¾Æ´Ï¸é falseÀÔ´Ï´Ù.</returns>
+    /// <returns>ì„ íƒë˜ì—ˆìœ¼ë©´ true, ì•„ë‹ˆë©´ falseì…ë‹ˆë‹¤.</returns>
     public bool IsSelected()
     {
         return bselected;
     }
 
     /// <summary>
-    /// ºÎ´ë¸¦ ¼±ÅÃ ÇØÁ¦ÇÏ°í, ¸ğµç À¯´ÖÀÇ ¼±ÅÃ »óÅÂ¸¦ ÇØÁ¦ÇÕ´Ï´Ù.
+    /// ë¶€ëŒ€ë¥¼ ì„ íƒ í•´ì œí•˜ê³ , ëª¨ë“  ìœ ë‹›ì˜ ì„ íƒ ìƒíƒœë¥¼ í•´ì œí•©ë‹ˆë‹¤.
     /// </summary>
     public void UnSelected()
     {
@@ -398,7 +398,7 @@ public partial class Army : MonoBehaviour
     }
 
     /// <summary>
-    /// ºÎ´ë¸¦ ¼±ÅÃÇÏ°í, ¸ğµç À¯´ÖÀÇ ¼±ÅÃ »óÅÂ¸¦ È°¼ºÈ­ÇÕ´Ï´Ù.
+    /// ë¶€ëŒ€ë¥¼ ì„ íƒí•˜ê³ , ëª¨ë“  ìœ ë‹›ì˜ ì„ íƒ ìƒíƒœë¥¼ í™œì„±í™”í•©ë‹ˆë‹¤.
     /// </summary>
     public void Selected()
     {
@@ -412,15 +412,15 @@ public partial class Army : MonoBehaviour
     }
 
     /// <summary>
-    /// Å³ ¼ö¸¦ Áõ°¡½ÃÅµ´Ï´Ù. (ÇöÀç ·ÎÁ÷Àº ºñ¾îÀÖ½À´Ï´Ù.)
+    /// í‚¬ ìˆ˜ë¥¼ ì¦ê°€ì‹œí‚µë‹ˆë‹¤. (í˜„ì¬ ë¡œì§ì€ ë¹„ì–´ìˆìŠµë‹ˆë‹¤.)
     /// </summary>
     public void AddKillCount()
     {
-        // Å³ ¼ö Áõ°¡ ·ÎÁ÷ Ãß°¡ ¿¹Á¤
+        // í‚¬ ìˆ˜ ì¦ê°€ ë¡œì§ ì¶”ê°€ ì˜ˆì •
     }
 
     /// <summary>
-    /// ºÎ´ë ÁøÇü UI¸¦ º¸ÀÌ°Ô ÇÕ´Ï´Ù.
+    /// ë¶€ëŒ€ ì§„í˜• UIë¥¼ ë³´ì´ê²Œ í•©ë‹ˆë‹¤.
     /// </summary>
     public void Draw_Formation_UI()
     {
@@ -431,7 +431,7 @@ public partial class Army : MonoBehaviour
     }
 
     /// <summary>
-    /// ºÎ´ë ÁøÇü UI¸¦ ¼û±é´Ï´Ù.
+    /// ë¶€ëŒ€ ì§„í˜• UIë¥¼ ìˆ¨ê¹ë‹ˆë‹¤.
     /// </summary>
     public void Erase_Formation_UI()
     {
@@ -441,9 +441,9 @@ public partial class Army : MonoBehaviour
         }
     }
 
-    // ºñ°ø°³ ¸Ş¼­µå
+    // ë¹„ê³µê°œ ë©”ì„œë“œ
     /// <summary>
-    /// ±ê¹ßÀÇ À§Ä¡¸¦ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.
+    /// ê¹ƒë°œì˜ ìœ„ì¹˜ë¥¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.
     /// </summary>
     private void _Update_Flag()
     {

@@ -1,4 +1,4 @@
-using Unity.VisualScripting;
+ï»¿using Unity.VisualScripting;
 using System;
 using System.Linq;
 using System.Collections;
@@ -7,18 +7,18 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEngine.UI;
 
-// À¯´Ö µ¥ÀÌÅÍ ±¸Á¶Ã¼
+// ìœ ë‹› ë°ì´í„° êµ¬ì¡°ì²´
 partial struct Unit_Data
 {
     // Public methods
-    /// <summary>À¯´Ö ÀÌµ¿ ½ÃÀÛÀ» Ã³¸®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹› ì´ë™ ì‹œì‘ì„ ì²˜ë¦¬í•©ë‹ˆë‹¤.</summary>
     public void Move_Start()
     {
         Lose_Speed();
         e_Unit_Move = E_Unit_Move.Move;
     }
 
-    /// <summary>Æ¯Á¤ ¸ñÇ¥ Æ®·£½ºÆûÀ¸·Î À¯´Ö ÀÌµ¿À» ½ÃÀÛÇÕ´Ï´Ù.</summary>
+    /// <summary>íŠ¹ì • ëª©í‘œ íŠ¸ëœìŠ¤í¼ìœ¼ë¡œ ìœ ë‹› ì´ë™ì„ ì‹œì‘í•©ë‹ˆë‹¤.</summary>
     public void Move_Start(Transform transform)
     {
         location = transform.position;
@@ -26,7 +26,7 @@ partial struct Unit_Data
         Move_Start();
     }
 
-    /// <summary>ÁöÁ¤µÈ À§Ä¡·Î À¯´Ö ÀÌµ¿À» ½ÃÀÛÇÕ´Ï´Ù.</summary>
+    /// <summary>ì§€ì •ëœ ìœ„ì¹˜ë¡œ ìœ ë‹› ì´ë™ì„ ì‹œì‘í•©ë‹ˆë‹¤.</summary>
     public void Move_Start(Vector3 vector3, Quaternion quaternion)
     {
         btargetMoveTo = false;
@@ -35,27 +35,27 @@ partial struct Unit_Data
         Move_Start();
     }
 
-    /// <summary>Æ¯Á¤ À§Ä¡·Î ÀÌµ¿À» ½ÃÀÛÇÕ´Ï´Ù.</summary>
+    /// <summary>íŠ¹ì • ìœ„ì¹˜ë¡œ ì´ë™ì„ ì‹œì‘í•©ë‹ˆë‹¤.</summary>
     public void Move_Start_Location()
     {
         btargetMoveTo = false;
         Move_Start();
     }
 
-    /// <summary>À¯´ÖÀÇ ¸ñÇ¥ À§Ä¡¸¦ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ëª©í‘œ ìœ„ì¹˜ë¥¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.</summary>
     public void Move_UpdateTarget(Vector3 steeringTarget)
     {
         this.steeringTarget = steeringTarget;
     }
 
-    /// <summary>À¯´ÖÀÇ Á¶Á¾ ¸ñÇ¥ ¹× ¸ñÀûÁö À§Ä¡¸¦ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì¡°ì¢… ëª©í‘œ ë° ëª©ì ì§€ ìœ„ì¹˜ë¥¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.</summary>
     public void Move_UpdateTarget(Vector3 steeringTarget, Vector3 location)
     {
         this.steeringTarget = steeringTarget;
         this.location = location;
     }
 
-    /// <summary>À¯´ÖÀÇ ÀÌµ¿À» Ãë¼ÒÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì´ë™ì„ ì·¨ì†Œí•©ë‹ˆë‹¤.</summary>
     public void Move_Cancel()
     {
         e_Unit_Move = E_Unit_Move.Idle;
@@ -64,14 +64,14 @@ partial struct Unit_Data
         bstop = true;
     }
 
-    /// <summary>À¯´Ö Ãæµ¹ ÁøÀÔÀ» ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹› ì¶©ëŒ ì§„ì…ì„ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.</summary>
     public void _Update_Collision_Enter(Unit_Data unit_Data)
     {
         if (e_Unit_Move == E_Unit_Move.Move)
             SetResistance(unit_Data);
     }
 
-    /// <summary>À¯´ÖÀÇ ÇöÀç ÀÌµ¿ º¤ÅÍ¸¦ ¹İÈ¯ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ í˜„ì¬ ì´ë™ ë²¡í„°ë¥¼ ë°˜í™˜í•©ë‹ˆë‹¤.</summary>
     public Vector3 GetMovementVector()
     {
         Vector3 vector3 = movementVector;
@@ -79,7 +79,7 @@ partial struct Unit_Data
         return vector3;
     }
 
-    /// <summary>À¯´ÖÀÇ ÇöÀç ÀÌµ¿ ¼Óµµ¸¦ ¹İÈ¯ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ í˜„ì¬ ì´ë™ ì†ë„ë¥¼ ë°˜í™˜í•©ë‹ˆë‹¤.</summary>
     public float GetCurrentMoveSpeed()
     {
         float currentMoveSpeed = this.currentMoveSpeed;
@@ -87,7 +87,7 @@ partial struct Unit_Data
         return currentMoveSpeed;
     }
 
-    /// <summary>À¯´ÖÀÌ ÁöÁ¤µÈ À§Ä¡¿¡ ÀÖ´ÂÁö È®ÀÎÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì´ ì§€ì •ëœ ìœ„ì¹˜ì— ìˆëŠ”ì§€ í™•ì¸í•©ë‹ˆë‹¤.</summary>
     public bool IsOnPosition()
     {
         Vector3 distenceVector;
@@ -101,7 +101,7 @@ partial struct Unit_Data
             return false;
     }
 
-    /// <summary>À¯´ÖÀÌ ¸ñÇ¥ À§Ä¡¿¡ ÀÖ´ÂÁö È®ÀÎÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì´ ëª©í‘œ ìœ„ì¹˜ì— ìˆëŠ”ì§€ í™•ì¸í•©ë‹ˆë‹¤.</summary>
     public bool IsOnTarget()
     {
         Vector3 distenceVector;
@@ -116,7 +116,7 @@ partial struct Unit_Data
     }
 
     // Private methods
-    /// <summary>À¯´ÖÀÇ ÀÌµ¿°ú È¸ÀüÀ» ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì´ë™ê³¼ íšŒì „ì„ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.</summary>
     private void _Update_Move()
     {
         Rotation();
@@ -135,7 +135,7 @@ partial struct Unit_Data
         }
     }
 
-    /// <summary>À¯´ÖÀÇ È¸Àü »óÅÂ¸¦ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ íšŒì „ ìƒíƒœë¥¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.</summary>
     private void Rotation()
     {
         Vector3 direction;
@@ -195,7 +195,7 @@ partial struct Unit_Data
         }
     }
 
-    /// <summary>À¯´Ö ÀÌµ¿ Áß È¸ÀüÀ» Ã³¸®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹› ì´ë™ ì¤‘ íšŒì „ì„ ì²˜ë¦¬í•©ë‹ˆë‹¤.</summary>
     private void Rotation_Move()
     {
         Vector3 direction;
@@ -218,7 +218,7 @@ partial struct Unit_Data
         }
     }
 
-    /// <summary>À¯´ÖÀÌ À¯ÈŞ »óÅÂÀÏ ¶§ÀÇ È¸ÀüÀ» Ã³¸®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì´ ìœ íœ´ ìƒíƒœì¼ ë•Œì˜ íšŒì „ì„ ì²˜ë¦¬í•©ë‹ˆë‹¤.</summary>
     private void Rotation_Idle()
     {
         if (Quaternion.Angle(rotation, direction) > army_Data.GetRotationSpeed() * Constant.deltaTime)
@@ -232,7 +232,7 @@ partial struct Unit_Data
         }
     }
 
-    /// <summary>À¯´ÖÀÇ ÀÌµ¿À» Ã³¸®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì´ë™ì„ ì²˜ë¦¬í•©ë‹ˆë‹¤.</summary>
     private void Move()
     {
         Vector3 directionVector;
@@ -274,7 +274,7 @@ partial struct Unit_Data
         movementVector = movementVector * movementSpeed;
     }
 
-    /// <summary>Å¸°ÙÀ» ÇâÇÑ ÀÌµ¿À» Ã³¸®ÇÕ´Ï´Ù.</summary>
+    /// <summary>íƒ€ê²Ÿì„ í–¥í•œ ì´ë™ì„ ì²˜ë¦¬í•©ë‹ˆë‹¤.</summary>
     private void Move_Target()
     {
         Vector3 directionVector;
@@ -309,7 +309,7 @@ partial struct Unit_Data
             }
             else
             {
-                // Ãß°¡ÀûÀÎ ÀÌµ¿ ·ÎÁ÷
+                // ì¶”ê°€ì ì¸ ì´ë™ ë¡œì§
             }
         }
 
@@ -327,7 +327,7 @@ partial struct Unit_Data
         movementVector = movementVector.normalized * movementSpeed;
     }
 
-    /// <summary>À¯´ÖÀÌ À¯ÈŞ »óÅÂÀÏ ¶§ÀÇ Çàµ¿À» Ã³¸®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì´ ìœ íœ´ ìƒíƒœì¼ ë•Œì˜ í–‰ë™ì„ ì²˜ë¦¬í•©ë‹ˆë‹¤.</summary>
     private void Idle()
     {
         if (btarget)
@@ -355,7 +355,7 @@ partial struct Unit_Data
         }
     }
 
-    /// <summary>À¯´ÖÀÇ ÀÌµ¿À» ÁßÁöÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì´ë™ì„ ì¤‘ì§€í•©ë‹ˆë‹¤.</summary>
     private void Move_Stop()
     {
         e_Unit_Move = E_Unit_Move.Idle;
@@ -363,7 +363,7 @@ partial struct Unit_Data
         bstop = true;
     }
 
-    /// <summary>À¯´ÖÀÇ ¼Óµµ¸¦ °¨¼Ò½ÃÅµ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì†ë„ë¥¼ ê°ì†Œì‹œí‚µë‹ˆë‹¤.</summary>
     private void Lose_Speed()
     {
         Vector3 dirationVecotr = location - position;
@@ -381,7 +381,7 @@ partial struct Unit_Data
             currentMoveSpeed = 0.0f;
     }
 
-    /// <summary>À¯´ÖÀÇ °¡¼Óµµ¸¦ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ê°€ì†ë„ë¥¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.</summary>
     private void Accelerate()
     {
         float max_moveSpeed;
@@ -419,7 +419,7 @@ partial struct Unit_Data
             currentMoveSpeed = 0;
     }
 
-    /// <summary>Ãæµ¹ ½Ã À¯´ÖÀÇ ÀúÇ×·ÂÀ» ¼³Á¤ÇÕ´Ï´Ù.</summary>
+    /// <summary>ì¶©ëŒ ì‹œ ìœ ë‹›ì˜ ì €í•­ë ¥ì„ ì„¤ì •í•©ë‹ˆë‹¤.</summary>
     private void SetResistance(Unit_Data unit_Data)
     {
         Vector3 dirationVecotr = unit_Data.position - position;
@@ -461,18 +461,18 @@ partial struct Unit_Data
     }
 }
 
-// À¯´Ö Å¬·¡½º
+// ìœ ë‹› í´ë˜ìŠ¤
 partial class Unit
 {
     // Public methods
-    /// <summary>À¯´ÖÀÇ ÀÌµ¿À» ½ÃÀÛÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì´ë™ì„ ì‹œì‘í•©ë‹ˆë‹¤.</summary>
     public void Move_Start()
     {
         navMeshAgent.SetDestination(unit_Data.location);
         unit_Data.Move_Start();
     }
 
-    /// <summary>ÁöÁ¤µÈ ¸ñÇ¥ Æ®·£½ºÆûÀ¸·Î À¯´Ö ÀÌµ¿À» ½ÃÀÛÇÕ´Ï´Ù.</summary>
+    /// <summary>ì§€ì •ëœ ëª©í‘œ íŠ¸ëœìŠ¤í¼ìœ¼ë¡œ ìœ ë‹› ì´ë™ì„ ì‹œì‘í•©ë‹ˆë‹¤.</summary>
     public void Move_Start(Transform targetMoveTo)
     {
         navMeshAgent.SetDestination(targetMoveTo.position);
@@ -480,7 +480,7 @@ partial class Unit
         unit_Data.Move_Start(targetMoveTo);
     }
 
-    /// <summary>ÁöÁ¤µÈ À§Ä¡·Î À¯´Ö ÀÌµ¿À» ½ÃÀÛÇÕ´Ï´Ù.</summary>
+    /// <summary>ì§€ì •ëœ ìœ„ì¹˜ë¡œ ìœ ë‹› ì´ë™ì„ ì‹œì‘í•©ë‹ˆë‹¤.</summary>
     public void Move_Start(Vector3 location)
     {
         navMeshAgent.SetDestination(location);
@@ -490,7 +490,7 @@ partial class Unit
         unit_Data.Move_Start(location, direction);
     }
 
-    /// <summary>Àç¹èÄ¡ ÀÌµ¿À» Ã³¸®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ì¬ë°°ì¹˜ ì´ë™ì„ ì²˜ë¦¬í•©ë‹ˆë‹¤.</summary>
     public void Move_Reformation(Vector3 location)
     {
         unit_Data.location = location;
@@ -509,27 +509,27 @@ partial class Unit
         }
     }
 
-    /// <summary>À¯´ÖÀÇ ÀÌµ¿À» Ãë¼ÒÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì´ë™ì„ ì·¨ì†Œí•©ë‹ˆë‹¤.</summary>
     public void Move_Cancel()
     {
         unit_Data.Move_Cancel();
     }
 
     // Private methods
-    /// <summary>À¯´ÖÀÇ ÀÌµ¿°ú È¸ÀüÀ» ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì´ë™ê³¼ íšŒì „ì„ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.</summary>
     private void _Update_Move()
     {
         Move();
         Rotation();
     }
 
-    /// <summary>À¯´ÖÀÇ È¸ÀüÀ» ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ íšŒì „ì„ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.</summary>
     private void Rotation()
     {
         transform.rotation = unit_Data.rotation;
     }
 
-    /// <summary>À¯´ÖÀÇ ÀÌµ¿À» Ã³¸®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì´ë™ì„ ì²˜ë¦¬í•©ë‹ˆë‹¤.</summary>
     private void Move()
     {
         navMeshAgent.Move(unit_Data.GetMovementVector());
@@ -558,19 +558,19 @@ partial class Unit
             Move_Stop();
     }
 
-    /// <summary>À¯´ÖÀÇ ÀÌµ¿À» ÁßÁöÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì´ë™ì„ ì¤‘ì§€í•©ë‹ˆë‹¤.</summary>
     private void Move_Stop()
     {
         unit_Data.bstop = false;
     }
 
-    /// <summary>´Ù¸¥ À¯´Ö°úÀÇ Ãæµ¹ ÁøÀÔÀ» Ã³¸®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ë‹¤ë¥¸ ìœ ë‹›ê³¼ì˜ ì¶©ëŒ ì§„ì…ì„ ì²˜ë¦¬í•©ë‹ˆë‹¤.</summary>
     private void Move_Collision_Enter(Unit unit_collision)
     {
         unit_Data._Update_Collision_Enter(unit_collision.GetUnit_Data());
     }
 
-    /// <summary>´Ù¸¥ À¯´Ö°úÀÇ Ãæµ¹ÀÌ Áö¼ÓµÇ´Â µ¿¾ÈÀÇ ¿òÁ÷ÀÓÀ» Ã³¸®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ë‹¤ë¥¸ ìœ ë‹›ê³¼ì˜ ì¶©ëŒì´ ì§€ì†ë˜ëŠ” ë™ì•ˆì˜ ì›€ì§ì„ì„ ì²˜ë¦¬í•©ë‹ˆë‹¤.</summary>
     private void Move_Collision_Stay(Unit unit_collision)
     {
         if (this.unit_Data.e_Unit_Move == E_Unit_Move.Idle)

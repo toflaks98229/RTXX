@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Collections;
@@ -10,44 +10,44 @@ using System;
 using Unity.VisualScripting;
 
 /// <summary>
-/// ºÎ´ëÀÇ ÀüÅõ °ü·Ã ·ÎÁ÷À» ´ã´çÇÏ´Â ºÎºĞ Å¬·¡½ºÀÔ´Ï´Ù.
+/// ë¶€ëŒ€ì˜ ì „íˆ¬ ê´€ë ¨ ë¡œì§ì„ ë‹´ë‹¹í•˜ëŠ” ë¶€ë¶„ í´ë˜ìŠ¤ì…ë‹ˆë‹¤.
 /// </summary>
 partial class Army
 {
-    // ºñ°ø°³ ¸â¹ö º¯¼ö (Army.cs¿¡¼­ °ü¸®)
-    // °ø°³ ¸Ş¼­µå (Army.cs¿¡¼­ °ü¸®)
-    // Unity ÀÌº¥Æ® ÇÔ¼ö (Army.cs¿¡¼­ °ü¸®)
+    // ë¹„ê³µê°œ ë©¤ë²„ ë³€ìˆ˜ (Army.csì—ì„œ ê´€ë¦¬)
+    // ê³µê°œ ë©”ì„œë“œ (Army.csì—ì„œ ê´€ë¦¬)
+    // Unity ì´ë²¤íŠ¸ í•¨ìˆ˜ (Army.csì—ì„œ ê´€ë¦¬)
 
-    // ºñ°ø°³ ¸Ş¼­µå
+    // ë¹„ê³µê°œ ë©”ì„œë“œ
     /// <summary>
-    /// Å¸°Ù ¾÷µ¥ÀÌÆ®¸¦ Ã³¸®ÇÏ´Â ÇÔ¼öÀÔ´Ï´Ù.
+    /// íƒ€ê²Ÿ ì—…ë°ì´íŠ¸ë¥¼ ì²˜ë¦¬í•˜ëŠ” í•¨ìˆ˜ì…ë‹ˆë‹¤.
     /// </summary>
     void _Update_Target()
     {
         if (army_Detected.Count > 0)
         {
-            // Å¸ÀÌ¸Ó¸¦ ¾÷µ¥ÀÌÆ®ÇÏ°í, ½Ã°£ÀÌ Áö³µ´ÂÁö È®ÀÎ
+            // íƒ€ì´ë¨¸ë¥¼ ì—…ë°ì´íŠ¸í•˜ê³ , ì‹œê°„ì´ ì§€ë‚¬ëŠ”ì§€ í™•ì¸
             timer_ReTarget._Update();
             if (timer_ReTarget.IsOverTime())
             {
-                // Å¸°Ù ºÎ´ë ÁöÁ¤¿¡ ¼º°øÇÏ¸é
+                // íƒ€ê²Ÿ ë¶€ëŒ€ ì§€ì •ì— ì„±ê³µí•˜ë©´
                 if (_Update_Target_Army())
                 {
-                    _Update_Target_Unit(); // Å¸°Ù À¯´Ö ¾÷µ¥ÀÌÆ®
-                    Move_Cancel(); // ÀÌµ¿ Ãë¼Ò
-                    Debug.Log("Å¸°Ù ¾Æ¹Ì ÁöÁ¤ ¼º°ø");
+                    _Update_Target_Unit(); // íƒ€ê²Ÿ ìœ ë‹› ì—…ë°ì´íŠ¸
+                    Move_Cancel(); // ì´ë™ ì·¨ì†Œ
+                    Debug.Log("íƒ€ê²Ÿ ì•„ë¯¸ ì§€ì • ì„±ê³µ");
                 }
             }
         }
         else
         {
-            // Å½ÁöµÈ ´ë»óÀÌ ¾øÀ¸¸é Å¸ÀÌ¸Ó ÃÊ±âÈ­
+            // íƒì§€ëœ ëŒ€ìƒì´ ì—†ìœ¼ë©´ íƒ€ì´ë¨¸ ì´ˆê¸°í™”
             timer_ReTarget.ReSetTimer();
         }
     }
 
     /// <summary>
-    /// À¯´ÖÀÇ Åë°è µ¥ÀÌÅÍ¸¦ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.
+    /// ìœ ë‹›ì˜ í†µê³„ ë°ì´í„°ë¥¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.
     /// </summary>
     void _Update_Stat()
     {
@@ -62,14 +62,14 @@ partial class Army
     }
 
     /// <summary>
-    /// Å½ÁöµÈ ºÎ´ë Áß¿¡¼­ °¡Àå ¸¹Àº Á¢ÃË È½¼ö¸¦ °¡Áø ºÎ´ë¸¦ Å¸°ÙÀ¸·Î ÁöÁ¤ÇÕ´Ï´Ù.
+    /// íƒì§€ëœ ë¶€ëŒ€ ì¤‘ì—ì„œ ê°€ì¥ ë§ì€ ì ‘ì´‰ íšŸìˆ˜ë¥¼ ê°€ì§„ ë¶€ëŒ€ë¥¼ íƒ€ê²Ÿìœ¼ë¡œ ì§€ì •í•©ë‹ˆë‹¤.
     /// </summary>
-    /// <returns>Å¸°ÙÀ» Ã£¾ÒÀ¸¸é true, ¾Æ´Ï¸é false¸¦ ¹İÈ¯ÇÕ´Ï´Ù.</returns>
+    /// <returns>íƒ€ê²Ÿì„ ì°¾ì•˜ìœ¼ë©´ true, ì•„ë‹ˆë©´ falseë¥¼ ë°˜í™˜í•©ë‹ˆë‹¤.</returns>
     public bool _Update_Target_Army()
     {
         bool bfindTarget = false;
 
-        // ÀÌ¹Ì Å¸°ÙÀÌ ÀÖ°í ÀüÅõ ÁßÀÌ¸é Ãß°¡ÀûÀÎ Å¸°ÙÀ» Ã£Áö ¾Ê½À´Ï´Ù.
+        // ì´ë¯¸ íƒ€ê²Ÿì´ ìˆê³  ì „íˆ¬ ì¤‘ì´ë©´ ì¶”ê°€ì ì¸ íƒ€ê²Ÿì„ ì°¾ì§€ ì•ŠìŠµë‹ˆë‹¤.
         if (targetArmy != null && army_Data.e_Army_Fight != E_Army_Fight.Non)
         {
             return bfindTarget;
@@ -87,7 +87,7 @@ partial class Army
 
         if (bfindTarget)
         {
-            // °¡Àå ¸¹Àº ÀÎ¿øÀ» Á¢ÃËÇÑ ´ë»óÀ» Ã£½À´Ï´Ù.
+            // ê°€ì¥ ë§ì€ ì¸ì›ì„ ì ‘ì´‰í•œ ëŒ€ìƒì„ ì°¾ìŠµë‹ˆë‹¤.
             Army_Count army_Count = new Army_Count(this, 0);
             foreach (var detected in army_Detected)
             {
@@ -97,7 +97,7 @@ partial class Army
                 }
             }
 
-            // Ã£Àº ´ë»óÀ» targetArmy·Î ÁöÁ¤ÇÕ´Ï´Ù.
+            // ì°¾ì€ ëŒ€ìƒì„ targetArmyë¡œ ì§€ì •í•©ë‹ˆë‹¤.
             targetArmy = army_Count.army;
         }
 
@@ -105,20 +105,20 @@ partial class Army
     }
 
     /// <summary>
-    /// Å¸°Ù ºÎ´ë ³»ÀÇ À¯´ÖµéÀ» ´ë»óÀ¸·Î ÀüÅõ °ü·Ã µ¥ÀÌÅÍ¸¦ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.
+    /// íƒ€ê²Ÿ ë¶€ëŒ€ ë‚´ì˜ ìœ ë‹›ë“¤ì„ ëŒ€ìƒìœ¼ë¡œ ì „íˆ¬ ê´€ë ¨ ë°ì´í„°ë¥¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.
     /// </summary>
     public void _Update_Target_Unit()
     {
         if (targetArmy == null) return;
 
-        // Å¸°Ù À¯´Ö µ¥ÀÌÅÍ¸¦ NativeArray¿¡ ÇÒ´çÇÕ´Ï´Ù.
+        // íƒ€ê²Ÿ ìœ ë‹› ë°ì´í„°ë¥¼ NativeArrayì— í• ë‹¹í•©ë‹ˆë‹¤.
         target_Unit_Datas = new NativeArray<Unit_Data>(targetArmy.GetUnits().Count, Allocator.TempJob);
         for (int i = 0; i < targetArmy.GetUnits().Count; i++)
         {
             target_Unit_Datas[i] = targetArmy.GetUnits()[i].unit_Data;
         }
 
-        // Unit_Fight_JobÀ» »ı¼ºÇÏ°í ½ÇÇàÇÕ´Ï´Ù.
+        // Unit_Fight_Jobì„ ìƒì„±í•˜ê³  ì‹¤í–‰í•©ë‹ˆë‹¤.
         Unit_Fight_Job unit_Fight_Job = new Unit_Fight_Job();
         unit_Fight_Job.unit_Datas = unit_Datas;
         unit_Fight_Job.target_Unit_Datas = target_Unit_Datas;
@@ -127,6 +127,6 @@ partial class Army
         JobHandle jobHandle = unit_Fight_Job.Schedule(units.Count, 1);
         jobHandle.Complete();
 
-        target_Unit_Datas.Dispose(); // NativeArray ¸Ş¸ğ¸® ÇØÁ¦
+        target_Unit_Datas.Dispose(); // NativeArray ë©”ëª¨ë¦¬ í•´ì œ
     }
 }

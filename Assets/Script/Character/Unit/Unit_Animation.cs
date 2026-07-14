@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
@@ -6,18 +6,18 @@ using UnityEngine;
 
 public struct Unit_Animation_Data
 {
-    /// <summary>¾Ö´Ï¸ŞÀÌ¼ÇÀÇ À§Ä¡ÀÔ´Ï´Ù.</summary>
+    /// <summary>ì• ë‹ˆë©”ì´ì…˜ì˜ ìœ„ì¹˜ì…ë‹ˆë‹¤.</summary>
     public Vector3 position;
-    /// <summary>¾Ö´Ï¸ŞÀÌ¼ÇÀÇ È¸Àü°ªÀÔ´Ï´Ù.</summary>
+    /// <summary>ì• ë‹ˆë©”ì´ì…˜ì˜ íšŒì „ê°’ì…ë‹ˆë‹¤.</summary>
     public Quaternion rotation;
-    /// <summary>Ä«¸Ş¶óÀÇ À§Ä¡ÀÔ´Ï´Ù.</summary>
+    /// <summary>ì¹´ë©”ë¼ì˜ ìœ„ì¹˜ì…ë‹ˆë‹¤.</summary>
     public Vector3 cam_Position;
-    /// <summary>Ä«¸Ş¶óÀÇ È¸Àü°ªÀÔ´Ï´Ù.</summary>
+    /// <summary>ì¹´ë©”ë¼ì˜ íšŒì „ê°’ì…ë‹ˆë‹¤.</summary>
     public Quaternion cam_Rotation;
-    /// <summary>½ºÇÁ¶óÀÌÆ®°¡ ÁÂ¿ì ¹İÀüµÇ¾ú´ÂÁö ¿©ºÎÀÔ´Ï´Ù.</summary>
+    /// <summary>ìŠ¤í”„ë¼ì´íŠ¸ê°€ ì¢Œìš° ë°˜ì „ë˜ì—ˆëŠ”ì§€ ì—¬ë¶€ì…ë‹ˆë‹¤.</summary>
     public bool bflip;
 
-    /// <summary>¾Ö´Ï¸ŞÀÌ¼Ç µ¥ÀÌÅÍ¸¦ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ì• ë‹ˆë©”ì´ì…˜ ë°ì´í„°ë¥¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.</summary>
     public void _Update()
     {
         Vector3 cam_eulerAngles = cam_Rotation.eulerAngles;
@@ -46,17 +46,17 @@ public struct Unit_Animation_Data
 public class Unit_Animation : MonoBehaviour
 {
     // Public member variables
-    /// <summary>¾Ö´Ï¸ŞÀÌ¼Ç µ¥ÀÌÅÍ ±¸Á¶Ã¼ÀÔ´Ï´Ù.</summary>
+    /// <summary>ì• ë‹ˆë©”ì´ì…˜ ë°ì´í„° êµ¬ì¡°ì²´ì…ë‹ˆë‹¤.</summary>
     public Unit_Animation_Data unit_Animation_Data;
 
     // Private member variables
-    /// <summary>À¯´ÖÀÇ ½ºÇÁ¶óÀÌÆ® ·»´õ·¯ÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ìŠ¤í”„ë¼ì´íŠ¸ ë Œë”ëŸ¬ì…ë‹ˆë‹¤.</summary>
     private SpriteRenderer spriteRenderer;
-    /// <summary>À¯´ÖÀÇ Å©±âÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ í¬ê¸°ì…ë‹ˆë‹¤.</summary>
     private float size;
 
     // Public methods
-    /// <summary>À¯´Ö ¾Ö´Ï¸ŞÀÌ¼ÇÀ» ÃÊ±âÈ­ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹› ì• ë‹ˆë©”ì´ì…˜ì„ ì´ˆê¸°í™”í•©ë‹ˆë‹¤.</summary>
     public void _Start(Army army)
     {
         enabled = false;
@@ -72,7 +72,7 @@ public class Unit_Animation : MonoBehaviour
         transform.localPosition = new Vector3(0.0f, (size - 1) * 0.5f, 0.0f);
     }
 
-    /// <summary>¸Å ÇÁ·¹ÀÓ¸¶´Ù È£ÃâµÇ¾î ¾Ö´Ï¸ŞÀÌ¼ÇÀ» ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ë§¤ í”„ë ˆì„ë§ˆë‹¤ í˜¸ì¶œë˜ì–´ ì• ë‹ˆë©”ì´ì…˜ì„ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.</summary>
     public void _Update()
     {
         transform.rotation = unit_Animation_Data.rotation;

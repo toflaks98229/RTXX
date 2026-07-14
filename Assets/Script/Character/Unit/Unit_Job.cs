@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -11,18 +11,18 @@ using Unity.Jobs;
 public struct Unit_Job : IJobParallelFor
 {
     // Public member variables
-    /// <summary>À¯´Ö µ¥ÀÌÅÍ ¹è¿­ÀÔ´Ï´Ù. (º´·Ä Ã³¸® ½Ã Á¦ÇÑ ÀÖÀ½)</summary>
+    /// <summary>ìœ ë‹› ë°ì´í„° ë°°ì—´ì…ë‹ˆë‹¤. (ë³‘ë ¬ ì²˜ë¦¬ ì‹œ ì œí•œ ìˆìŒ)</summary>
     [NativeDisableParallelForRestriction]
     public NativeArray<Unit_Data> unit_Datas;
-    /// <summary>·¹ÀÌÄ³½ºÆ® Ãæµ¹ °á°ú ¹è¿­ÀÔ´Ï´Ù. (ÀĞ±â Àü¿ë)</summary>
+    /// <summary>ë ˆì´ìºìŠ¤íŠ¸ ì¶©ëŒ ê²°ê³¼ ë°°ì—´ì…ë‹ˆë‹¤. (ì½ê¸° ì „ìš©)</summary>
     [ReadOnly]
     public NativeArray<RaycastHit> raycastHits;
-    /// <summary>À¯´Ö µ¥ÀÌÅÍ¸¦ Á¶È¸ÇÏ±â À§ÇÑ ÇØ½Ã¸ÊÀÔ´Ï´Ù. (ÀĞ±â Àü¿ë)</summary>
+    /// <summary>ìœ ë‹› ë°ì´í„°ë¥¼ ì¡°íšŒí•˜ê¸° ìœ„í•œ í•´ì‹œë§µì…ë‹ˆë‹¤. (ì½ê¸° ì „ìš©)</summary>
     [ReadOnly]
     public NativeHashMap<int, Unit_Data> unitDataMap;
 
     // Public methods
-    /// <summary>JobÀÇ ¸ŞÀÎ ½ÇÇà ÇÔ¼öÀÔ´Ï´Ù. °¢ À¯´Öº°·Î º´·Ä ½ÇÇàµË´Ï´Ù.</summary>
+    /// <summary>Jobì˜ ë©”ì¸ ì‹¤í–‰ í•¨ìˆ˜ì…ë‹ˆë‹¤. ê° ìœ ë‹›ë³„ë¡œ ë³‘ë ¬ ì‹¤í–‰ë©ë‹ˆë‹¤.</summary>
     public void Execute(int index)
     {
         Unit_Data myData = unit_Datas[index];
@@ -49,18 +49,18 @@ public struct Unit_Job : IJobParallelFor
 public struct Unit_Fight_Job : IJobParallelFor
 {
     // Public member variables
-    /// <summary>À¯´Ö µ¥ÀÌÅÍ ¹è¿­ÀÔ´Ï´Ù. (º´·Ä Ã³¸® ½Ã Á¦ÇÑ ÀÖÀ½)</summary>
+    /// <summary>ìœ ë‹› ë°ì´í„° ë°°ì—´ì…ë‹ˆë‹¤. (ë³‘ë ¬ ì²˜ë¦¬ ì‹œ ì œí•œ ìˆìŒ)</summary>
     [NativeDisableParallelForRestriction]
     public NativeArray<Unit_Data> unit_Datas;
-    /// <summary>°ø°İ ¸ñÇ¥ À¯´Ö µ¥ÀÌÅÍ ¹è¿­ÀÔ´Ï´Ù.</summary>
+    /// <summary>ê³µê²© ëª©í‘œ ìœ ë‹› ë°ì´í„° ë°°ì—´ì…ë‹ˆë‹¤.</summary>
     public NativeArray<Unit_Data> target_Unit_Datas;
-    /// <summary>Job ½ÇÇà ½Ã »ç¿ëµÇ´Â À¯´Ö µ¥ÀÌÅÍÀÔ´Ï´Ù.</summary>
+    /// <summary>Job ì‹¤í–‰ ì‹œ ì‚¬ìš©ë˜ëŠ” ìœ ë‹› ë°ì´í„°ì…ë‹ˆë‹¤.</summary>
     Unit_Data unit_Data;
-    /// <summary>ÇÇÇØ °è»ê¿¡ »ç¿ëµÇ´Â ·£´ı °ªÀÔ´Ï´Ù.</summary>
+    /// <summary>í”¼í•´ ê³„ì‚°ì— ì‚¬ìš©ë˜ëŠ” ëœë¤ ê°’ì…ë‹ˆë‹¤.</summary>
     public int random;
 
     // Public methods
-    /// <summary>JobÀÇ ¸ŞÀÎ ½ÇÇà ÇÔ¼öÀÔ´Ï´Ù. °¢ À¯´Öº°·Î º´·Ä ½ÇÇàµË´Ï´Ù.</summary>
+    /// <summary>Jobì˜ ë©”ì¸ ì‹¤í–‰ í•¨ìˆ˜ì…ë‹ˆë‹¤. ê° ìœ ë‹›ë³„ë¡œ ë³‘ë ¬ ì‹¤í–‰ë©ë‹ˆë‹¤.</summary>
     public void Execute(int index)
     {
         unit_Data = unit_Datas[index];
@@ -83,7 +83,7 @@ public struct Unit_Fight_Job : IJobParallelFor
     }
 
     // Private methods
-    /// <summary>À¯´ÖÀÇ °ø°İ ¸ñÇ¥¸¦ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ê³µê²© ëª©í‘œë¥¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.</summary>
     private void Update_Target()
     {
         for (int i = 0; i < unit_Datas.Length; i++)
@@ -92,7 +92,7 @@ public struct Unit_Fight_Job : IJobParallelFor
         }
     }
 
-    /// <summary>À¯´ÖÀÌ ÇÇÇØ¸¦ ÀÔ¾úÀ» ¶§ÀÇ ·ÎÁ÷À» Ã³¸®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì´ í”¼í•´ë¥¼ ì…ì—ˆì„ ë•Œì˜ ë¡œì§ì„ ì²˜ë¦¬í•©ë‹ˆë‹¤.</summary>
     private void GetDamage(Unit_Data unit_Data)
     {
         switch (unit_Data.e_Unit_AttackType)
@@ -106,7 +106,7 @@ public struct Unit_Fight_Job : IJobParallelFor
         }
     }
 
-    /// <summary>±ÙÁ¢ °ø°İ¿¡ ÀÇÇÑ ÇÇÇØ¸¦ °è»êÇÏ°í Àû¿ëÇÕ´Ï´Ù.</summary>
+    /// <summary>ê·¼ì ‘ ê³µê²©ì— ì˜í•œ í”¼í•´ë¥¼ ê³„ì‚°í•˜ê³  ì ìš©í•©ë‹ˆë‹¤.</summary>
     private void GetDamage_Melee(Unit_Data unit_Data)
     {
         float damage = 0.0f;
@@ -142,7 +142,7 @@ public struct Unit_Fight_Job : IJobParallelFor
         }
     }
 
-    /// <summary>¿ø°Å¸® °ø°İ¿¡ ÀÇÇÑ ÇÇÇØ¸¦ °è»êÇÏ°í Àû¿ëÇÕ´Ï´Ù.</summary>
+    /// <summary>ì›ê±°ë¦¬ ê³µê²©ì— ì˜í•œ í”¼í•´ë¥¼ ê³„ì‚°í•˜ê³  ì ìš©í•©ë‹ˆë‹¤.</summary>
     private void GetDamage_Range(Unit_Data unit_Data)
     {
         float damage = 0.0f;
@@ -155,23 +155,23 @@ public struct Unit_Fight_Job : IJobParallelFor
 public struct Unit_Animation_Job : IJobParallelFor
 {
     // Public member variables
-    /// <summary>À¯´Ö µ¥ÀÌÅÍ ¹è¿­ÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹› ë°ì´í„° ë°°ì—´ì…ë‹ˆë‹¤.</summary>
     public NativeArray<Unit_Data> unit_Datas;
-    /// <summary>À¯´Ö ¾Ö´Ï¸ŞÀÌ¼Ç µ¥ÀÌÅÍ ¹è¿­ÀÔ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹› ì• ë‹ˆë©”ì´ì…˜ ë°ì´í„° ë°°ì—´ì…ë‹ˆë‹¤.</summary>
     public NativeArray<Unit_Animation_Data> unit_Animation_Datas;
-    /// <summary>Ä«¸Ş¶óÀÇ À§Ä¡ÀÔ´Ï´Ù.</summary>
+    /// <summary>ì¹´ë©”ë¼ì˜ ìœ„ì¹˜ì…ë‹ˆë‹¤.</summary>
     public Vector3 cam_Position;
-    /// <summary>Ä«¸Ş¶óÀÇ È¸Àü°ªÀÔ´Ï´Ù.</summary>
+    /// <summary>ì¹´ë©”ë¼ì˜ íšŒì „ê°’ì…ë‹ˆë‹¤.</summary>
     public Quaternion cam_Rotation;
 
     // Private member variables
-    /// <summary>Job ½ÇÇà ½Ã »ç¿ëµÇ´Â À¯´Ö µ¥ÀÌÅÍÀÔ´Ï´Ù.</summary>
+    /// <summary>Job ì‹¤í–‰ ì‹œ ì‚¬ìš©ë˜ëŠ” ìœ ë‹› ë°ì´í„°ì…ë‹ˆë‹¤.</summary>
     private Unit_Data unit_Data;
-    /// <summary>Job ½ÇÇà ½Ã »ç¿ëµÇ´Â À¯´Ö ¾Ö´Ï¸ŞÀÌ¼Ç µ¥ÀÌÅÍÀÔ´Ï´Ù.</summary>
+    /// <summary>Job ì‹¤í–‰ ì‹œ ì‚¬ìš©ë˜ëŠ” ìœ ë‹› ì• ë‹ˆë©”ì´ì…˜ ë°ì´í„°ì…ë‹ˆë‹¤.</summary>
     private Unit_Animation_Data unit_Animation_Data;
 
     // Public methods
-    /// <summary>JobÀÇ ¸ŞÀÎ ½ÇÇà ÇÔ¼öÀÔ´Ï´Ù. °¢ À¯´Öº°·Î º´·Ä ½ÇÇàµË´Ï´Ù.</summary>
+    /// <summary>Jobì˜ ë©”ì¸ ì‹¤í–‰ í•¨ìˆ˜ì…ë‹ˆë‹¤. ê° ìœ ë‹›ë³„ë¡œ ë³‘ë ¬ ì‹¤í–‰ë©ë‹ˆë‹¤.</summary>
     public void Execute(int index)
     {
         unit_Data = unit_Datas[index];

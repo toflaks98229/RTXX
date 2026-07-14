@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -6,7 +6,7 @@ using UnityEngine;
 partial struct Unit_Data
 {
     // Public methods
-    /// <summary>À¯´ÖÀÇ ÀüÅõ »óÅÂ¸¦ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì „íˆ¬ ìƒíƒœë¥¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.</summary>
     public void _Update_Fight()
     {
         if (bhitTarget)
@@ -31,7 +31,7 @@ partial struct Unit_Data
         }
     }
 
-    /// <summary>¸ñÇ¥ À¯´Ö µ¥ÀÌÅÍ¸¦ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ëª©í‘œ ìœ ë‹› ë°ì´í„°ë¥¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.</summary>
     public void _Update_Target(Unit_Data unit_Data)
     {
         if (unit_Data.bPlayer == bPlayer)
@@ -92,7 +92,7 @@ partial struct Unit_Data
         }
     }
 
-    /// <summary>°ø°İÀ» ½ÃÀÛÇÕ´Ï´Ù.</summary>
+    /// <summary>ê³µê²©ì„ ì‹œì‘í•©ë‹ˆë‹¤.</summary>
     public void Attack_Start()
     {
         switch (e_Unit_AttackType)
@@ -109,7 +109,7 @@ partial struct Unit_Data
         e_Unit_Fight = E_Unit_Fight.Attack;
     }
 
-    /// <summary>°ø°İ µô·¹ÀÌ ½Ã°£À» ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ê³µê²© ë”œë ˆì´ ì‹œê°„ì„ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.</summary>
     public void Attack_Disable()
     {
         timer_AttackDelay._Update();
@@ -120,25 +120,25 @@ partial struct Unit_Data
         }
     }
 
-    /// <summary>ÇÇÇØ¸¦ ÀÔÀº »óÅÂ¸¦ ½ÃÀÛÇÕ´Ï´Ù.</summary>
+    /// <summary>í”¼í•´ë¥¼ ì…ì€ ìƒíƒœë¥¼ ì‹œì‘í•©ë‹ˆë‹¤.</summary>
     public void BeAttacked_Start()
     {
 
     }
 
-    /// <summary>ÇÇÇØ¸¦ ÀÔ´Â »óÅÂ¸¦ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.</summary>
+    /// <summary>í”¼í•´ë¥¼ ì…ëŠ” ìƒíƒœë¥¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.</summary>
     public void BeAttacked()
     {
 
     }
 
-    /// <summary>ÇÇÇØ¸¦ ÀÔ´Â »óÅÂ¸¦ Á¾·áÇÕ´Ï´Ù.</summary>
+    /// <summary>í”¼í•´ë¥¼ ì…ëŠ” ìƒíƒœë¥¼ ì¢…ë£Œí•©ë‹ˆë‹¤.</summary>
     public void BeAttacked_End()
     {
 
     }
 
-    /// <summary>À¯´ÖÀÌ ÇÇÇØ¸¦ ÀÔ¾úÀ» ¶§ HP¸¦ °¨¼Ò½ÃÅµ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì´ í”¼í•´ë¥¼ ì…ì—ˆì„ ë•Œ HPë¥¼ ê°ì†Œì‹œí‚µë‹ˆë‹¤.</summary>
     public void GetDamage(float damage)
     {
         bgetDamage = true;
@@ -151,7 +151,7 @@ partial struct Unit_Data
         }
     }
 
-    /// <summary>À¯´ÖÀÌ ÇÇÇØ¸¦ ÀÔ¾úÀ» ¶§ HP¸¦ °¨¼Ò½ÃÅ°°í ÇÇÇØ º¤ÅÍ¸¦ ¼³Á¤ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì´ í”¼í•´ë¥¼ ì…ì—ˆì„ ë•Œ HPë¥¼ ê°ì†Œì‹œí‚¤ê³  í”¼í•´ ë²¡í„°ë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.</summary>
     public void GetDamage(float damage, Vector3 damageVector)
     {
         this.damageVector = damageVector.normalized * damage;
@@ -159,7 +159,7 @@ partial struct Unit_Data
     }
 
     // Private methods
-    /// <summary>°ø°İÀ» Ã³¸®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ê³µê²©ì„ ì²˜ë¦¬í•©ë‹ˆë‹¤.</summary>
     private void Attack()
     {
         timer_AttackSpeed._Update();
@@ -170,7 +170,7 @@ partial struct Unit_Data
         }
     }
 
-    /// <summary>°ø°İÀ» Á¾·áÇÏ°í µô·¹ÀÌ¸¦ ¼³Á¤ÇÕ´Ï´Ù.</summary>
+    /// <summary>ê³µê²©ì„ ì¢…ë£Œí•˜ê³  ë”œë ˆì´ë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.</summary>
     private void Attack_End()
     {
         timer_AttackDelay.ReSetTimer();
@@ -190,44 +190,44 @@ partial struct Unit_Data
 partial class Unit
 {
     // Public methods
-    /// <summary>°ø°İÀ» ½ÃÀÛÇÕ´Ï´Ù.</summary>
+    /// <summary>ê³µê²©ì„ ì‹œì‘í•©ë‹ˆë‹¤.</summary>
     public void Attack_Start()
     {
 
     }
 
-    /// <summary>°ø°İÀ» Ã³¸®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ê³µê²©ì„ ì²˜ë¦¬í•©ë‹ˆë‹¤.</summary>
     public void Attack()
     {
 
     }
 
-    /// <summary>°ø°İÀ» Á¾·áÇÕ´Ï´Ù.</summary>
+    /// <summary>ê³µê²©ì„ ì¢…ë£Œí•©ë‹ˆë‹¤.</summary>
     public void Attack_End()
     {
 
     }
 
-    /// <summary>ÇÇ°İ »óÅÂ¸¦ ½ÃÀÛÇÕ´Ï´Ù.</summary>
+    /// <summary>í”¼ê²© ìƒíƒœë¥¼ ì‹œì‘í•©ë‹ˆë‹¤.</summary>
     public void BeAttacked_Start()
     {
 
     }
 
-    /// <summary>ÇÇ°İ »óÅÂ¸¦ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.</summary>
+    /// <summary>í”¼ê²© ìƒíƒœë¥¼ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.</summary>
     public void BeAttacked()
     {
 
     }
 
-    /// <summary>ÇÇ°İ »óÅÂ¸¦ Á¾·áÇÕ´Ï´Ù.</summary>
+    /// <summary>í”¼ê²© ìƒíƒœë¥¼ ì¢…ë£Œí•©ë‹ˆë‹¤.</summary>
     public void BeAttacked_End()
     {
 
     }
 
     // Private methods
-    /// <summary>À¯´ÖÀÇ ÀüÅõ °ü·Ã ·ÎÁ÷À» ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.</summary>
+    /// <summary>ìœ ë‹›ì˜ ì „íˆ¬ ê´€ë ¨ ë¡œì§ì„ ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.</summary>
     private void _Update_Fight()
     {
         if (unit_Data.bgetDamage)
