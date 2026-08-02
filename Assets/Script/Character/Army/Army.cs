@@ -347,6 +347,7 @@ public partial class Army : MonoBehaviour
         }
 
         _Upadate_Data(); // 부대 데이터 업데이트
+        _Update_Terrain(); // 고지 우위와 경사 갱신
         _Update_Detection(); // 사거리 안의 적을 접촉 없이 탐지
         _Update_Move(); // 이동 상태 업데이트
 
@@ -601,7 +602,10 @@ public partial class Army : MonoBehaviour
             modifiers.flag = Constant.morale_Bonus_Flag;
         }
 
-        // 6. 연쇄 붕괴: 옆의 아군이 무너지면 이쪽도 흔들립니다.
+        // 6. 지형: 고지를 점하면 사기가 오르고, 올려다보는 쪽은 떨어집니다.
+        modifiers.terrain = army_Data.GetHighGroundMorale();
+
+        // 7. 연쇄 붕괴: 옆의 아군이 무너지면 이쪽도 흔들립니다.
         //    (GameEvents.OnArmyRouted 구독으로 누적된 값을 소비합니다)
         modifiers.alliedRouting = -alliedRoutPenalty;
 
@@ -927,6 +931,67 @@ public partial class Army : MonoBehaviour
     }
 
     /// <summary>
+    /// 지형 상태(고지 우위, 경사)를 갱신합니다.
+    ///
+    /// 고지를 잡는 것은 토탈워 배치의 첫 번째 원칙입니다.
+    /// 위에서 내려치는 쪽은 더 잘 맞히고 사기가 오르며 화살이 멀리 날아가고,
+    /// 오르막을 오르는 쪽은 느려집니다.
+    /// </summary>
+    private void _Update_Terrain()
+    {
+        Vector3 myPosition = formation_Move_Transform.position;
+
+        // 1. 고지 우위: 교전 상대와의 높이 차로 계산합니다.
+        //    상대가 없으면 우위도 열세도 없습니다.
+        float rate = 0.0f;
+
+        if (targetArmy != null && targetArmy.units.Count > 0)
+        {
+            float heightDelta = myPosition.y - targetArmy.formation_Move_Transform.position.y;
+
+            rate = heightDelta / Constant.terrain_Height_Full;
+            if (rate < -1.0f) rate = -1.0f;
+            if (rate > 1.0f) rate = 1.0f;
+        }
+
+        army_Data.highGroundRate = rate;
+
+        // 2. 경사: 발밑 지면의 기울기를 재서 이동 속도에 반영합니다.
+        //    레이캐스트 한 번이면 충분하므로 부대 기준점에서만 봅니다.
+        //    (유닛마다 쏘면 부대 수 x 인원만큼 늘어나 낭비가 큽니다)
+        if (Physics.Raycast(myPosition + Vector3.up * 2.0f, Vector3.down,
+                            out RaycastHit hit, 10.0f, groundLayerMask))
+        {
+            army_Data.slopeAngle = Vector3.Angle(hit.normal, Vector3.up);
+        }
+        else
+        {
+            army_Data.slopeAngle = 0.0f;
+        }
+    }
+
+    /// <summary>"Ground" 레이어 마스크를 캐시한 값입니다.</summary>
+    private static int groundLayerMaskCache = -1;
+
+    /// <summary>지면 레이어 마스크입니다. 최초 접근 시 한 번만 조회합니다.</summary>
+    private static int groundLayerMask
+    {
+        get
+        {
+            if (groundLayerMaskCache == -1)
+            {
+                groundLayerMaskCache = LayerMask.GetMask("Ground");
+
+                // "Ground" 레이어가 없는 프로젝트에서는 모든 레이어를 봅니다.
+                // 그래야 경사 계산이 조용히 0으로 굳지 않습니다.
+                if (groundLayerMaskCache == 0) groundLayerMaskCache = ~0;
+            }
+
+            return groundLayerMaskCache;
+        }
+    }
+
+    /// <summary>
     /// 사거리 안의 적 부대를 '접촉 없이' 탐지합니다.
     ///
     /// 왜 필요한가:
@@ -947,7 +1012,7 @@ public partial class Army : MonoBehaviour
         if (army_Data.GetE_Unit_AttackType() == E_Unit_AttackType.Range
             || army_Data.IsRangeAttackAble())
         {
-            float rangeRange = army_Data.GetRangeRange();
+            float rangeRange = army_Data.GetEffectiveRangeRange();
             if (rangeRange > reach) reach = rangeRange;
         }
 

@@ -206,6 +206,7 @@ public class UI_Army_Banner : MonoBehaviour
         Append_Modifier(builder, "아군붕괴", m.alliedRouting);
         Append_Modifier(builder, "우세", m.winning);
         Append_Modifier(builder, "충격", m.shock);
+        Append_Modifier(builder, "고지", m.terrain);
 
         if (builder.Length == 0) return;
 

@@ -339,6 +339,20 @@ public struct Army_Data
     /// </summary>
     public float currentSpeed;
 
+    // --- 지형 ---
+    /// <summary>
+    /// 교전 상대와의 높이 차에서 나온 고지 우위(-1~1)입니다.
+    /// 양수면 내가 높은 곳에 있다는 뜻이며, 명중과 사기에 보너스를 줍니다.
+    /// 메인 스레드가 매 틱 계산해 채웁니다.
+    /// </summary>
+    public float highGroundRate;
+
+    /// <summary>
+    /// 부대가 서 있는 지면의 경사(도)입니다.
+    /// 가파른 곳을 오를수록 느려집니다.
+    /// </summary>
+    public float slopeAngle;
+
     // 공개 메서드
     /// <summary>
     /// 부대 데이터를 초기화합니다.
@@ -364,6 +378,9 @@ public struct Army_Data
         fatigue = 0.0f;
         e_Army_Fatigue = E_Army_Fatigue.Fresh;
         currentSpeed = 0.0f;
+
+        highGroundRate = 0.0f;
+        slopeAngle = 0.0f;
 
         // 손실률 계산의 기준이 되는 초기 인원입니다.
         if (unit_Num_Max < unit_Num) unit_Num_Max = unit_Num;
@@ -594,6 +611,51 @@ public struct Army_Data
     public bool IsShattered()
     {
         return e_Army_Morale == E_Army_Morale.Shattered;
+    }
+
+    // ---------------------------------------------------------------------
+    // 지형 (Terrain)
+    // ---------------------------------------------------------------------
+
+    /// <summary>
+    /// 고지에서 얻는 명중 보너스입니다.
+    /// 낮은 곳에 있으면 음수가 되어 페널티로 작용합니다.
+    /// </summary>
+    public float GetHighGroundAttack()
+    {
+        return highGroundRate * Constant.terrain_High_Ground_Attack;
+    }
+
+    /// <summary>고지에서 얻는 사기 보너스입니다. 낮은 곳이면 음수입니다.</summary>
+    public float GetHighGroundMorale()
+    {
+        return highGroundRate * Constant.terrain_High_Ground_Morale;
+    }
+
+    /// <summary>
+    /// 고지 보정이 적용된 원거리 사거리입니다.
+    /// 높은 곳에서 쏘면 더 멀리 날아갑니다.
+    /// </summary>
+    public float GetEffectiveRangeRange()
+    {
+        float rate = 1.0f + highGroundRate * Constant.terrain_High_Ground_Range_Rate;
+        if (rate < 0.1f) rate = 0.1f;
+
+        return GetRangeRange() * rate;
+    }
+
+    /// <summary>
+    /// 경사에 따른 이동 속도 배율입니다.
+    /// 가파른 오르막일수록 느려집니다.
+    /// </summary>
+    public float GetSlopeSpeedRate()
+    {
+        if (slopeAngle <= 0.0f) return 1.0f;
+
+        float t = slopeAngle / Constant.terrain_Slope_Full_Angle;
+        if (t > 1.0f) t = 1.0f;
+
+        return 1.0f - t * Constant.terrain_Slope_Speed_Penalty;
     }
 
     // ---------------------------------------------------------------------

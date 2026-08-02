@@ -39,6 +39,9 @@ public struct Morale_Modifiers
     /// <summary>돌격을 받아 발생한 순간 충격입니다. 시간이 지나면 회복됩니다.</summary>
     public float shock;
 
+    /// <summary>고지를 점했을 때의 보너스입니다. 낮은 곳이면 음수입니다.</summary>
+    public float terrain;
+
     /// <summary>모든 항목의 합입니다. 목표 사기는 최대치에 이 값을 더해 구합니다.</summary>
     public float Sum()
     {
@@ -49,7 +52,8 @@ public struct Morale_Modifiers
              + flag
              + alliedRouting
              + winning
-             + shock;
+             + shock
+             + terrain;
     }
 
     /// <summary>매 틱 다시 계산하기 전에 모든 항목을 지웁니다.</summary>
@@ -63,5 +67,6 @@ public struct Morale_Modifiers
         alliedRouting = 0.0f;
         winning = 0.0f;
         shock = 0.0f;
+        terrain = 0.0f;
     }
 }

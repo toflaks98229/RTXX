@@ -292,7 +292,11 @@ public struct Unit_Fight_Job : IJobParallelFor
         // (여기서 targetArmyData는 공격자, armyData는 방어자인 나입니다)
         float bonusVsTarget = targetArmyData.GetBonusVsTarget(armyData);
 
-        float attack = (targetArmyData.GetMeleeAttack() + chargeBonus + bonusVsTarget)
+        // 고지에서 내려치는 쪽이 유리합니다. (공격자 기준 보정)
+        float attack = (targetArmyData.GetMeleeAttack()
+                        + chargeBonus
+                        + bonusVsTarget
+                        + targetArmyData.GetHighGroundAttack())
                        * attackerFatigue;
 
         // 지치면 방어 자세도 무너집니다.
@@ -361,7 +365,10 @@ public struct Unit_Fight_Job : IJobParallelFor
 
         float bonusVsTarget = targetArmyData.GetBonusVsTarget(armyData);
 
-        float attack = (targetArmyData.GetRangeAccuracy() + bonusVsTarget) * attackerFatigue;
+        float attack = (targetArmyData.GetRangeAccuracy()
+                        + bonusVsTarget
+                        + targetArmyData.GetHighGroundAttack())
+                       * attackerFatigue;
 
         // 방패벽은 화살을 막아내고, 창벽은 밀집해 있어 오히려 잘 맞습니다.
         float defence = armyData.GetRangeDiffense() + armyData.GetStanceRangeDefence();

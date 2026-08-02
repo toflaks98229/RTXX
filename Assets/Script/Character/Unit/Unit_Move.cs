@@ -635,9 +635,11 @@ partial struct Unit_Data
 
         // 지치면 최고 속도 자체가 낮아집니다.
         // 밀집 태세(방패벽/창벽)는 발을 맞춰야 하므로 뛸 수 없습니다.
+        // 오르막을 오를 때도 느려집니다.
         max_moveSpeed = armyData.GetMoveSpeed()
                         * armyData.GetFatigueRate()
-                        * armyData.GetStanceSpeedRate();
+                        * armyData.GetStanceSpeedRate()
+                        * armyData.GetSlopeSpeedRate();
 
         if (btargetMoveTo)
         {

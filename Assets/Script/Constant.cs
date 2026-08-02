@@ -242,6 +242,36 @@ static class Constant
     public const float charge_Max_Penetration_Rate = 0.5f;
 
     // ---------------------------------------------------------------------
+    // 지형 (Terrain)
+    //
+    // 고지를 잡는 것은 토탈워 전투 배치의 첫 번째 원칙입니다.
+    // 위에서 내려치는 쪽이 유리하고, 오르막을 오르는 쪽은 지칩니다.
+    // ---------------------------------------------------------------------
+    /// <summary>고지 우위가 최대에 도달하는 높이 차(m)입니다.</summary>
+    public const float terrain_Height_Full = 8.0f;
+
+    /// <summary>고지에서 얻는 최대 명중 보너스입니다.</summary>
+    public const float terrain_High_Ground_Attack = 12.0f;
+
+    /// <summary>고지에서 얻는 최대 사기 보너스입니다.</summary>
+    public const float terrain_High_Ground_Morale = 8.0f;
+
+    /// <summary>
+    /// 원거리 사거리에 대한 고지 보정 배율입니다.
+    /// 높은 곳에서 쏘면 더 멀리 날아갑니다.
+    /// </summary>
+    public const float terrain_High_Ground_Range_Rate = 0.25f;
+
+    /// <summary>
+    /// 오르막을 오를 때 최대로 깎이는 이동 속도 비율입니다.
+    /// 0.4이면 가장 가파른 경사에서 속도가 60%가 됩니다.
+    /// </summary>
+    public const float terrain_Slope_Speed_Penalty = 0.4f;
+
+    /// <summary>속도 페널티가 최대에 도달하는 경사(도)입니다.</summary>
+    public const float terrain_Slope_Full_Angle = 35.0f;
+
+    // ---------------------------------------------------------------------
     // 태세 (Stance)
     //
     // 방패벽과 창벽은 '멈춰서 버티는 대신 기동을 포기하는' 거래입니다.

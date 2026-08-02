@@ -56,7 +56,7 @@ partial struct Unit_Data
         float reach = armyData.GetMeleeRange();
         if (Can_Shoot(armyData))
         {
-            float rangeRange = armyData.GetRangeRange();
+            float rangeRange = armyData.GetEffectiveRangeRange();
             if (rangeRange > reach) reach = rangeRange;
         }
 
@@ -98,7 +98,7 @@ partial struct Unit_Data
 
         if (Can_Shoot(armyData))
         {
-            float rangeRange = armyData.GetRangeRange();
+            float rangeRange = armyData.GetEffectiveRangeRange();
             if (distanceSqr < rangeRange * rangeRange)
             {
                 e_Unit_AttackType = E_Unit_AttackType.Range;
@@ -345,7 +345,7 @@ partial struct Unit_Data
         if (e_Unit_AttackType == E_Unit_AttackType.Range)
         {
             // 원거리 타격은 사거리 안이면 성립합니다.
-            float rangeRange = armyData.GetRangeRange();
+            float rangeRange = armyData.GetEffectiveRangeRange();
 
             if ((position - unit_Target_Data.position).sqrMagnitude
                 < rangeRange * rangeRange)
