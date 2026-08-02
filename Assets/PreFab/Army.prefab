@@ -528,6 +528,9 @@ MonoBehaviour:
       height: 1
       HP: 100
       e_Unit_AttackType: 0
+      e_Unit_Class: 0
+      bonusVsLarge: 0
+      bonusVsInfantry: 0
     HP_All: 0
     unit_Num: 20
     unit_Num_Max: 0

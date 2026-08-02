@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections;
+
 using System.Collections.Generic;
 using Unity.Collections;
 using UnityEngine;
@@ -16,8 +16,8 @@ public partial struct Unit_Data
     public Vector3 position;
     /// <summary>유닛의 현재 회전값입니다.</summary>
     public Quaternion rotation;
-    /// <summary>유닛이 속한 군대의 데이터입니다.</summary>
-    public Army_Data army_Data;
+    /// <summary>유닛이 속한 부대의 인덱스입니다. 부대 스탯은 이 인덱스로 조회합니다.</summary>
+    public int armyIndex;
     /// <summary>유닛의 현재 HP입니다.</summary>
     public float HP;
     /// <summary>유닛의 이동 상태입니다 (이동 중, 대기 중).</summary>
@@ -46,10 +46,35 @@ public partial struct Unit_Data
     public bool btarget;
     /// <summary>유닛이 목표를 공격했는지 여부입니다.</summary>
     public bool bhitTarget;
+    /// <summary>유닛이 사망했는지 여부입니다. Job 내부에서 판정되며 Unit 계층이 소비합니다.</summary>
+    public bool bdead;
+    /// <summary>사망 처리가 Unit 계층에 이미 반영되었는지 여부입니다.</summary>
+    public bool bdeadHandled;
+    /// <summary>이 유닛을 쓰러뜨린 유닛의 고유 번호입니다. 없으면 int.MaxValue입니다.</summary>
+    public int killerNum;
     /// <summary>유닛이 피해를 입었는지 여부입니다.</summary>
     public bool bgetDamage;
     /// <summary>피해를 입은 방향과 크기 벡터입니다.</summary>
     public Vector3 damageVector;
+    /// <summary>
+    /// 적 유닛과 접촉해 전진이 막힌 상태인지 여부입니다.
+    /// 물리 충돌(OnCollisionStay)에서 매 프레임 세워지고, 시뮬레이션 틱이 소비 후 해제합니다.
+    /// </summary>
+    public bool benemyContact;
+    /// <summary>나를 막고 있는 적 방향(정규화)입니다. 이 방향으로의 전진 성분만 제거합니다.</summary>
+    public Vector3 enemyContactNormal;
+
+    // --- 돌격 ---
+    /// <summary>돌격 중(아직 충돌 전)인지 여부입니다.</summary>
+    public bool bcharging;
+    /// <summary>이번 틱에 돌격 충돌이 성립했는지 여부입니다. 메인 스레드가 소비합니다.</summary>
+    public bool bchargeImpact;
+    /// <summary>현재 남아 있는 돌격 보너스 비율(0~1)입니다. 시간에 따라 0으로 감쇠합니다.</summary>
+    public float chargeBonus;
+    /// <summary>충돌 당시의 충격 세기(0~1)입니다. 감쇠의 시작값이 됩니다.</summary>
+    public float chargeImpactPower;
+    /// <summary>돌격 보너스 감쇠를 재는 타이머입니다.</summary>
+    public Timer timer_Charge;
     /// <summary>공격 속도 타이머입니다.</summary>
     public Timer timer_AttackSpeed;
     /// <summary>공격 딜레이 타이머입니다.</summary>
@@ -61,17 +86,16 @@ public partial struct Unit_Data
 
     // Public methods
     /// <summary>Unit_Data 구조체의 생성자입니다.</summary>
-    public Unit_Data(Unit unit, int num)
+    public Unit_Data(Unit unit, int num, in Army_Data armyData, int armyIndex)
     {
         this.num = num;
-        bPlayer = unit.GetArmy_Data().bplayer;
+        this.armyIndex = armyIndex;
+        bPlayer = armyData.bplayer;
 
         position = unit.transform.position;
         rotation = unit.transform.rotation;
 
-        army_Data = unit.GetArmy_Data();
-
-        HP = army_Data.GetHP();
+        HP = armyData.GetHP();
 
         e_Unit_Move = E_Unit_Move.Idle;
 
@@ -98,21 +122,34 @@ public partial struct Unit_Data
 
         bhitTarget = false;
 
+        bdead = false;
+        bdeadHandled = false;
+        killerNum = int.MaxValue;
+
         bgetDamage = false;
         damageVector = new Vector3();
 
-        timer_AttackSpeed = new Timer(army_Data.GetMeleeAttackSpeed());
-        timer_AttackDelay = new Timer(army_Data.GetAttackDelay());
+        benemyContact = false;
+        enemyContactNormal = new Vector3();
+
+        bcharging = false;
+        bchargeImpact = false;
+        chargeBonus = 0.0f;
+        chargeImpactPower = 0.0f;
+        timer_Charge = new Timer(Constant.time_Charge_Bonus);
+
+        timer_AttackSpeed = new Timer(armyData.GetMeleeAttackSpeed());
+        timer_AttackDelay = new Timer(armyData.GetAttackDelay());
 
         e_Unit_Fight = E_Unit_Fight.Attack_Able;
         e_Unit_AttackType = E_Unit_AttackType.Melee;
     }
 
     /// <summary>유닛 데이터를 업데이트합니다.</summary>
-    public void _Update()
+    public void _Update(in Army_Data armyData)
     {
-        _Update_Move();
-        _Update_Fight();
+        _Update_Move(armyData);
+        _Update_Fight(armyData);
     }
 }
 
@@ -133,6 +170,44 @@ public enum E_Unit_AttackType
 {
     Melee,
     Range
+}
+
+/// <summary>
+/// 병종 분류입니다. 상성 보너스의 대상을 결정합니다.
+///
+/// 토탈워의 가위바위보는 '무엇에 강한가'를 스탯으로 표현합니다.
+/// 창병은 대형(기병)에 강하고, 기병은 궁병을 짓밟고, 궁병은 보병을 갉아먹습니다.
+/// </summary>
+public enum E_Unit_Class
+{
+    /// <summary>일반 보병입니다. 무난하지만 특출난 상성이 없습니다.</summary>
+    Infantry,
+
+    /// <summary>창병입니다. 대형 상대 보너스를 갖고 돌격을 받아냅니다.</summary>
+    Spear,
+
+    /// <summary>기병입니다. 대형으로 취급되어 창병에게 약합니다.</summary>
+    Cavalry,
+
+    /// <summary>궁병입니다. 근접에 약하지만 원거리에서 갉아먹습니다.</summary>
+    Archer,
+
+    /// <summary>대형 유닛입니다. 기병과 마찬가지로 대형 판정을 받습니다.</summary>
+    Large
+}
+
+/// <summary>병종 분류에 대한 판정 도우미입니다. Burst에서 쓰이므로 순수 정적 함수입니다.</summary>
+public static class Unit_Class_Util
+{
+    /// <summary>
+    /// 이 병종이 '대형'으로 취급되는지 여부입니다.
+    /// 창병의 대형 보너스와 anti-large 판정이 이 기준을 씁니다.
+    /// </summary>
+    public static bool IsLarge(E_Unit_Class unitClass)
+    {
+        return unitClass == E_Unit_Class.Cavalry
+            || unitClass == E_Unit_Class.Large;
+    }
 }
 
 [Serializable]

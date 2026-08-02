@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f0b86aa7b073b24f9c420a7c8dc57a0, type: 3}
+  m_Name: UnitStat_Archer
+  m_EditorClassIdentifier:
+  displayName: Archers
+  description: "궁병입니다. 원거리에서 보병을 갉아먹지만
+    근접 전투력이 낮아 기병에게 짓밟힙니다.
+    T2-1(사거리 전투)이 완성되기 전까지는 근접만 수행합니다."
+  stat:
+    moveSpeed: 3.2
+    rotationSpeed: 200
+    acceleration: 11
+    mass: 80
+    drag: 1
+    meleeDamage: 10
+    meleeDamageAP: 2
+    meleeAttack: 18
+    meleeAttackSpeed: 0.7
+    meleeDiffense: 15
+    meleeRange: 1.5
+    meleeChargeSpeed: 4
+    meleeChargeRange: 4
+    meleeChargeBonus: 5
+    armor: 8
+    shieldArmor: 0
+    brangeAttackAble: 1
+    rangeDamage: 18
+    rangeDamageAP: 4
+    rangeAttackSpeed: 1.5
+    rangeDiffense: 8
+    rangeAccuracy: 35
+    rangeRange: 24
+    attackDelay: 0.7
+    size: 1
+    interval: 1.1
+    radius: 0.3
+    height: 1
+    HP: 80
+    e_Unit_AttackType: 1
+    e_Unit_Class: 3
+    bonusVsLarge: 0
+    bonusVsInfantry: 0

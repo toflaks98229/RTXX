@@ -714,4 +714,28 @@ public struct Army_Data
 
     // 공격 타입
     public E_Unit_AttackType GetE_Unit_AttackType() => unit_Stat.e_Unit_AttackType;
+
+    // 병종 / 상성
+    /// <summary>이 부대의 병종 분류입니다.</summary>
+    public E_Unit_Class GetE_Unit_Class() => unit_Stat.e_Unit_Class;
+
+    /// <summary>이 부대가 대형으로 취급되는지 여부입니다.</summary>
+    public bool IsLarge() => Unit_Class_Util.IsLarge(unit_Stat.e_Unit_Class);
+
+    public float GetBonusVsLarge() => NonNegative(unit_Stat.bonusVsLarge);
+    public void AddBonusVsLarge(float v) => unit_Stat.bonusVsLarge += v;
+
+    public float GetBonusVsInfantry() => NonNegative(unit_Stat.bonusVsInfantry);
+    public void AddBonusVsInfantry(float v) => unit_Stat.bonusVsInfantry += v;
+
+    /// <summary>
+    /// 상대 부대를 향한 상성 명중 보너스입니다.
+    /// 명중 공식의 bonus_vs_target 항에 들어갑니다.
+    /// </summary>
+    public float GetBonusVsTarget(in Army_Data target)
+    {
+        return target.IsLarge()
+            ? GetBonusVsLarge()
+            : GetBonusVsInfantry();
+    }
 }

@@ -97,4 +97,22 @@ public struct Unit_Stat
 
     /// <summary>유닛의 기본 공격 타입입니다.</summary>
     public E_Unit_AttackType e_Unit_AttackType;
+
+    // Class / Counters
+    /// <summary>
+    /// 병종 분류입니다. 상대가 이 분류를 보고 상성 보너스를 적용합니다.
+    /// </summary>
+    public E_Unit_Class e_Unit_Class;
+
+    /// <summary>
+    /// 대형(기병/대형 유닛) 상대 명중 보너스입니다.
+    /// 창병이 기병을 막아내는 근거가 이 수치입니다.
+    /// </summary>
+    public float bonusVsLarge;
+
+    /// <summary>
+    /// 보병 상대 명중 보너스입니다.
+    /// 기병이 보병 대열을 휩쓰는 근거가 이 수치입니다.
+    /// </summary>
+    public float bonusVsInfantry;
 }

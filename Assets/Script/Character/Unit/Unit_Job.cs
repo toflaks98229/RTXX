@@ -254,7 +254,13 @@ public struct Unit_Fight_Job : IJobParallelFor
                             * targetArmyData.GetMeleeChargeBonus()
                             * attackerFatigue;
 
-        float attack = (targetArmyData.GetMeleeAttack() + chargeBonus) * attackerFatigue;
+        // 상성 보너스: 공격자가 '내 병종'을 상대로 갖는 보너스입니다.
+        // 창병이 기병을 막고, 기병이 보병을 휩쓰는 가위바위보가 여기서 나옵니다.
+        // (여기서 targetArmyData는 공격자, armyData는 방어자인 나입니다)
+        float bonusVsTarget = targetArmyData.GetBonusVsTarget(armyData);
+
+        float attack = (targetArmyData.GetMeleeAttack() + chargeBonus + bonusVsTarget)
+                       * attackerFatigue;
 
         // 지치면 방어 자세도 무너집니다.
         float defence = armyData.GetMeleeDiffense() * defenderFatigue;
@@ -318,7 +324,9 @@ public struct Unit_Fight_Job : IJobParallelFor
     {
         float attackerFatigue = targetArmyData.GetFatigueRate();
 
-        float attack = targetArmyData.GetRangeAccuracy() * attackerFatigue;
+        float bonusVsTarget = targetArmyData.GetBonusVsTarget(armyData);
+
+        float attack = (targetArmyData.GetRangeAccuracy() + bonusVsTarget) * attackerFatigue;
         float defence = armyData.GetRangeDiffense();
 
         float hitChance = Clamp_Hit_Chance(Constant.hit_Chance_Base + attack - defence);

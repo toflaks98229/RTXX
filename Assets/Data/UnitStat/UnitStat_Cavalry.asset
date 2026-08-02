@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f0b86aa7b073b24f9c420a7c8dc57a0, type: 3}
+  m_Name: UnitStat_Cavalry
+  m_EditorClassIdentifier:
+  displayName: Cavalry
+  description: "기병입니다. 대형으로 취급되므로 창병에게 약합니다.
+    돌격 속도와 보너스가 압도적이라 측후방을 치면 무섭지만,
+    정면의 창벽에 부딪히면 손해만 봅니다."
+  stat:
+    moveSpeed: 5
+    rotationSpeed: 140
+    acceleration: 14
+    mass: 300
+    drag: 1
+    meleeDamage: 28
+    meleeDamageAP: 8
+    meleeAttack: 38
+    meleeAttackSpeed: 0.55
+    meleeDiffense: 25
+    meleeRange: 1.8
+    meleeChargeSpeed: 11
+    meleeChargeRange: 14
+    meleeChargeBonus: 65
+    armor: 30
+    shieldArmor: 10
+    brangeAttackAble: 0
+    rangeDamage: 0
+    rangeDamageAP: 0
+    rangeAttackSpeed: 0
+    rangeDiffense: 12
+    rangeAccuracy: 0
+    rangeRange: 0
+    attackDelay: 0.7
+    size: 1.4
+    interval: 1.6
+    radius: 0.45
+    height: 1.4
+    HP: 130
+    e_Unit_AttackType: 0
+    e_Unit_Class: 2
+    bonusVsLarge: 0
+    bonusVsInfantry: 25
