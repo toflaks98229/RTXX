@@ -393,6 +393,13 @@ public partial class Army : MonoBehaviour
             units[i].unit_Data.bchargeImpact = false;
             impacts++;
 
+            // 대형 유닛은 부딪히는 것만으로 피해를 줍니다. (충돌 공격)
+            if (units[i].unit_Data.bcollisionAttack)
+            {
+                units[i].unit_Data.bcollisionAttack = false;
+                Apply_Collision_Attack(units[i]);
+            }
+
             // 돌격한 쪽: 충돌 순간을 크게 번쩍입니다.
             if (units[i].unit_Animation != null)
             {
@@ -473,6 +480,68 @@ public partial class Army : MonoBehaviour
 
         return Vector3.Dot(victimForward.normalized, toMe.normalized)
                >= Constant.stance_Front_Dot;
+    }
+
+    /// <summary>
+    /// 충돌 공격을 적용합니다. 대형 유닛이 '몸으로' 들이받는 피해입니다.
+    ///
+    /// 무기 공격과 별개인 이유:
+    /// 전속력으로 달려든 말은 창을 쓰기 전에 부딪히는 것만으로 사람을 넘어뜨립니다.
+    /// 이 처리가 있어야 기병 돌파가 보병 대열을 실제로 흩뜨립니다.
+    ///
+    /// 피해량은 질량비와 속도에 비례합니다.
+    /// 무거운 쪽이 가벼운 쪽을 밀어내는 것이지 그 반대는 성립하지 않습니다.
+    /// </summary>
+    private void Apply_Collision_Attack(Unit attacker)
+    {
+        if (targetArmy == null) return;
+        if (attacker == null) return;
+
+        float myMass = army_Data.GetMass();
+        float otherMass = targetArmy.army_Data.GetMass();
+        if (otherMass <= 0.0f) otherMass = 1.0f;
+
+        // 질량이 앞설수록 강하게 들이받습니다. 동급이면 거의 효과가 없습니다.
+        float massRatio = myMass / otherMass;
+        if (massRatio < 1.0f) return;
+
+        float t = (massRatio - 1.0f)
+                  / Mathf.Max(0.0001f, Constant.collision_Mass_Full_Ratio - 1.0f);
+        if (t > 1.0f) t = 1.0f;
+
+        float power = t * attacker.unit_Data.chargeImpactPower;
+        if (power <= 0.0f) return;
+
+        float damage = Constant.collision_Damage_Base * power;
+        float impulse = Constant.collision_Knockback_Impulse * power;
+
+        // 충돌 지점 주변의 적들이 함께 밀려납니다.
+        // 말 한 마리가 정확히 한 명만 치고 지나가지는 않습니다.
+        float radius = army_Data.GetRadius() + targetArmy.army_Data.GetRadius();
+        if (radius <= 0.0f) radius = 1.0f;
+
+        float radiusSqr = radius * radius;
+        Vector3 origin = attacker.transform.position;
+        Vector3 forward = attacker.transform.forward;
+
+        List<Unit> victims = targetArmy.units;
+
+        for (int i = 0; i < victims.Count; i++)
+        {
+            Unit victim = victims[i];
+            if (victim == null) continue;
+            if (victim.IsDead()) continue;
+
+            Vector3 to = victim.transform.position - origin;
+            to.y = 0.0f;
+
+            if (to.sqrMagnitude > radiusSqr) continue;
+
+            // 앞으로 밀어냅니다. 겹쳐 있으면 진행 방향을 씁니다.
+            Vector3 push = to.sqrMagnitude > 0.000001f ? to.normalized : forward;
+
+            victim.Take_Collision_Hit(damage, push, impulse, attacker.unit_Data.num);
+        }
     }
 
     /// <summary>

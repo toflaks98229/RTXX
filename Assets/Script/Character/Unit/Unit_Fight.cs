@@ -249,6 +249,11 @@ partial struct Unit_Data
             bchargeImpact = true;
             chargeImpactPower = momentum;
             chargeBonus = momentum;
+
+            // 대형 유닛(기병 포함)은 몸으로도 들이받습니다.
+            // 무기와 별개로 충돌 자체가 피해와 넉백을 만듭니다.
+            if (armyData.IsLarge()) bcollisionAttack = true;
+
             timer_Charge.ReSetTimer();
             return;
         }

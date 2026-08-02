@@ -291,7 +291,7 @@ partial struct Unit_Data
 
             movementVector = movementVector * movementSpeed;
 
-            Block_Into_Enemy();
+            Block_Into_Enemy(armyData);
             return;
         }
 
@@ -305,7 +305,7 @@ partial struct Unit_Data
         movementVector = movementVector * movementSpeed;
 
         // 적 대열에 막혔으면 뚫고 들어가지 못합니다.
-        Block_Into_Enemy();
+        Block_Into_Enemy(armyData);
     }
 
     /// <summary>
@@ -368,7 +368,7 @@ partial struct Unit_Data
 
         movementVector = step * speed;
 
-        Block_Into_Enemy();
+        Block_Into_Enemy(armyData);
     }
 
     /// <summary>유닛이 유휴 상태일 때의 행동을 처리합니다.</summary>
@@ -512,7 +512,7 @@ partial struct Unit_Data
     /// 옆으로 비켜서거나 뒤로 물러나는 것은 그대로 허용해야
     /// 유닛이 벽에 낀 것처럼 굳지 않습니다.
     /// </summary>
-    private void Block_Into_Enemy()
+    private void Block_Into_Enemy(in Army_Data armyData)
     {
         // 돌격 중에는 진입 성분을 제거하지 않습니다. 부딪히는 것이 목적입니다.
         //
@@ -524,10 +524,16 @@ partial struct Unit_Data
         if (enemyContactNormal.sqrMagnitude < 0.0001f) return;
 
         float into = Vector3.Dot(movementVector, enemyContactNormal);
-        if (into > 0.0f)
-        {
-            movementVector -= enemyContactNormal * into;
-        }
+        if (into <= 0.0f) return;
+
+        // 대형 유닛(기병 포함)은 완전히 막히지 않고 조금씩 밀고 들어갑니다.
+        //
+        // 이것이 없으면 기병이 보병 대열 앞에서 그대로 굳어 버려
+        // '돌파'라는 개념이 성립하지 않습니다.
+        // 다만 완전히 자유롭게 통과하지도 못하므로 접촉면은 유지됩니다.
+        float remain = armyData.IsLarge() ? Constant.large_Push_Through_Rate : 0.0f;
+
+        movementVector -= enemyContactNormal * into * (1.0f - remain);
     }
 
     /// <summary>
@@ -576,7 +582,7 @@ partial struct Unit_Data
         movementVector = step * speed;
 
         // 대열을 메우려다 적을 밀고 들어가지는 않습니다.
-        Block_Into_Enemy();
+        Block_Into_Enemy(armyData);
     }
 
     /// <summary>유닛의 이동을 중지합니다.</summary>

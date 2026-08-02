@@ -242,6 +242,32 @@ static class Constant
     public const float charge_Max_Penetration_Rate = 0.5f;
 
     // ---------------------------------------------------------------------
+    // 충돌 공격 (Collision Attack)
+    //
+    // 대형 유닛과 기병은 '무기'가 아니라 '몸'으로도 피해를 줍니다.
+    // 전속력으로 달려든 말은 부딪히는 것만으로 사람을 쓰러뜨립니다.
+    // 이것이 기병 돌파가 보병 대열을 흩뜨리는 원리입니다.
+    // ---------------------------------------------------------------------
+    /// <summary>돌격 충돌 순간 몸으로 가하는 기본 피해입니다. 질량과 속도에 비례합니다.</summary>
+    public const float collision_Damage_Base = 20.0f;
+
+    /// <summary>
+    /// 충돌 피해가 최대에 도달하는 질량비입니다.
+    /// 3.0이면 '상대보다 3배 무거우면' 충돌 피해가 최대가 됩니다.
+    /// </summary>
+    public const float collision_Mass_Full_Ratio = 3.0f;
+
+    /// <summary>충돌로 밀려나는 충격량입니다. 질량으로 나뉘므로 가벼울수록 크게 날아갑니다.</summary>
+    public const float collision_Knockback_Impulse = 120.0f;
+
+    /// <summary>
+    /// 대형 유닛이 접촉만으로 밀어붙일 수 있는 속도 비율입니다.
+    /// 0이면 일반 보병처럼 적 대열에 완전히 막힙니다.
+    /// 이 값이 있어야 기병이 대열을 '뚫고' 지나갑니다.
+    /// </summary>
+    public const float large_Push_Through_Rate = 0.35f;
+
+    // ---------------------------------------------------------------------
     // 지휘 (General)
     //
     // 토탈워에서 장군은 주변 부대의 사기를 떠받치는 기둥입니다.

@@ -73,6 +73,15 @@ public partial struct Unit_Data
     public float chargeBonus;
     /// <summary>충돌 당시의 충격 세기(0~1)입니다. 감쇠의 시작값이 됩니다.</summary>
     public float chargeImpactPower;
+
+    /// <summary>
+    /// 이번 틱에 '몸으로 부딪히는' 충돌 공격이 성립했는지 여부입니다.
+    ///
+    /// 대형 유닛과 기병은 무기뿐 아니라 몸으로도 피해를 줍니다.
+    /// 전속력으로 달려든 말은 부딪히는 것만으로 사람을 쓰러뜨립니다.
+    /// 메인 스레드가 소비해 피해와 넉백을 적용합니다.
+    /// </summary>
+    public bool bcollisionAttack;
     /// <summary>돌격 보너스 감쇠를 재는 타이머입니다.</summary>
     public Timer timer_Charge;
     /// <summary>공격 속도 타이머입니다.</summary>
@@ -150,6 +159,7 @@ public partial struct Unit_Data
         bchargeImpact = false;
         chargeBonus = 0.0f;
         chargeImpactPower = 0.0f;
+        bcollisionAttack = false;
         timer_Charge = new Timer(Constant.time_Charge_Bonus);
 
         timer_AttackSpeed = new Timer(armyData.GetMeleeAttackSpeed());
