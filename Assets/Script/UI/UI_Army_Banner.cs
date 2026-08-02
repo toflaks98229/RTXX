@@ -126,6 +126,14 @@ public class UI_Army_Banner : MonoBehaviour
         builder.Append("  ");
         builder.Append(Get_Fatigue_Name(data.e_Army_Fatigue));
 
+        // 기본 태세(Line)는 굳이 표시하지 않습니다. 화면이 시끄러워집니다.
+        if (data.e_Army_Stance != E_Army_Stance.Line)
+        {
+            builder.Append("  [");
+            builder.Append(Get_Stance_Name(data.e_Army_Stance));
+            builder.Append(']');
+        }
+
         Draw_Shadowed_Label(new Rect(x, cursorY, bannerWidth, rowHeight),
                             builder.ToString(),
                             Get_Team_Color(data.bplayer));
@@ -266,6 +274,18 @@ public class UI_Army_Banner : MonoBehaviour
             case E_Unit_Class.Archer: return "궁병";
             case E_Unit_Class.Large: return "대형";
             default: return "보병";
+        }
+    }
+
+    private static string Get_Stance_Name(E_Army_Stance stance)
+    {
+        switch (stance)
+        {
+            case E_Army_Stance.Loose: return "산병";
+            case E_Army_Stance.ShieldWall: return "방패벽";
+            case E_Army_Stance.SpearWall: return "창벽";
+            case E_Army_Stance.Skirmish: return "산개";
+            default: return "전열";
         }
     }
 

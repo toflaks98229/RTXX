@@ -26,6 +26,10 @@ partial class Army
         switch (army_Data.e_Army_Move)
         {
             case E_Army_Move.Idle:
+                // 산개 태세는 적이 다가오면 자동으로 물러납니다.
+                // 이 처리가 먼저 와야 궁병이 근접에 휘말리기 전에 빠집니다.
+                if (Try_Skirmish_Withdraw()) break;
+
                 // 부대 기준점은 '명령으로 설정된 전열 방향'을 유지합니다.
                 // 적을 쫓아 회전하면 도망치는 적을 따라 전열이 계속 틀어집니다.
                 Rotation_To_Formation();
@@ -56,6 +60,45 @@ partial class Army
                 Move_Escape();
                 break;
         }
+    }
+
+    /// <summary>
+    /// 산개(Skirmish) 태세의 자동 후퇴입니다.
+    ///
+    /// 원거리 부대가 근접에 휘말리면 아무것도 못 하고 죽습니다.
+    /// 적이 일정 거리 안으로 들어오면 사격을 이어 가면서 물러나
+    /// 거리를 유지합니다. 이것이 궁병을 운용 가능하게 만드는 장치입니다.
+    /// </summary>
+    /// <returns>후퇴를 수행했으면 true입니다.</returns>
+    bool Try_Skirmish_Withdraw()
+    {
+        if (army_Data.e_Army_Stance != E_Army_Stance.Skirmish) return false;
+        if (army_Data.IsBroken()) return false;
+        if (units.Count == 0) return false;
+
+        // 가장 가까운 적이 물러날 거리 안에 있는지 봅니다.
+        Army nearest = Find_Nearest_Enemy_Army(out float distance);
+        if (nearest == null) return false;
+        if (distance > Constant.stance_Skirmish_Flee_Distance) return false;
+
+        Vector3 away = GetPosition() - nearest.GetPosition();
+        away.y = 0.0f;
+
+        if (away.sqrMagnitude < 0.0001f) return false;
+
+        away = away.normalized;
+
+        float speed = army_Data.GetMoveSpeed() * Constant.stance_Skirmish_Flee_Rate;
+        navMeshAgent.Move(away * speed * Time.fixedDeltaTime);
+
+        // 물러나면서도 적을 향한 자세는 유지합니다. 계속 쏘아야 하기 때문입니다.
+        for (int i = 0; i < units.Count; i++)
+        {
+            if (units[i] == null) continue;
+            units[i].Move_Skirmish(away, speed);
+        }
+
+        return true;
     }
 
     /// <summary>

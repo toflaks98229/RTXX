@@ -44,7 +44,26 @@ public enum E_Army_Stance
     /// 공격 태세: 전열을 엄격히 지키지 않고, 앞쪽에 생긴 빈자리만 메웁니다.
     /// 추격이나 난전에서 병력이 앞으로 뭉치는 형태가 됩니다.
     /// </summary>
-    Loose
+    Loose,
+
+    /// <summary>
+    /// 방패벽: 밀집해 방패를 맞대고 버팁니다.
+    /// 원거리 방어와 돌격 저항이 크게 오르지만 걷기 속도로 제한됩니다.
+    /// </summary>
+    ShieldWall,
+
+    /// <summary>
+    /// 창벽: 2열의 창이 1열 사이로 나옵니다.
+    /// 돌격 저항이 극대화되고, 정지 상태에서는 돌격 반사가 발동합니다.
+    /// 대신 원거리 방어가 떨어지고 걷기 속도로 제한됩니다.
+    /// </summary>
+    SpearWall,
+
+    /// <summary>
+    /// 산개: 적이 다가오면 자동으로 물러나며 거리를 유지합니다.
+    /// 원거리 부대가 근접에 휘말리지 않도록 하는 태세입니다.
+    /// </summary>
+    Skirmish
 }
 
 /// <summary>
@@ -575,6 +594,85 @@ public struct Army_Data
     public bool IsShattered()
     {
         return e_Army_Morale == E_Army_Morale.Shattered;
+    }
+
+    // ---------------------------------------------------------------------
+    // 태세 (Stance)
+    // ---------------------------------------------------------------------
+
+    /// <summary>밀집 태세(방패벽/창벽)인지 여부입니다. 기동이 제한됩니다.</summary>
+    public bool IsWallStance()
+    {
+        return e_Army_Stance == E_Army_Stance.ShieldWall
+            || e_Army_Stance == E_Army_Stance.SpearWall;
+    }
+
+    /// <summary>
+    /// 태세에 따른 이동 속도 배율입니다.
+    /// 밀집 대열은 발을 맞춰야 하므로 뛸 수 없습니다.
+    /// </summary>
+    public float GetStanceSpeedRate()
+    {
+        return IsWallStance() ? Constant.stance_Wall_Speed_Rate : 1.0f;
+    }
+
+    /// <summary>태세에 따른 근접 방어 보정입니다.</summary>
+    public float GetStanceMeleeDefence()
+    {
+        return e_Army_Stance == E_Army_Stance.SpearWall
+            ? Constant.stance_SpearWall_Melee_Defence
+            : 0.0f;
+    }
+
+    /// <summary>
+    /// 태세에 따른 원거리 방어 보정입니다.
+    /// 방패벽은 화살을 막아내고, 창벽은 밀집해 있어 오히려 취약합니다.
+    /// </summary>
+    public float GetStanceRangeDefence()
+    {
+        switch (e_Army_Stance)
+        {
+            case E_Army_Stance.ShieldWall:
+                return Constant.stance_ShieldWall_Range_Defence;
+
+            case E_Army_Stance.SpearWall:
+                return -Constant.stance_SpearWall_Range_Penalty;
+
+            default:
+                return 0.0f;
+        }
+    }
+
+    /// <summary>
+    /// 정면에서 받는 돌격을 얼마나 무효화하는지의 비율(0~1)입니다.
+    /// 1.0이면 돌격 보너스가 통째로 사라집니다.
+    ///
+    /// 측후방 판정은 호출부(Unit_Fight_Job)에서 각도를 보고 결정합니다.
+    /// 뒤에서 찔린 창벽은 아무것도 막지 못합니다.
+    /// </summary>
+    public float GetChargeResistance()
+    {
+        switch (e_Army_Stance)
+        {
+            case E_Army_Stance.ShieldWall:
+                return Constant.stance_ShieldWall_Charge_Resist;
+
+            case E_Army_Stance.SpearWall:
+                return Constant.stance_SpearWall_Charge_Resist;
+
+            default:
+                return 0.0f;
+        }
+    }
+
+    /// <summary>
+    /// 정지한 창벽이 돌격을 되받아치는지 여부입니다.
+    /// 움직이는 창벽은 창을 세우지 못하므로 반사가 성립하지 않습니다.
+    /// </summary>
+    public bool IsChargeReflecting()
+    {
+        return e_Army_Stance == E_Army_Stance.SpearWall
+            && e_Army_Move == E_Army_Move.Idle;
     }
 
     /// <summary>

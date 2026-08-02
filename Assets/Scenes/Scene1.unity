@@ -481,6 +481,11 @@ MonoBehaviour:
   keyCode_select_All: 0
   keyCode_Select: 323
   keyCode_Command: 324
+  keyCode_Stance_Line: 49
+  keyCode_Stance_Loose: 50
+  keyCode_Stance_ShieldWall: 51
+  keyCode_Stance_SpearWall: 52
+  keyCode_Stance_Skirmish: 53
   bselect: 0
   select_Start: {x: 0, y: 0}
   select_End: {x: 0, y: 0}

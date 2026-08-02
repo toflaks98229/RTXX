@@ -434,11 +434,44 @@ public partial class Army : MonoBehaviour
             if (dot > 0.0f) shock *= Constant.morale_Shock_Flank_Rate;
         }
 
+        // 창벽에 정면으로 뛰어들었다면 돌격이 되받아쳐집니다.
+        //
+        // 창을 세우고 버티는 대열에 말을 몰아넣으면 손해를 보는 쪽은
+        // 돌격한 쪽입니다. 충격이 상대가 아니라 나에게 돌아옵니다.
+        if (targetArmy.army_Data.IsChargeReflecting() && Is_Charging_Into_Front(targetArmy))
+        {
+            Apply_Morale_Shock(Constant.stance_SpearWall_Reflect_Shock * rate);
+
+            // 되받아친 쪽도 접촉면이 번쩍여 무슨 일이 일어났는지 보이게 합니다.
+            targetArmy.Flash_Charge_Received(GetPosition(), momentum);
+            return;
+        }
+
         targetArmy.Apply_Morale_Shock(shock);
 
         // 충격을 받은 쪽에서도 접촉면의 유닛들이 번쩍이도록 합니다.
         // 어느 방향에서 돌격이 들어왔는지 눈으로 알 수 있게 하기 위함입니다.
         targetArmy.Flash_Charge_Received(GetPosition(), momentum);
+    }
+
+    /// <summary>
+    /// 내가 상대의 '정면'으로 돌격해 들어갔는지 판정합니다.
+    /// 돌격 반사는 정면에서만 성립합니다. 측후방을 친 돌격은 반사되지 않습니다.
+    /// </summary>
+    private bool Is_Charging_Into_Front(Army victim)
+    {
+        Vector3 toMe = GetPosition() - victim.GetPosition();
+        toMe.y = 0.0f;
+
+        if (toMe.sqrMagnitude < 0.0001f) return true;
+
+        Vector3 victimForward = victim.formation_Move_Transform.forward;
+        victimForward.y = 0.0f;
+
+        if (victimForward.sqrMagnitude < 0.0001f) return true;
+
+        return Vector3.Dot(victimForward.normalized, toMe.normalized)
+               >= Constant.stance_Front_Dot;
     }
 
     /// <summary>

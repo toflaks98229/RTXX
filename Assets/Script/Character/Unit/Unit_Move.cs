@@ -634,7 +634,10 @@ partial struct Unit_Data
         float max_moveSpeed;
 
         // 지치면 최고 속도 자체가 낮아집니다.
-        max_moveSpeed = armyData.GetMoveSpeed() * armyData.GetFatigueRate();
+        // 밀집 태세(방패벽/창벽)는 발을 맞춰야 하므로 뛸 수 없습니다.
+        max_moveSpeed = armyData.GetMoveSpeed()
+                        * armyData.GetFatigueRate()
+                        * armyData.GetStanceSpeedRate();
 
         if (btargetMoveTo)
         {
@@ -774,6 +777,28 @@ partial class Unit
     public void Move_Cancel()
     {
         unit_Data.Move_Cancel();
+    }
+
+    /// <summary>
+    /// 산개 태세의 후퇴 이동입니다.
+    ///
+    /// 패주(Move_Escape)와 다른 점: 표적을 버리지 않습니다.
+    /// 물러나면서도 계속 쏘아야 하므로 자세는 적을 향한 채 유지합니다.
+    /// </summary>
+    /// <param name="direction">물러날 방향입니다.</param>
+    /// <param name="speed">후퇴 속도입니다.</param>
+    public void Move_Skirmish(Vector3 direction, float speed)
+    {
+        if (direction.sqrMagnitude < 0.0001f) return;
+
+        Vector3 step = direction.normalized * speed * Constant.deltaTime;
+
+        navMeshAgent.Move(step);
+
+        unit_Data.position = transform.position;
+
+        // 진형 목표도 함께 끌고 가야 다음 재정비에서 되돌아가지 않습니다.
+        unit_Data.location = transform.position;
     }
 
     /// <summary>

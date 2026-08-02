@@ -232,6 +232,23 @@ public struct Unit_Fight_Job : IJobParallelFor
         return reduction;
     }
 
+    /// <summary>
+    /// 공격이 내 정면에서 들어왔는지 판정합니다.
+    /// 돌격 저항은 정면에서만 성립합니다. 뒤에서 찔린 창벽은 아무것도 막지 못합니다.
+    /// </summary>
+    private bool Is_Front_Attack(in Unit_Data attacker)
+    {
+        Vector3 toAttacker = attacker.position - unit_Data.position;
+        toAttacker.y = 0.0f;
+
+        if (toAttacker.sqrMagnitude < 0.000001f) return true;
+
+        Vector3 forward = unit_Data.rotation * Vector3.forward;
+
+        return Vector3.Dot(forward.normalized, toAttacker.normalized)
+               >= Constant.stance_Front_Dot;
+    }
+
     /// <summary>명중 확률을 상하한으로 클램프합니다. 절대 무적과 확정타를 모두 막습니다.</summary>
     private static float Clamp_Hit_Chance(float hitChance)
     {
@@ -254,6 +271,22 @@ public struct Unit_Fight_Job : IJobParallelFor
                             * targetArmyData.GetMeleeChargeBonus()
                             * attackerFatigue;
 
+        // 돌격 저항: 방패벽/창벽은 정면으로 들어온 돌격을 받아냅니다.
+        //
+        // 창을 세운 대열에 말을 몰아넣으면 돌격 보너스가 통째로 사라집니다.
+        // 이것이 '기병은 창병 정면을 피해야 한다'는 규칙의 실체입니다.
+        // 단, 측후방으로 돌아 들어온 돌격은 창벽으로도 막지 못합니다.
+        if (chargeBonus > 0.0f)
+        {
+            float resist = armyData.GetChargeResistance();
+
+            if (resist > 0.0f && Is_Front_Attack(unit_Data))
+            {
+                chargeBonus *= (1.0f - resist);
+                if (chargeBonus < 0.0f) chargeBonus = 0.0f;
+            }
+        }
+
         // 상성 보너스: 공격자가 '내 병종'을 상대로 갖는 보너스입니다.
         // 창병이 기병을 막고, 기병이 보병을 휩쓰는 가위바위보가 여기서 나옵니다.
         // (여기서 targetArmyData는 공격자, armyData는 방어자인 나입니다)
@@ -263,7 +296,9 @@ public struct Unit_Fight_Job : IJobParallelFor
                        * attackerFatigue;
 
         // 지치면 방어 자세도 무너집니다.
-        float defence = armyData.GetMeleeDiffense() * defenderFatigue;
+        // 창벽은 창이 앞을 가려 근접 방어가 올라갑니다.
+        float defence = (armyData.GetMeleeDiffense() + armyData.GetStanceMeleeDefence())
+                        * defenderFatigue;
         float armor = armyData.GetArmor();
         float shieldArmor = armyData.GetShieldArmor();
 
@@ -327,7 +362,9 @@ public struct Unit_Fight_Job : IJobParallelFor
         float bonusVsTarget = targetArmyData.GetBonusVsTarget(armyData);
 
         float attack = (targetArmyData.GetRangeAccuracy() + bonusVsTarget) * attackerFatigue;
-        float defence = armyData.GetRangeDiffense();
+
+        // 방패벽은 화살을 막아내고, 창벽은 밀집해 있어 오히려 잘 맞습니다.
+        float defence = armyData.GetRangeDiffense() + armyData.GetStanceRangeDefence();
 
         float hitChance = Clamp_Hit_Chance(Constant.hit_Chance_Base + attack - defence);
 

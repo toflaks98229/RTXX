@@ -1,17 +1,15 @@
 ﻿using System;
-using System.Collections;
+
 using System.Collections.Generic;
-using Unity.VisualScripting;
+
 using UnityEngine;
 using UnityEngine.AI;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using System.Linq;
-using static System.Runtime.CompilerServices.RuntimeHelpers;
-using static Unity.Collections.AllocatorManager;
 
-public class Controller : MonoBehaviour
+public partial class Controller : MonoBehaviour
 {
     // 공개 멤버 변수
     /// <summary>
@@ -50,6 +48,18 @@ public class Controller : MonoBehaviour
     /// 명령 기능을 위한 마우스 키 코드입니다 (기본: 마우스 오른쪽).
     /// </summary>
     public KeyCode keyCode_Command = KeyCode.Mouse1;
+
+    // 태세 단축키
+    /// <summary>방어 태세(전열 유지)로 전환합니다.</summary>
+    public KeyCode keyCode_Stance_Line = KeyCode.Alpha1;
+    /// <summary>공격 태세(느슨한 대열)로 전환합니다.</summary>
+    public KeyCode keyCode_Stance_Loose = KeyCode.Alpha2;
+    /// <summary>방패벽으로 전환합니다.</summary>
+    public KeyCode keyCode_Stance_ShieldWall = KeyCode.Alpha3;
+    /// <summary>창벽으로 전환합니다.</summary>
+    public KeyCode keyCode_Stance_SpearWall = KeyCode.Alpha4;
+    /// <summary>산개 태세로 전환합니다.</summary>
+    public KeyCode keyCode_Stance_Skirmish = KeyCode.Alpha5;
     /// <summary>
     /// 드래그 선택 중임을 나타내는 플래그입니다.
     /// </summary>
@@ -98,14 +108,34 @@ public class Controller : MonoBehaviour
     /// </summary>
     private Rect select_Box;
 
+    /// <summary>
+    /// 모든 유닛의 콜라이더 EntityId -> Unit_Data 조회 테이블입니다.
+    /// 매 틱 새로 할당하지 않도록 Persistent로 유지하고 Clear해서 재사용합니다.
+    /// </summary>
+    private NativeHashMap<EntityId, Unit_Data> unitDataMap;
+    /// <summary>
+    /// 부대 데이터를 잡에 넘기기 위한 버퍼입니다. 역시 매 틱 재사용합니다.
+    /// </summary>
+    private NativeArray<Army_Data> army_Datas;
+
     // Unity 이벤트 함수
     /// <summary>
     /// MonoBehaviour 인스턴스가 생성될 때 호출됩니다.
     /// </summary>
     private void Awake()
     {
-        // 애플리케이션의 목표 프레임 속도를 60으로 설정합니다.
-        Application.targetFrameRate = 60;
+        // 정적 이벤트는 도메인 리로드를 끄면 플레이 모드 종료 후에도 살아남습니다.
+        // 이전 세션의 죽은 구독자를 제거해 두어야 예외가 나지 않습니다.
+        GameEvents.ClearAll();
+        Main_Camera.Clear();
+
+        // 애플리케이션의 목표 프레임 속도를 설정합니다.
+        Application.targetFrameRate = Constant.targetFrameRate;
+
+        // 시뮬레이션 틱을 Constant.deltaTime에 맞춥니다.
+        // Burst Job은 Constant.deltaTime을, 메인 스레드(Army_Move 등)는
+        // Time.fixedDeltaTime을 사용하므로 두 값이 반드시 같아야 합니다.
+        Time.fixedDeltaTime = Constant.deltaTime;
     }
 
     /// <summary>
@@ -121,10 +151,31 @@ public class Controller : MonoBehaviour
         }
 
         // 모든 유닛을 초기화합니다.
-        for (int i = 0; i < units.Count; i++)
+        // num은 전역 고유 ID, armyIndex는 소속 부대의 인덱스입니다.
+        int unitNum = 0;
+        for (int armyIndex = 0; armyIndex < armies.Count; armyIndex++)
         {
-            units[i]._Start(i);
+            List<Unit> armyUnits = armies[armyIndex].units;
+            for (int u = 0; u < armyUnits.Count; u++)
+            {
+                armyUnits[u]._Start(unitNum, armyIndex);
+                unitNum++;
+            }
         }
+
+        // 시뮬레이션 버퍼를 한 번만 할당해 두고 매 틱 재사용합니다.
+        unitDataMap = new NativeHashMap<EntityId, Unit_Data>(Mathf.Max(1, units.Count), Allocator.Persistent);
+        army_Datas = new NativeArray<Army_Data>(Mathf.Max(1, armies.Count), Allocator.Persistent);
+    }
+
+    /// <summary>
+    /// 컴포넌트가 파괴될 때 네이티브 버퍼를 해제합니다.
+    /// Persistent 할당은 반드시 명시적으로 해제해야 메모리 누수 경고가 나지 않습니다.
+    /// </summary>
+    private void OnDestroy()
+    {
+        if (unitDataMap.IsCreated) unitDataMap.Dispose();
+        if (army_Datas.IsCreated) army_Datas.Dispose();
     }
 
     /// <summary>
@@ -135,6 +186,33 @@ public class Controller : MonoBehaviour
         // 마우스 버튼 입력에 따른 선택 및 명령 업데이트를 처리합니다.
         _Update_MouseButton_Select();
         _Update_MouseButton_Command();
+        _Update_Stance_Command();
+    }
+
+    /// <summary>
+    /// 선택된 부대의 태세를 바꾸는 단축키를 처리합니다.
+    ///
+    /// 태세는 '기동을 포기하고 버틴다'는 거래이므로 플레이어가
+    /// 상황을 보고 직접 선택할 수 있어야 의미가 있습니다.
+    /// </summary>
+    private void _Update_Stance_Command()
+    {
+        if (armies_Selected.Count == 0) return;
+
+        E_Army_Stance stance;
+
+        if (Input.GetKeyDown(keyCode_Stance_Line)) stance = E_Army_Stance.Line;
+        else if (Input.GetKeyDown(keyCode_Stance_Loose)) stance = E_Army_Stance.Loose;
+        else if (Input.GetKeyDown(keyCode_Stance_ShieldWall)) stance = E_Army_Stance.ShieldWall;
+        else if (Input.GetKeyDown(keyCode_Stance_SpearWall)) stance = E_Army_Stance.SpearWall;
+        else if (Input.GetKeyDown(keyCode_Stance_Skirmish)) stance = E_Army_Stance.Skirmish;
+        else return;
+
+        for (int i = 0; i < armies_Selected.Count; i++)
+        {
+            if (armies_Selected[i] == null) continue;
+            armies_Selected[i].Set_Stance(stance);
+        }
     }
 
     /// <summary>
@@ -146,7 +224,7 @@ public class Controller : MonoBehaviour
         if (bdrag)
         {
             RaycastHit raycastHit;
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            Ray ray = Main_Camera.Get().ScreenPointToRay(Input.mousePosition);
 
             if (Physics.Raycast(ray, out raycastHit, Mathf.Infinity, layer_Ground))
             {
@@ -168,446 +246,39 @@ public class Controller : MonoBehaviour
         _Update_Army();
     }
 
-    // 비공개 메서드
-    /// <summary>
-    /// 선택 기능을 위한 마우스 버튼 입력을 처리합니다.
-    /// </summary>
-    private void _Update_MouseButton_Select()
-    {
-        if (Input.GetKeyDown(keyCode_Select))
-        {
-            if (bdrag)
-            {
-                bdrag = false;
-                bformation = false;
-                Erase_Formation_UI();
-            }
-
-            // Ctrl 키를 누르지 않았을 경우, 선택된 부대를 모두 해제합니다.
-            if (!Input.GetKey(keyCode_disable_clear))
-            {
-                for (int i = 0; i < armies_Selected.Count; i++)
-                {
-                    armies_Selected[i].UnSelected();
-                }
-                armies_Selected.Clear();
-            }
-
-            // 마우스 클릭 위치에 있는 유닛을 선택합니다.
-            RaycastHit raycastHit;
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-
-            if (Physics.Raycast(ray, out raycastHit, Mathf.Infinity, layer_Clickable))
-            {
-                bselect = false;
-                Unit unit = raycastHit.transform.GetComponent<Unit>();
-
-                if (unit.GetArmy_Data().bplayer && !unit.GetArmy().IsSelected())
-                {
-                    unit.GetArmy().Selected();
-                    armies_Selected.Add(unit.GetArmy());
-                }
-            }
-            else
-            {
-                // 클릭한 곳에 유닛이 없을 경우 드래그 선택을 시작합니다.
-                bselect = true;
-                select_Start = Input.mousePosition;
-            }
-        }
-
-        if (Input.GetKey(keyCode_Select))
-        {
-            if (bselect)
-            {
-                select_End = Input.mousePosition;
-                Draw_Drag_UI_Box();
-            }
-        }
-
-        if (Input.GetKeyUp(keyCode_Select))
-        {
-            if (bselect)
-            {
-                Select_Drag();
-            }
-            Erase_Drag_UI();
-            bselect = false;
-        }
-    }
-
-    /// <summary>
-    /// 명령 기능을 위한 마우스 버튼 입력을 처리합니다.
-    /// </summary>
-    private void _Update_MouseButton_Command()
-    {
-        if (Input.GetKeyDown(keyCode_Command))
-        {
-            if (bselect)
-            {
-                bselect = false;
-                Erase_Drag_UI();
-            }
-
-            // 마우스 클릭 위치에 있는 지면을 감지하여 명령 드래그를 시작합니다.
-            RaycastHit raycastHit;
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-
-            if (Physics.Raycast(ray, out raycastHit, Mathf.Infinity, layer_Ground))
-            {
-                bdrag = true;
-                formation_Start = raycastHit.point;
-                bformation = false;
-            }
-        }
-
-        if (Input.GetKey(keyCode_Command))
-        {
-            // 드래그 중인 상태를 유지합니다.
-        }
-
-        if (Input.GetKeyUp(keyCode_Command))
-        {
-            if (bdrag)
-            {
-                RaycastHit raycastHit;
-                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-
-                if (Physics.Raycast(ray, out raycastHit, Mathf.Infinity, layer_Ground))
-                {
-                    if (bformation == false)
-                    {
-                        Start_Move_Click();
-                    }
-                    else
-                    {
-                        Start_Move_Drag();
-                        Draw_Formation_UI();
-                        Erase_Formation_UI();
-                        bformation = false;
-                    }
-                }
-                bdrag = false;
-            }
-        }
-    }
-
-    /// <summary>
-    /// 드래그 선택 UI 박스를 화면에 그립니다.
-    /// </summary>
-    void Draw_Drag_UI_Box()
-    {
-        Vector2 drag_mid = (select_Start + select_End) / 2.0f;
-        select_UI_Box.position = drag_mid;
-        Vector2 uI_drag_Box_Size = new Vector2(Mathf.Abs(select_Start.x - select_End.x), Mathf.Abs(select_Start.y - select_End.y));
-        select_UI_Box.sizeDelta = uI_drag_Box_Size;
-    }
-
-    /// <summary>
-    /// 드래그 선택 UI를 지우고 변수를 초기화합니다.
-    /// </summary>
-    void Erase_Drag_UI()
-    {
-        select_Start = Vector2.zero;
-        select_End = Vector2.zero;
-        Draw_Drag_UI_Box();
-    }
-
-    /// <summary>
-    /// 드래그 영역 내의 모든 유닛을 선택합니다.
-    /// </summary>
-    void Select_Drag()
-    {
-        // 드래그 영역의 Rect를 계산합니다.
-        if (select_Start.x > select_End.x)
-        {
-            select_Box.xMax = select_Start.x;
-            select_Box.xMin = select_End.x;
-        }
-        else
-        {
-            select_Box.xMax = select_End.x;
-            select_Box.xMin = select_Start.x;
-        }
-
-        if (select_Start.y > select_End.y)
-        {
-            select_Box.yMax = select_Start.y;
-            select_Box.yMin = select_End.y;
-        }
-        else
-        {
-            select_Box.yMax = select_End.y;
-            select_Box.yMin = select_Start.y;
-        }
-
-        // 드래그 영역에 포함된 유닛을 찾아 선택합니다.
-        foreach (Unit unit in units)
-        {
-            if (unit == null) continue;
-            if (select_Box.Contains(Camera.main.WorldToScreenPoint(unit.transform.position)))
-            {
-                if (unit.GetArmy_Data().bplayer && !unit.GetArmy().IsSelected())
-                {
-                    unit.GetArmy().Selected();
-                    armies_Selected.Add(unit.GetArmy());
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// 부대의 진형을 드래그하여 형성합니다.
-    /// </summary>
-    void Drag_Formaion()
-    {
-        Set_Army_Formation(false);
-    }
-
-    /// <summary>
-    /// 선택된 부대의 진형 UI를 그립니다.
-    /// </summary>
-    void Draw_Formation_UI()
-    {
-        foreach (Army army in armies_Selected)
-        {
-            army.Draw_Formation_UI();
-        }
-    }
-
-    /// <summary>
-    /// 선택된 부대의 진형 UI를 지웁니다.
-    /// </summary>
-    void Erase_Formation_UI()
-    {
-        foreach (Army army in armies_Selected)
-        {
-            army.Erase_Formation_UI();
-        }
-    }
-
-    /// <summary>
-    /// 드래그하여 형성된 진형으로 부대 이동을 시작합니다.
-    /// </summary>
-    void Start_Move_Drag()
-    {
-        Set_Army_Formation(true);
-    }
-
-    /// <summary>
-    /// 클릭 지점으로 부대 이동을 시작합니다.
-    /// </summary>
-    void Start_Move_Click()
-    {
-        if (armies_Selected.Count == 0)
-        {
-            return;
-        }
-
-        Vector3 formation_Direction;
-        Vector3 armies_Position = new Vector3();
-
-        // 선택된 모든 부대의 평균 위치를 계산합니다.
-        for (int i = 0; i < armies_Selected.Count; i++)
-        {
-            armies_Position = armies_Position + armies_Selected[i].GetPosition();
-        }
-        armies_Position = armies_Position / armies_Selected.Count;
-
-        // 진형 방향을 설정합니다.
-        formation_Direction = formation_Start - armies_Position;
-        formation_Direction = Quaternion.AngleAxis(90, Vector3.up) * formation_Direction;
-
-        float formation_Length = 0.0f;
-        for (int i = 0; i < armies_Selected.Count; i++)
-        {
-            formation_Length = formation_Length + armies_Selected[i].GetFormation_Length();
-        }
-
-        Vector3 formation_Position = new Vector3();
-        formation_Position = formation_Position - formation_Direction.normalized * formation_Length * 0.5f;
-
-        for (int i = 0; i < armies_Selected.Count; i++)
-        {
-            formation_Position =
-                formation_Position
-                + formation_Direction.normalized
-                * armies_Selected[i].Set_Formation(formation_Direction, formation_Position).GetNum()
-                * armies_Selected[i].army_Data.GetInterval();
-        }
-
-        // 헝가리안 알고리즘을 사용하여 부대와 진형 위치를 매칭합니다.
-        List<Vector3> armies_position = new List<Vector3>();
-        List<Vector3> armies_formation_position = new List<Vector3>();
-
-        for (int i = 0; i < armies_Selected.Count; i++)
-        {
-            armies_position.Add(armies_Selected[i].GetPosition());
-            armies_formation_position.Add(armies_Selected[i].GetFormation_Position());
-        }
-
-        Hungarian hungarian = new Hungarian(armies_position, armies_formation_position);
-        int[] _matchX = hungarian.Run();
-
-        formation_Position = formation_Start;
-        formation_Position = formation_Position - formation_Direction.normalized * formation_Length * 0.5f;
-
-        for (int i = 0; i < armies_Selected.Count; i++)
-        {
-            armies_Selected[_matchX[i]].Move_Start(formation_Direction, formation_Position);
-            formation_Position = formation_Position + formation_Direction.normalized * armies_Selected[_matchX[i]].GetFormation_Length();
-        }
-    }
-
-    /// <summary>
-    /// 선택된 부대의 진형을 설정하고 이동을 시작합니다.
-    /// </summary>
-    /// <param name="bMove">이동을 시작할지 여부입니다.</param>
-    public void Set_Army_Formation(bool bMove)
-    {
-        if (armies_Selected.Count == 0)
-        {
-            return;
-        }
-
-        // 진형 시작 및 끝 지점에 깃발을 표시합니다.
-        Flag1.position = formation_Start;
-        Flag2.position = formation_End;
-
-        // 진형 방향과 위치를 계산합니다.
-        float m1;
-        float n1;
-
-        m1 = (formation_End - formation_Start).z / (formation_End - formation_Start).x;
-        n1 = formation_Start.z - m1 * formation_Start.x;
-
-        List<float> floatList = new List<float>();
-
-        for (int i = 0; i < armies_Selected.Count; i++)
-        {
-            float m2 = -1.0f / m1;
-            float n2 = armies_Selected[i].formation_Move_Transform.position.z - m2 * armies_Selected[i].formation_Move_Transform.position.x;
-            float x = (n2 - n1) / (m1 - m2);
-            if (formation_End.x < formation_Start.x) floatList.Add(x);
-            else floatList.Add(-x);
-        }
-
-        // 부대 위치를 기준으로 정렬합니다.
-        for (int i = 0; i < armies_Selected.Count; i++)
-        {
-            for (int j = 0; j < armies_Selected.Count; j++)
-            {
-                if (floatList[i] > floatList[j])
-                {
-                    Army army = armies_Selected[i];
-                    armies_Selected[i] = armies_Selected[j];
-                    armies_Selected[j] = army;
-
-                    float float_Compare = floatList[i];
-                    floatList[i] = floatList[j];
-                    floatList[j] = float_Compare;
-                }
-            }
-        }
-
-        Vector3 formation_Direction;
-        formation_Direction = formation_End - formation_Start;
-        Vector3 formation_Position;
-        List<float> formation_Lengths = new List<float>();
-
-        for (int i = 0; i < armies_Selected.Count; i++)
-        {
-            formation_Lengths.Add(0.0f);
-        }
-
-        float formation_Length;
-        bool bformation = true;
-
-        while (bformation)
-        {
-            int formationLength_Max_Num = 0;
-            for (int i = 0; i < armies_Selected.Count; i++)
-            {
-                if (formation_Lengths[i] < armies_Selected[i].formationLength_Max)
-                {
-                    formation_Lengths[i] += armies_Selected[i].army_Data.GetInterval();
-                }
-                else
-                {
-                    formationLength_Max_Num += 1;
-                }
-
-                formation_Length = 0.0f;
-                for (int j = 0; j < armies_Selected.Count; j++)
-                {
-                    formation_Length += formation_Lengths[j];
-                }
-
-                if (formation_Length > formation_Direction.magnitude)
-                {
-                    bformation = false;
-                    break;
-                }
-                else if (formationLength_Max_Num == armies_Selected.Count)
-                {
-                    bformation = false;
-                    break;
-                }
-            }
-        }
-
-        formation_Position = formation_Start;
-
-        if (bMove)
-        {
-            for (int i = 0; i < armies_Selected.Count; i++)
-            {
-                armies_Selected[i].Move_Start(formation_Lengths[i], formation_Direction, formation_Position);
-                formation_Position = formation_Position + formation_Direction.normalized * armies_Selected[i].GetFormation_Length();
-            }
-        }
-        else
-        {
-            for (int i = 0; i < armies_Selected.Count; i++)
-            {
-                formation_Position =
-                    formation_Position
-                    + formation_Direction.normalized
-                    * armies_Selected[i].Set_Formation(formation_Lengths[i], formation_Direction, formation_Position).GetNum()
-                * armies_Selected[i].army_Data.GetInterval();
-            }
-        }
-    }
-
     /// <summary>
     /// 모든 부대의 데이터를 업데이트합니다.
     /// </summary>
     private void _Update_Army()
     {
-        // 1. 모든 유닛의 ID와 데이터를 담을 NativeHashMap을 생성합니다.
-        var unitDataMap = new NativeHashMap<int, Unit_Data>(units.Count, Allocator.TempJob);
+        if (!unitDataMap.IsCreated) return;
+
+        // 1. 프레임 시작 시점의 유닛 스냅샷을 만듭니다.
+        //    모든 부대가 '같은' 스냅샷을 보므로 부대 처리 순서와 무관하게 결과가 같습니다.
+        //    (부대마다 다시 만들면 순서에 따라 결과가 달라져 결정론이 깨집니다)
+        unitDataMap.Clear();
         for (int i = 0; i < units.Count; i++)
         {
             if (units[i] == null) continue;
-            int colliderID = units[i].GetComponent<Collider>().GetInstanceID();
-            unitDataMap.TryAdd(colliderID, units[i].unit_Data);
+            unitDataMap.TryAdd(units[i].colliderEntityId, units[i].unit_Data);
         }
 
-        NativeArray<Army_Data> army_Datas;
-        Army_Job army_Job;
-        JobHandle jobHandle;
-
-        army_Datas = new NativeArray<Army_Data>(armies.Count, Allocator.TempJob);
+        // 2. 부대 상태 머신을 갱신합니다.
+        if (army_Datas.Length < armies.Count)
+        {
+            army_Datas.Dispose();
+            army_Datas = new NativeArray<Army_Data>(armies.Count, Allocator.Persistent);
+        }
 
         for (int i = 0; i < armies.Count; i++)
         {
             army_Datas[i] = armies[i].army_Data;
         }
 
-        army_Job = new Army_Job();
+        Army_Job army_Job = new Army_Job();
         army_Job.army_Datas = army_Datas;
 
-        jobHandle = army_Job.Schedule(armies.Count, 1);
+        JobHandle jobHandle = army_Job.Schedule(armies.Count, 1);
         jobHandle.Complete();
 
         for (int i = 0; i < armies.Count; i++)
@@ -615,15 +286,10 @@ public class Controller : MonoBehaviour
             armies[i].army_Data = army_Datas[i];
         }
 
-        army_Datas.Dispose();
-
-        // 2. 각 Army의 _Update 함수에 조회 테이블을 전달합니다.
+        // 3. 각 Army에 조회 테이블을 전달해 갱신합니다.
         for (int i = 0; i < armies.Count; i++)
         {
             armies[i]._Update(unitDataMap);
         }
-
-        // 3. 모든 작업이 끝난 후 NativeHashMap의 메모리를 해제합니다.
-        unitDataMap.Dispose();
     }
 }

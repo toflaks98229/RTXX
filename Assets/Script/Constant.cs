@@ -241,6 +241,51 @@ static class Constant
     /// </summary>
     public const float charge_Max_Penetration_Rate = 0.5f;
 
+    // ---------------------------------------------------------------------
+    // 태세 (Stance)
+    //
+    // 방패벽과 창벽은 '멈춰서 버티는 대신 기동을 포기하는' 거래입니다.
+    // 창벽이 정면에서 기병 돌격을 무력화하는 것이 토탈워 전술의 축입니다.
+    // ---------------------------------------------------------------------
+    /// <summary>방패벽/창벽 태세에서의 이동 속도 배율입니다. 걷기 수준으로 떨어집니다.</summary>
+    public const float stance_Wall_Speed_Rate = 0.5f;
+
+    /// <summary>방패벽의 원거리 방어 보너스입니다.</summary>
+    public const float stance_ShieldWall_Range_Defence = 25.0f;
+
+    /// <summary>방패벽의 돌격 저항입니다. 받는 돌격 보너스를 이 비율만큼 없앱니다.</summary>
+    public const float stance_ShieldWall_Charge_Resist = 0.5f;
+
+    /// <summary>창벽의 근접 방어 보너스입니다.</summary>
+    public const float stance_SpearWall_Melee_Defence = 15.0f;
+
+    /// <summary>
+    /// 창벽의 돌격 저항입니다. 1.0이면 정면 돌격 보너스를 완전히 무효화합니다.
+    /// 창을 세운 대열에 말을 몰아넣는 것은 자살이라는 뜻입니다.
+    /// </summary>
+    public const float stance_SpearWall_Charge_Resist = 1.0f;
+
+    /// <summary>창벽은 원거리에 취약합니다. 밀집해 있어 화살이 잘 박힙니다.</summary>
+    public const float stance_SpearWall_Range_Penalty = 10.0f;
+
+    /// <summary>
+    /// 돌격 저항이 정면으로 인정되는 내적 하한입니다.
+    /// 측후방에서 들어온 돌격은 창벽으로도 막지 못합니다.
+    /// </summary>
+    public const float stance_Front_Dot = 0.3f;
+
+    /// <summary>
+    /// 창벽이 정지 상태에서 돌격을 반사할 때, 돌격한 쪽이 받는 사기 충격입니다.
+    /// 말이 창에 꿰뚫리는 광경이 돌격 부대를 흔듭니다.
+    /// </summary>
+    public const float stance_SpearWall_Reflect_Shock = 20.0f;
+
+    /// <summary>산개 태세가 후퇴를 시작하는 거리입니다. 이보다 가까우면 물러납니다.</summary>
+    public const float stance_Skirmish_Flee_Distance = 8.0f;
+
+    /// <summary>산개 후퇴 속도 배율입니다.</summary>
+    public const float stance_Skirmish_Flee_Rate = 1.1f;
+
     /// <summary>
     /// 돌격 충격이 상대 부대에 주는 사기 충격량입니다.
     /// 정면 기준이며, 측후방이면 아래 배율이 곱해집니다.
