@@ -184,7 +184,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.HP
-      value: 32
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.size
@@ -212,7 +212,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.armor
-      value: 30
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.data[0]
@@ -292,7 +292,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeRange
-      value: 1
+      value: 1.5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit_Move.Array.data[0]
@@ -320,15 +320,15 @@ PrefabInstance:
       objectReference: {fileID: 1649067752, guid: 4e6abd2a724a84641a49de2e41dc7733, type: 3}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttack
-      value: 30
+      value: 35
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeDamage
-      value: 10
+      value: 25
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.shieldArmor
-      value: 30
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.acceleration
@@ -344,7 +344,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttackSpeed
-      value: 1
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 9147108713647118472, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: m_Name
@@ -430,6 +430,7 @@ GameObject:
   m_Component:
   - component: {fileID: 249093487}
   - component: {fileID: 249093488}
+  - component: {fileID: 249093489}
   m_Layer: 0
   m_Name: Controller
   m_TagString: Untagged
@@ -489,6 +490,23 @@ MonoBehaviour:
   formation_End: {x: 0, y: 0, z: 0}
   Flag1: {fileID: 570279347}
   Flag2: {fileID: 290159903}
+--- !u!114 &249093489
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 249093485}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d367e3f4574112b3f2ad73b2324d2e46, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  controller: {fileID: 249093488}
+  bshowEnemy: 1
+  heightOffset: 6
+  bannerWidth: 132
+  bshowModifierBreakdown: 1
 --- !u!4 &258271093 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 9147108713647118473, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
@@ -703,7 +721,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.HP
-      value: 32
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.size
@@ -731,7 +749,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.armor
-      value: 30
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.data[0]
@@ -811,7 +829,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeRange
-      value: 1
+      value: 1.5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit_Move.Array.data[0]
@@ -839,15 +857,15 @@ PrefabInstance:
       objectReference: {fileID: 1649067752, guid: 4e6abd2a724a84641a49de2e41dc7733, type: 3}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttack
-      value: 30
+      value: 35
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeDamage
-      value: 10
+      value: 25
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.shieldArmor
-      value: 30
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.acceleration
@@ -863,7 +881,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttackSpeed
-      value: 1
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 9147108713647118472, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: m_Name
@@ -1073,7 +1091,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.HP
-      value: 32
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.size
@@ -1101,7 +1119,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.armor
-      value: 30
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.data[0]
@@ -1181,7 +1199,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeRange
-      value: 1
+      value: 1.5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit_Move.Array.data[0]
@@ -1209,15 +1227,15 @@ PrefabInstance:
       objectReference: {fileID: 1649067752, guid: 4e6abd2a724a84641a49de2e41dc7733, type: 3}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttack
-      value: 30
+      value: 35
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeDamage
-      value: 10
+      value: 25
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.shieldArmor
-      value: 30
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.acceleration
@@ -1233,7 +1251,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttackSpeed
-      value: 1
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 9147108713647118472, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: m_Name
@@ -1473,7 +1491,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.HP
-      value: 32
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.size
@@ -1501,7 +1519,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.armor
-      value: 30
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.data[0]
@@ -1581,7 +1599,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeRange
-      value: 1
+      value: 1.5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit_Move.Array.data[0]
@@ -1609,15 +1627,15 @@ PrefabInstance:
       objectReference: {fileID: 1649067752, guid: 4e6abd2a724a84641a49de2e41dc7733, type: 3}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttack
-      value: 30
+      value: 35
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeDamage
-      value: 10
+      value: 25
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.shieldArmor
-      value: 30
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.acceleration
@@ -1633,7 +1651,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttackSpeed
-      value: 1
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 9147108713647118472, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: m_Name
@@ -1798,7 +1816,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.HP
-      value: 32
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.size
@@ -1826,7 +1844,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.armor
-      value: 30
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.data[0]
@@ -1906,7 +1924,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeRange
-      value: 1
+      value: 1.5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit_Move.Array.data[0]
@@ -1934,15 +1952,15 @@ PrefabInstance:
       objectReference: {fileID: 1649067752, guid: 4e6abd2a724a84641a49de2e41dc7733, type: 3}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttack
-      value: 30
+      value: 35
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeDamage
-      value: 10
+      value: 25
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.shieldArmor
-      value: 30
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.acceleration
@@ -1958,7 +1976,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttackSpeed
-      value: 1
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 9147108713647118472, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: m_Name
@@ -2182,7 +2200,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.HP
-      value: 32
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.size
@@ -2210,7 +2228,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.armor
-      value: 30
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.data[0]
@@ -2290,7 +2308,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeRange
-      value: 1
+      value: 1.5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit_Move.Array.data[0]
@@ -2318,15 +2336,15 @@ PrefabInstance:
       objectReference: {fileID: 1649067752, guid: 4e6abd2a724a84641a49de2e41dc7733, type: 3}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttack
-      value: 30
+      value: 35
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeDamage
-      value: 10
+      value: 25
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.shieldArmor
-      value: 30
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.acceleration
@@ -2342,7 +2360,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttackSpeed
-      value: 1
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 9147108713647118472, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: m_Name
@@ -2847,7 +2865,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.HP
-      value: 32
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.size
@@ -2875,7 +2893,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.armor
-      value: 30
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.data[0]
@@ -2955,7 +2973,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeRange
-      value: 1
+      value: 1.5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit_Move.Array.data[0]
@@ -2983,15 +3001,15 @@ PrefabInstance:
       objectReference: {fileID: 1649067752, guid: 4e6abd2a724a84641a49de2e41dc7733, type: 3}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttack
-      value: 30
+      value: 35
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeDamage
-      value: 10
+      value: 25
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.shieldArmor
-      value: 30
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.acceleration
@@ -3007,7 +3025,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttackSpeed
-      value: 1
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 9147108713647118472, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: m_Name
@@ -3222,7 +3240,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.HP
-      value: 32
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.size
@@ -3250,7 +3268,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.armor
-      value: 30
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.data[0]
@@ -3330,7 +3348,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeRange
-      value: 1
+      value: 1.5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit_Move.Array.data[0]
@@ -3358,15 +3376,15 @@ PrefabInstance:
       objectReference: {fileID: 1649067752, guid: 4e6abd2a724a84641a49de2e41dc7733, type: 3}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttack
-      value: 30
+      value: 35
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeDamage
-      value: 10
+      value: 25
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.shieldArmor
-      value: 30
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.acceleration
@@ -3382,7 +3400,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttackSpeed
-      value: 1
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 9147108713647118472, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: m_Name
@@ -3499,7 +3517,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.HP
-      value: 32
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.size
@@ -3527,7 +3545,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.armor
-      value: 30
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.data[0]
@@ -3607,7 +3625,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeRange
-      value: 1
+      value: 1.5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit_Move.Array.data[0]
@@ -3635,15 +3653,15 @@ PrefabInstance:
       objectReference: {fileID: 1649067752, guid: 4e6abd2a724a84641a49de2e41dc7733, type: 3}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttack
-      value: 30
+      value: 35
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeDamage
-      value: 10
+      value: 25
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.shieldArmor
-      value: 30
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.acceleration
@@ -3659,7 +3677,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttackSpeed
-      value: 1
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 9147108713647118472, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: m_Name
@@ -3869,7 +3887,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.HP
-      value: 32
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.size
@@ -3897,7 +3915,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.armor
-      value: 30
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.data[0]
@@ -3977,7 +3995,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeRange
-      value: 1
+      value: 1.5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit_Move.Array.data[0]
@@ -4005,15 +4023,15 @@ PrefabInstance:
       objectReference: {fileID: 1649067752, guid: 4e6abd2a724a84641a49de2e41dc7733, type: 3}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttack
-      value: 30
+      value: 35
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeDamage
-      value: 10
+      value: 25
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.shieldArmor
-      value: 30
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.acceleration
@@ -4029,7 +4047,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttackSpeed
-      value: 1
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 9147108713647118472, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: m_Name
@@ -4146,7 +4164,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.HP
-      value: 32
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.size
@@ -4174,7 +4192,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.armor
-      value: 30
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.data[0]
@@ -4254,7 +4272,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeRange
-      value: 1
+      value: 1.5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit_Move.Array.data[0]
@@ -4282,15 +4300,15 @@ PrefabInstance:
       objectReference: {fileID: 1649067752, guid: 4e6abd2a724a84641a49de2e41dc7733, type: 3}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttack
-      value: 30
+      value: 35
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeDamage
-      value: 10
+      value: 25
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.shieldArmor
-      value: 30
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.acceleration
@@ -4306,7 +4324,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttackSpeed
-      value: 1
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 9147108713647118472, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: m_Name
@@ -4594,7 +4612,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.HP
-      value: 32
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.size
@@ -4622,7 +4640,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.armor
-      value: 30
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit.Array.data[0]
@@ -4702,7 +4720,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeRange
-      value: 1
+      value: 1.5
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: images_Unit_Move.Array.data[0]
@@ -4730,15 +4748,15 @@ PrefabInstance:
       objectReference: {fileID: 1649067752, guid: 4e6abd2a724a84641a49de2e41dc7733, type: 3}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttack
-      value: 30
+      value: 35
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeDamage
-      value: 10
+      value: 25
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.shieldArmor
-      value: 30
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.acceleration
@@ -4754,7 +4772,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8985897381011372756, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: army_Data.unit_Stat.meleeAttackSpeed
-      value: 1
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 9147108713647118472, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
       propertyPath: m_Name
