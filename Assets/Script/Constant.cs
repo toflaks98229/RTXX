@@ -333,6 +333,39 @@ static class Constant
     /// <summary>깃발을 든 유닛이 살아 있을 때 받는 사기 보너스입니다.</summary>
     public const float morale_Bonus_Flag = 10.0f;
 
+    /// <summary>
+    /// 수적 열세가 최대일 때의 사기 감소량입니다.
+    /// 교전 상대와의 인원 비에 비례해 이 값까지 깎입니다.
+    /// </summary>
+    public const float morale_Penalty_Outnumbered = 18.0f;
+
+    /// <summary>
+    /// 수적 열세 페널티가 최대에 도달하는 인원 비입니다.
+    /// 3.0이면 '상대가 3배 이상'일 때 페널티가 최대가 됩니다.
+    /// </summary>
+    public const float morale_Outnumbered_Full_Ratio = 3.0f;
+
+    /// <summary>
+    /// 인접 아군 부대 하나가 붕괴할 때마다 받는 연쇄 사기 충격입니다.
+    /// 전열이 한 번 무너지기 시작하면 옆으로 번지게 만드는 장치입니다.
+    /// </summary>
+    public const float morale_Shock_Allied_Rout = 15.0f;
+
+    /// <summary>연쇄 붕괴가 전파되는 반경입니다. 이 거리 안의 아군만 영향을 받습니다.</summary>
+    public const float morale_Allied_Rout_Radius = 25.0f;
+
+    /// <summary>
+    /// 국지적으로 우세할 때 받는 최대 사기 보너스입니다.
+    /// 이기고 있다는 실감이 부대를 버티게 합니다.
+    /// </summary>
+    public const float morale_Bonus_Winning = 12.0f;
+
+    /// <summary>
+    /// 이 손실률을 넘긴 상태에서 붕괴하면 재결집이 불가능해집니다. (Shattered)
+    /// 토탈워에서 너무 많이 죽은 부대는 다시 싸우지 못하고 전장을 떠납니다.
+    /// </summary>
+    public const float morale_Shatter_Loss_Rate = 0.7f;
+
     /// <summary>이 값 이하가 되면 부대가 무너져 패주합니다.</summary>
     public const float morale_Rout_Threshold = 0.0f;
 

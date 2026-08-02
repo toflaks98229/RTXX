@@ -68,7 +68,8 @@ public enum E_Army_Morale
 {
     Steady,   // 견고 - 정상 교전
     Wavering, // 동요 - 곧 무너질 수 있음
-    Broken    // 붕괴 - 전투를 거부하고 패주
+    Broken,   // 붕괴 - 전투를 거부하고 패주 (재결집 가능)
+    Shattered // 와해 - 너무 많이 잃어 재결집이 불가능한 상태
 }
 
 /// <summary>
@@ -296,6 +297,16 @@ public struct Army_Data
     /// </summary>
     public float morale_Shock;
 
+    /// <summary>
+    /// 이번 틱의 사기 모디파이어 내역입니다.
+    /// morale_Target은 이 항목들의 합으로 산출되며,
+    /// UI는 여기서 "왜 사기가 떨어지는가"를 항목별로 읽어 갑니다.
+    /// </summary>
+    public Morale_Modifiers morale_Modifiers;
+
+    /// <summary>이번 틱에 와해(재결집 불가)가 발생했는지 여부입니다. 이벤트 발행용입니다.</summary>
+    public bool bshatteredThisTick;
+
     // --- 피로도 ---
     /// <summary>현재 피로도입니다. 높을수록 모든 능력이 떨어집니다.</summary>
     public float fatigue;
@@ -328,6 +339,8 @@ public struct Army_Data
         bralliedThisTick = false;
         escapeDirection = Vector3.zero;
         morale_Shock = 0.0f;
+        morale_Modifiers = new Morale_Modifiers();
+        bshatteredThisTick = false;
 
         fatigue = 0.0f;
         e_Army_Fatigue = E_Army_Fatigue.Fresh;
@@ -459,6 +472,7 @@ public struct Army_Data
     {
         broutedThisTick = false;
         bralliedThisTick = false;
+        bshatteredThisTick = false;
 
         // 돌격 충격은 시간이 지나며 회복됩니다.
         if (morale_Shock > 0.0f)
@@ -496,10 +510,18 @@ public struct Army_Data
                 if (morale <= Constant.morale_Rout_Threshold)
                 {
                     // 붕괴: 전투를 거부하고 달아납니다.
-                    e_Army_Morale = E_Army_Morale.Broken;
+                    //
+                    // 이미 너무 많이 잃은 부대는 다시 싸우지 못합니다. (와해)
+                    // 재결집 판정 자체를 건너뛰므로 영구히 전장을 떠납니다.
+                    e_Army_Morale = IsShatterable()
+                        ? E_Army_Morale.Shattered
+                        : E_Army_Morale.Broken;
+
                     e_Army_Move = E_Army_Move.MoveEscape;
                     timer_Rally.ReSetTimer();
+
                     broutedThisTick = true;
+                    if (e_Army_Morale == E_Army_Morale.Shattered) bshatteredThisTick = true;
                 }
                 else
                 {
@@ -510,6 +532,14 @@ public struct Army_Data
                 break;
 
             case E_Army_Morale.Broken:
+                // 패주 중에도 손실이 계속 쌓이면 끝내 와해됩니다.
+                if (IsShatterable())
+                {
+                    e_Army_Morale = E_Army_Morale.Shattered;
+                    bshatteredThisTick = true;
+                    break;
+                }
+
                 // 일정 시간이 지나고 사기를 회복했으면 재결집합니다.
                 timer_Rally._Update();
 
@@ -521,13 +551,41 @@ public struct Army_Data
                     bralliedThisTick = true;
                 }
                 break;
+
+            case E_Army_Morale.Shattered:
+                // 와해된 부대는 어떤 경우에도 돌아오지 않습니다.
+                e_Army_Move = E_Army_Move.MoveEscape;
+                break;
         }
     }
 
-    /// <summary>부대가 붕괴해 패주 중인지 여부입니다.</summary>
+    /// <summary>
+    /// 손실이 재결집 불가 수준에 도달했는지 판정합니다.
+    /// 이 상태에서 무너지면 Broken이 아니라 Shattered가 됩니다.
+    /// </summary>
+    private bool IsShatterable()
+    {
+        if (unit_Num_Max <= 0) return false;
+
+        float lossRate = 1.0f - ((float)unit_Num / unit_Num_Max);
+        return lossRate >= Constant.morale_Shatter_Loss_Rate;
+    }
+
+    /// <summary>부대가 와해되어 다시 싸울 수 없는 상태인지 여부입니다.</summary>
+    public bool IsShattered()
+    {
+        return e_Army_Morale == E_Army_Morale.Shattered;
+    }
+
+    /// <summary>
+    /// 부대가 무너져 패주 중인지 여부입니다.
+    /// 와해(Shattered)도 붕괴의 일종이므로 함께 참입니다.
+    /// 전투 중단 판정은 모두 이 함수를 거치므로 반드시 둘 다 포함해야 합니다.
+    /// </summary>
     public bool IsBroken()
     {
-        return e_Army_Morale == E_Army_Morale.Broken;
+        return e_Army_Morale == E_Army_Morale.Broken
+            || e_Army_Morale == E_Army_Morale.Shattered;
     }
 
     /// <summary>
