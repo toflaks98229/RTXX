@@ -498,31 +498,35 @@ MonoBehaviour:
     bplayer: 1
     bonCommand: 0
     unit_Stat:
-      moveSpeed: 30
-      rotationSpeed: 150
+      moveSpeed: 3
+      rotationSpeed: 200
       acceleration: 10
-      mass: 10
+      mass: 100
       drag: 1
-      meleeDamage: 0
-      meleeAttack: 0
-      meleeAttackSpeed: 0
-      meleeDiffense: 0
-      meleeRange: 0
-      meleeChargeSpeed: 0
-      meleeChargeRange: 0
-      armor: 0
-      shieldArmor: 0
+      meleeDamage: 25
+      meleeDamageAP: 5
+      meleeAttack: 35
+      meleeAttackSpeed: 0.5
+      meleeDiffense: 30
+      meleeRange: 1.5
+      meleeChargeSpeed: 6
+      meleeChargeRange: 8
+      meleeChargeBonus: 30
+      armor: 5
+      shieldArmor: 4
       brangeAttackAble: 0
-      rangeDamage: 0
-      rangeAttackSpeed: 0
-      rangeDiffense: 0
-      rangeAccuracy: 0
-      rangeRange: 0
-      attackDelay: 0
-      size: 1.2
-      radius: 0
-      height: 0
-      HP: 1
+      rangeDamage: 12
+      rangeDamageAP: 0
+      rangeAttackSpeed: 1.5
+      rangeDiffense: 10
+      rangeAccuracy: 25
+      rangeRange: 12
+      attackDelay: 0.7
+      size: 1
+      interval: 1
+      radius: 0.3
+      height: 1
+      HP: 100
       e_Unit_AttackType: 0
     HP_All: 0
     unit_Num: 20

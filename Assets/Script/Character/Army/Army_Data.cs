@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections;
+
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -23,6 +23,52 @@ public enum E_Army_Formation
 {
     Formation,      // 진형 상태
     NonFormation  // 비진형 상태
+}
+
+/// <summary>
+/// 부대의 재정비 태세입니다.
+///
+/// 이 값은 '전열 재정비를 어떻게 할 것인가'만 결정합니다.
+/// 어느 쪽이든 재정비가 적을 감지해 각도를 바꾸지는 않습니다.
+/// 전열 각도는 언제나 플레이어가 명령으로 잡아 둔 방향을 따릅니다.
+/// </summary>
+public enum E_Army_Stance
+{
+    /// <summary>
+    /// 방어 태세: 명령으로 설정한 전열을 그대로 유지하며 재정비합니다.
+    /// 대열의 폭과 각도가 보존되므로 방어선이 흐트러지지 않습니다.
+    /// </summary>
+    Line,
+
+    /// <summary>
+    /// 공격 태세: 전열을 엄격히 지키지 않고, 앞쪽에 생긴 빈자리만 메웁니다.
+    /// 추격이나 난전에서 병력이 앞으로 뭉치는 형태가 됩니다.
+    /// </summary>
+    Loose
+}
+
+/// <summary>
+/// 부대의 피로 단계입니다. 토탈워의 Fresh~Exhausted에 대응합니다.
+/// </summary>
+public enum E_Army_Fatigue
+{
+    Fresh,      // 원기왕성
+    Active,     // 활동적
+    Winded,     // 숨참
+    Tired,      // 지침
+    VeryTired,  // 매우 지침
+    Exhausted   // 탈진
+}
+
+/// <summary>
+/// 부대의 사기 상태를 나타내는 열거형입니다.
+/// 토탈워에서 부대는 전멸이 아니라 이 상태가 무너지면서 패배합니다.
+/// </summary>
+public enum E_Army_Morale
+{
+    Steady,   // 견고 - 정상 교전
+    Wavering, // 동요 - 곧 무너질 수 있음
+    Broken    // 붕괴 - 전투를 거부하고 패주
 }
 
 /// <summary>
@@ -210,6 +256,10 @@ public struct Army_Data
     /// </summary>
     public E_Army_Formation e_Army_Formation;
     /// <summary>
+    /// 부대의 재정비 태세입니다. 기본값은 전열을 지키는 방어 태세입니다.
+    /// </summary>
+    public E_Army_Stance e_Army_Stance;
+    /// <summary>
     /// 명령 상태 지속 시간을 측정하는 타이머입니다.
     /// </summary>
     public Timer timer_On_Command;
@@ -222,6 +272,43 @@ public struct Army_Data
     /// </summary>
     public bool breformation;
 
+    // --- 사기 ---
+    /// <summary>현재 사기입니다. 0이 되면 부대가 붕괴합니다.</summary>
+    public float morale;
+    /// <summary>
+    /// 이번 틱의 목표 사기입니다. 메인 스레드에서 상황(손실/포위/깃발)을 반영해 계산하고,
+    /// 실제 morale은 이 값을 향해 서서히 이동합니다.
+    /// </summary>
+    public float morale_Target;
+    /// <summary>부대의 사기 상태입니다.</summary>
+    public E_Army_Morale e_Army_Morale;
+    /// <summary>패주 후 재결집까지의 대기 시간을 재는 타이머입니다.</summary>
+    public Timer timer_Rally;
+    /// <summary>이번 틱에 붕괴가 발생했는지 여부입니다. 이벤트 발행용 1회성 플래그입니다.</summary>
+    public bool broutedThisTick;
+    /// <summary>이번 틱에 재결집했는지 여부입니다. 이벤트 발행용 1회성 플래그입니다.</summary>
+    public bool bralliedThisTick;
+    /// <summary>패주 시 달아날 방향입니다. 메인 스레드가 적 반대 방향으로 설정합니다.</summary>
+    public Vector3 escapeDirection;
+    /// <summary>
+    /// 돌격 등으로 받은 순간적인 사기 충격입니다.
+    /// 목표 사기에서 차감되며 시간이 지나면 회복됩니다.
+    /// </summary>
+    public float morale_Shock;
+
+    // --- 피로도 ---
+    /// <summary>현재 피로도입니다. 높을수록 모든 능력이 떨어집니다.</summary>
+    public float fatigue;
+    /// <summary>피로 단계입니다. UI 표시와 가독성을 위한 값입니다.</summary>
+    public E_Army_Fatigue e_Army_Fatigue;
+
+    /// <summary>
+    /// 부대 기준점의 실측 이동 속도(초당)입니다.
+    /// 돌격 충격량이 '얼마나 빠르게 달려와 부딪혔는가'에 비례하도록 만들기 위해
+    /// 매 틱 위치 변화로부터 계산합니다.
+    /// </summary>
+    public float currentSpeed;
+
     // 공개 메서드
     /// <summary>
     /// 부대 데이터를 초기화합니다.
@@ -229,7 +316,25 @@ public struct Army_Data
     public void _Start()
     {
         e_Army_Move = E_Army_Move.Idle;
+        e_Army_Stance = E_Army_Stance.Line;
         timer_Reformation = new Timer(Constant.time_Reformation);
+
+        // 사기 초기화
+        morale = Constant.morale_Max;
+        morale_Target = Constant.morale_Max;
+        e_Army_Morale = E_Army_Morale.Steady;
+        timer_Rally = new Timer(Constant.time_Rally);
+        broutedThisTick = false;
+        bralliedThisTick = false;
+        escapeDirection = Vector3.zero;
+        morale_Shock = 0.0f;
+
+        fatigue = 0.0f;
+        e_Army_Fatigue = E_Army_Fatigue.Fresh;
+        currentSpeed = 0.0f;
+
+        // 손실률 계산의 기준이 되는 초기 인원입니다.
+        if (unit_Num_Max < unit_Num) unit_Num_Max = unit_Num;
     }
 
     /// <summary>
@@ -237,6 +342,9 @@ public struct Army_Data
     /// </summary>
     public void _Update()
     {
+        _Update_Fatigue();
+        _Update_Morale();
+
         switch (e_Army_Move)
         {
             case E_Army_Move.Idle:
@@ -259,6 +367,170 @@ public struct Army_Data
     }
 
     /// <summary>
+    /// 현재 행동에 따라 피로도를 누적하거나 회복합니다.
+    /// 돌격이 가장 힘들고, 제자리에서 쉬면 회복됩니다.
+    /// </summary>
+    public void _Update_Fatigue()
+    {
+        float gain;
+
+        switch (e_Army_Move)
+        {
+            case E_Army_Move.MoveCharge:
+                gain = Constant.fatigue_Gain_Charge;
+                break;
+
+            case E_Army_Move.MoveEscape:
+                gain = Constant.fatigue_Gain_Rout;
+                break;
+
+            case E_Army_Move.Move:
+            case E_Army_Move.MoveToTarget:
+                gain = Constant.fatigue_Gain_Move;
+                break;
+
+            default:
+                // 제자리에 있어도 교전 중이면 계속 지칩니다.
+                gain = e_Army_Fight != E_Army_Fight.Non
+                    ? Constant.fatigue_Gain_Melee
+                    : -Constant.fatigue_Recover;
+                break;
+        }
+
+        fatigue += gain * Constant.deltaTime;
+
+        if (fatigue < 0.0f) fatigue = 0.0f;
+        if (fatigue > Constant.fatigue_Max) fatigue = Constant.fatigue_Max;
+
+        if (fatigue >= Constant.fatigue_Exhausted) e_Army_Fatigue = E_Army_Fatigue.Exhausted;
+        else if (fatigue >= Constant.fatigue_VeryTired) e_Army_Fatigue = E_Army_Fatigue.VeryTired;
+        else if (fatigue >= Constant.fatigue_Tired) e_Army_Fatigue = E_Army_Fatigue.Tired;
+        else if (fatigue >= Constant.fatigue_Winded) e_Army_Fatigue = E_Army_Fatigue.Winded;
+        else if (fatigue >= Constant.fatigue_Active) e_Army_Fatigue = E_Army_Fatigue.Active;
+        else e_Army_Fatigue = E_Army_Fatigue.Fresh;
+    }
+
+    /// <summary>
+    /// 피로에 따른 성능 배율입니다. 1.0(생생함)에서 fatigue_Min_Rate(탈진)까지 떨어집니다.
+    /// 명중, 피해, 이동 속도에 곱해 씁니다.
+    /// </summary>
+    public float GetFatigueRate()
+    {
+        float rate = fatigue / Constant.fatigue_Max;
+        if (rate < 0.0f) rate = 0.0f;
+        if (rate > 1.0f) rate = 1.0f;
+
+        return 1.0f - rate * (1.0f - Constant.fatigue_Min_Rate);
+    }
+
+    /// <summary>
+    /// 돌격 운동량 비율(0~1)입니다.
+    /// 현재 속도를 돌격 속도로 나눈 값이며, 제자리에서 붙으면 0에 가깝습니다.
+    /// 충격량(피해 보너스와 사기 충격)이 여기에 비례합니다.
+    /// </summary>
+    public float GetChargeMomentumRate()
+    {
+        float chargeSpeed = GetMeleeChargeSpeed();
+        if (chargeSpeed <= 0.0f) chargeSpeed = GetMoveSpeed();
+        if (chargeSpeed <= 0.0f) return 0.0f;
+
+        float rate = currentSpeed / chargeSpeed;
+        if (rate < 0.0f) rate = 0.0f;
+        if (rate > 1.0f) rate = 1.0f;
+
+        return rate;
+    }
+
+    /// <summary>피로 때문에 목표 사기에서 깎이는 양입니다.</summary>
+    public float GetFatigueMoralePenalty()
+    {
+        float rate = fatigue / Constant.fatigue_Max;
+        if (rate < 0.0f) rate = 0.0f;
+        if (rate > 1.0f) rate = 1.0f;
+
+        return rate * Constant.fatigue_Morale_Penalty;
+    }
+
+    /// <summary>
+    /// 사기를 갱신하고 붕괴/재결집 상태 전이를 처리합니다.
+    /// morale_Target은 메인 스레드에서 미리 계산해 둡니다.
+    /// </summary>
+    public void _Update_Morale()
+    {
+        broutedThisTick = false;
+        bralliedThisTick = false;
+
+        // 돌격 충격은 시간이 지나며 회복됩니다.
+        if (morale_Shock > 0.0f)
+        {
+            morale_Shock -= Constant.morale_Shock_Recover * Constant.deltaTime;
+            if (morale_Shock < 0.0f) morale_Shock = 0.0f;
+        }
+
+        // 충격을 반영한 실효 목표 사기입니다.
+        float effectiveTarget = morale_Target - morale_Shock;
+        if (effectiveTarget < 0.0f) effectiveTarget = 0.0f;
+
+        // 목표 사기를 향해 서서히 이동합니다.
+        // 즉시 대입하지 않는 이유는, 한 번의 큰 피해로 부대가 급사하듯
+        // 무너지는 것을 막고 '버티다 무너지는' 흐름을 만들기 위함입니다.
+        float delta = Constant.morale_Drift_Rate * Constant.deltaTime;
+        if (morale < effectiveTarget)
+        {
+            morale += delta;
+            if (morale > effectiveTarget) morale = effectiveTarget;
+        }
+        else if (morale > effectiveTarget)
+        {
+            morale -= delta;
+            if (morale < effectiveTarget) morale = effectiveTarget;
+        }
+
+        if (morale > Constant.morale_Max) morale = Constant.morale_Max;
+        if (morale < 0.0f) morale = 0.0f;
+
+        switch (e_Army_Morale)
+        {
+            case E_Army_Morale.Steady:
+            case E_Army_Morale.Wavering:
+                if (morale <= Constant.morale_Rout_Threshold)
+                {
+                    // 붕괴: 전투를 거부하고 달아납니다.
+                    e_Army_Morale = E_Army_Morale.Broken;
+                    e_Army_Move = E_Army_Move.MoveEscape;
+                    timer_Rally.ReSetTimer();
+                    broutedThisTick = true;
+                }
+                else
+                {
+                    e_Army_Morale = morale <= Constant.morale_Waver_Threshold
+                        ? E_Army_Morale.Wavering
+                        : E_Army_Morale.Steady;
+                }
+                break;
+
+            case E_Army_Morale.Broken:
+                // 일정 시간이 지나고 사기를 회복했으면 재결집합니다.
+                timer_Rally._Update();
+
+                if (timer_Rally.IsOverTime() && morale >= Constant.morale_Rally_Threshold)
+                {
+                    timer_Rally.ReSetTimer();
+                    e_Army_Morale = E_Army_Morale.Wavering;
+                    e_Army_Move = E_Army_Move.Idle;
+                    bralliedThisTick = true;
+                }
+                break;
+        }
+    }
+
+    /// <summary>부대가 붕괴해 패주 중인지 여부입니다.</summary>
+    public bool IsBroken()
+    {
+        return e_Army_Morale == E_Army_Morale.Broken;
+    }
+
+    /// <summary>
     /// 부대 전체의 총 HP를 반환합니다.
     /// </summary>
     /// <returns>총 HP입니다.</returns>
@@ -277,290 +549,111 @@ public struct Army_Data
         HP_All += addFloat;
     }
 
-    // 통계 관련 메서드
-    public float GetMoveSpeed()
-    {
-        if (unit_Stat.moveSpeed < 0) return 0;
-        return unit_Stat.moveSpeed;
-    }
+    // ---------------------------------------------------------------------
+    // 스탯 접근자
+    // 원본은 Get/Add 쌍마다 4~5줄씩 반복되어 약 300줄이었고,
+    // GetSize/GetInterval만 '<= 0'이고 나머지는 '< 0', GetRadius/GetHeight는
+    // 클램프가 아예 없는 등 규칙이 제각각이었습니다.
+    // 여기서는 NonNegative 하나로 규칙을 통일했습니다.
+    // (메서드 이름은 그대로 두어 호출부는 영향을 받지 않습니다)
+    // ---------------------------------------------------------------------
 
-    public void AddMoveSpeed(float addFloat)
-    {
-        unit_Stat.moveSpeed += addFloat;
-    }
+    /// <summary>음수 스탯을 0으로 보정합니다. 모든 수치 스탯이 이 규칙을 따릅니다.</summary>
+    private static float NonNegative(float value) => value < 0.0f ? 0.0f : value;
 
-    public float GetRotationSpeed()
-    {
-        if (unit_Stat.rotationSpeed < 0) return 0;
-        return unit_Stat.rotationSpeed;
-    }
+    // 이동
+    public float GetMoveSpeed() => NonNegative(unit_Stat.moveSpeed);
+    public void AddMoveSpeed(float v) => unit_Stat.moveSpeed += v;
 
-    public void AddRotationSpeed(float addFloat)
-    {
-        unit_Stat.rotationSpeed += addFloat;
-    }
+    public float GetRotationSpeed() => NonNegative(unit_Stat.rotationSpeed);
+    public void AddRotationSpeed(float v) => unit_Stat.rotationSpeed += v;
 
-    public float GetAcceleration()
-    {
-        if (unit_Stat.acceleration < 0) return 0;
-        return unit_Stat.acceleration;
-    }
+    public float GetAcceleration() => NonNegative(unit_Stat.acceleration);
+    public void AddAccelerationd(float v) => unit_Stat.acceleration += v;
 
-    public void AddAccelerationd(float addFloat)
-    {
-        unit_Stat.acceleration += addFloat;
-    }
+    public float GetMass() => NonNegative(unit_Stat.mass);
+    public void AddMass(float v) => unit_Stat.mass += v;
 
-    public float GetMass()
-    {
-        if (unit_Stat.mass < 0) return 0;
-        return unit_Stat.mass;
-    }
+    public float GetDrag() => NonNegative(unit_Stat.drag);
+    public void AddDrag(float v) => unit_Stat.drag += v;
 
-    public void AddMass(float addFloat)
-    {
-        unit_Stat.mass += addFloat;
-    }
+    // 근접 전투
+    public float GetMeleeDamage() => NonNegative(unit_Stat.meleeDamage);
+    public void AddMeleeDamage(float v) => unit_Stat.meleeDamage += v;
 
-    public float GetDrag()
-    {
-        if (unit_Stat.drag < 0) return 0;
-        return unit_Stat.drag;
-    }
+    /// <summary>근접 방어구 관통(AP) 피해량입니다. 방어구 감산을 받지 않습니다.</summary>
+    public float GetMeleeDamageAP() => NonNegative(unit_Stat.meleeDamageAP);
+    public void AddMeleeDamageAP(float v) => unit_Stat.meleeDamageAP += v;
 
-    public void AddDrag(float addFloat)
-    {
-        unit_Stat.drag += addFloat;
-    }
+    public float GetMeleeAttack() => NonNegative(unit_Stat.meleeAttack);
+    public void AddMeleeAttack(float v) => unit_Stat.meleeAttack += v;
 
-    // 근접 전투 관련 메서드
-    public float GetMeleeDamage()
-    {
-        if (unit_Stat.meleeDamage < 0) return 0;
-        return unit_Stat.meleeDamage;
-    }
+    public float GetMeleeAttackSpeed() => NonNegative(unit_Stat.meleeAttackSpeed);
+    public void AddMeleeAttackSpeed(float v) => unit_Stat.meleeAttackSpeed += v;
 
-    public void AddMeleeDamage(float addFloat)
-    {
-        unit_Stat.meleeDamage += addFloat;
-    }
+    public float GetMeleeDiffense() => NonNegative(unit_Stat.meleeDiffense);
+    public void AddMeleeDiffense(float v) => unit_Stat.meleeDiffense += v;
 
-    public float GetMeleeAttack()
-    {
-        if (unit_Stat.meleeAttack < 0) return 0;
-        return unit_Stat.meleeAttack;
-    }
+    public float GetMeleeRange() => NonNegative(unit_Stat.meleeRange);
+    public void AddMeleeRange(float v) => unit_Stat.meleeRange += v;
 
-    public void AddMeleeAttack(float addFloat)
-    {
-        unit_Stat.meleeAttack += addFloat;
-    }
+    public float GetMeleeChargeSpeed() => NonNegative(unit_Stat.meleeChargeSpeed);
+    public void AddMeleeChargeSpeed(float v) => unit_Stat.meleeChargeSpeed += v;
 
-    public float GetMeleeAttackSpeed()
-    {
-        if (unit_Stat.meleeAttackSpeed < 0) return 0;
-        return unit_Stat.meleeAttackSpeed;
-    }
+    public float GetMeleeChargeRange() => NonNegative(unit_Stat.meleeChargeRange);
+    public void AddMeleeChargeRange(float v) => unit_Stat.meleeChargeRange += v;
 
-    public void AddMeleeAttackSpeed(float addFloat)
-    {
-        unit_Stat.meleeAttackSpeed += addFloat;
-    }
+    public float GetMeleeChargeBonus() => NonNegative(unit_Stat.meleeChargeBonus);
+    public void AddMeleeChargeBonus(float v) => unit_Stat.meleeChargeBonus += v;
 
-    public float GetMeleeDiffense()
-    {
-        if (unit_Stat.meleeDiffense < 0) return 0;
-        return unit_Stat.meleeDiffense;
-    }
+    // 방어구
+    public float GetArmor() => NonNegative(unit_Stat.armor);
+    public void AddArmor(float v) => unit_Stat.armor += v;
 
-    public void AddMeleeDiffense(float addFloat)
-    {
-        unit_Stat.meleeDiffense += addFloat;
-    }
+    public float GetShieldArmor() => NonNegative(unit_Stat.shieldArmor);
+    public void AddShieldArmor(float v) => unit_Stat.shieldArmor += v;
 
-    public float GetMeleeRange()
-    {
-        if (unit_Stat.meleeRange < 0) return 0;
-        return unit_Stat.meleeRange;
-    }
+    // 원거리 전투
+    public bool IsRangeAttackAble() => unit_Stat.brangeAttackAble;
+    public void SetRangeAttackAble(bool value) => unit_Stat.brangeAttackAble = value;
 
-    public void AddMeleeRange(float addFloat)
-    {
-        unit_Stat.meleeRange += addFloat;
-    }
+    public float GetRangeDamage() => NonNegative(unit_Stat.rangeDamage);
+    public void AddRangeDamage(float v) => unit_Stat.rangeDamage += v;
 
-    public float GetMeleeChargeSpeed()
-    {
-        if (unit_Stat.meleeChargeSpeed < 0) return 0;
-        return unit_Stat.meleeChargeSpeed;
-    }
+    /// <summary>원거리 방어구 관통(AP) 피해량입니다. 방어구 감산을 받지 않습니다.</summary>
+    public float GetRangeDamageAP() => NonNegative(unit_Stat.rangeDamageAP);
+    public void AddRangeDamageAP(float v) => unit_Stat.rangeDamageAP += v;
 
-    public void AddMeleeChargeSpeed(float addFloat)
-    {
-        unit_Stat.meleeChargeSpeed += addFloat;
-    }
+    public float GetRangeAttackSpeed() => NonNegative(unit_Stat.rangeAttackSpeed);
+    public void AddRangeAttackSpeed(float v) => unit_Stat.rangeAttackSpeed += v;
 
-    public float GetMeleeChargeRange()
-    {
-        if (unit_Stat.meleeChargeRange < 0) return 0;
-        return unit_Stat.meleeChargeRange;
-    }
+    public float GetRangeDiffense() => NonNegative(unit_Stat.rangeDiffense);
+    public void AddRangeDiffense(float v) => unit_Stat.rangeDiffense += v;
 
-    public void AddMeleeChargeRange(float addFloat)
-    {
-        unit_Stat.meleeChargeRange += addFloat;
-    }
+    public float GetRangeAccuracy() => NonNegative(unit_Stat.rangeAccuracy);
+    public void AddRangeAccuracy(float v) => unit_Stat.rangeAccuracy += v;
 
-    // 방어구 관련 메서드
-    public float GetArmor()
-    {
-        if (unit_Stat.armor < 0) return 0;
-        return unit_Stat.armor;
-    }
+    public float GetRangeRange() => NonNegative(unit_Stat.rangeRange);
+    public void AddRangeRange(float v) => unit_Stat.rangeRange += v;
 
-    public void AddArmor(float addFloat)
-    {
-        unit_Stat.armor += addFloat;
-    }
+    // 공격 지연
+    public float GetAttackDelay() => NonNegative(unit_Stat.attackDelay);
+    public void AddAttackDelay(float v) => unit_Stat.attackDelay += v;
 
-    public float GetShieldArmor()
-    {
-        if (unit_Stat.shieldArmor < 0) return 0;
-        return unit_Stat.shieldArmor;
-    }
+    // 크기 / 충돌
+    public float GetSize() => NonNegative(unit_Stat.size);
+    public void AddSize(float v) => unit_Stat.size += v;
 
-    public void AddShieldArmor(float addFloat)
-    {
-        unit_Stat.shieldArmor += addFloat;
-    }
+    public float GetInterval() => NonNegative(unit_Stat.interval);
+    public void AddInterval(float v) => unit_Stat.interval += v;
 
-    // 원거리 공격 관련 메서드
-    public bool IsRangeAttackAble()
-    {
-        return unit_Stat.brangeAttackAble;
-    }
+    public float GetRadius() => NonNegative(unit_Stat.radius);
+    public float GetHeight() => NonNegative(unit_Stat.height);
 
-    public void SetRangeAttackAble(bool brangeAttackAble)
-    {
-        unit_Stat.brangeAttackAble = brangeAttackAble;
-    }
+    // 체력
+    public float GetHP() => NonNegative(unit_Stat.HP);
+    public void AddHP(float v) => unit_Stat.HP += v;
 
-    public float GetRangeDamage()
-    {
-        if (unit_Stat.rangeDamage < 0) return 0;
-        return unit_Stat.rangeDamage;
-    }
-
-    public void AddRangeDamage(float addFloat)
-    {
-        unit_Stat.rangeDamage += addFloat;
-    }
-
-    public float GetRangeAttackSpeed()
-    {
-        if (unit_Stat.rangeAttackSpeed < 0) return 0;
-        return unit_Stat.rangeAttackSpeed;
-    }
-
-    public void AddRangeAttackSpeed(float addFloat)
-    {
-        unit_Stat.rangeAttackSpeed += addFloat;
-    }
-
-    public float GetRangeDiffense()
-    {
-        if (unit_Stat.rangeDiffense < 0) return 0;
-        return unit_Stat.rangeDiffense;
-    }
-
-    public void AddRangeDiffense(float addFloat)
-    {
-        unit_Stat.rangeDiffense += addFloat;
-    }
-
-    public float GetRangeAccuracy()
-    {
-        if (unit_Stat.rangeAccuracy < 0) return 0;
-        return unit_Stat.rangeAccuracy;
-    }
-
-    public void AddRangeAccuracy(float addFloat)
-    {
-        unit_Stat.rangeAccuracy += addFloat;
-    }
-
-    public float GetRangeRange()
-    {
-        if (unit_Stat.rangeRange < 0) return 0;
-        return unit_Stat.rangeRange;
-    }
-
-    public void AddRangeRange(float addFloat)
-    {
-        unit_Stat.rangeRange += addFloat;
-    }
-
-    // 공격 지연 관련 메서드
-    public float GetAttackDelay()
-    {
-        if (unit_Stat.attackDelay < 0) return 0;
-        return unit_Stat.attackDelay;
-    }
-
-    public void AddAttackDelay(float addFloat)
-    {
-        unit_Stat.attackDelay += addFloat;
-    }
-
-    // 크기 관련 메서드
-    public float GetSize()
-    {
-        if (unit_Stat.size <= 0) return 0f;
-        return unit_Stat.size;
-    }
-
-    public void AddSize(float addFloat)
-    {
-        unit_Stat.size += addFloat;
-    }
-
-    public float GetInterval()
-    {
-        if (unit_Stat.interval <= 0) return 0f;
-        return unit_Stat.interval;
-    }
-
-    public void AddInterval(float addFloat)
-    {
-        unit_Stat.interval += addFloat;
-    }
-
-    // 충돌 관련 메서드
-    public float GetRadius()
-    {
-        return unit_Stat.radius;
-    }
-
-    public float GetHeight()
-    {
-        return unit_Stat.height;
-    }
-
-    // 체력 관련 메서드
-    public float GetHP()
-    {
-        if (unit_Stat.HP < 0) return 0;
-        return unit_Stat.HP;
-    }
-
-    public void AddHP(float addFloat)
-    {
-        unit_Stat.HP += addFloat;
-    }
-
-    // 공격 타입 관련 메서드
-    public E_Unit_AttackType GetE_Unit_AttackType()
-    {
-        return unit_Stat.e_Unit_AttackType;
-    }
+    // 공격 타입
+    public E_Unit_AttackType GetE_Unit_AttackType() => unit_Stat.e_Unit_AttackType;
 }

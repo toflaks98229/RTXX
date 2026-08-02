@@ -350,6 +350,7 @@ MonoBehaviour:
         mass: 0
         drag: 0
         meleeDamage: 0
+        meleeDamageAP: 0
         meleeAttack: 0
         meleeAttackSpeed: 0
         meleeDiffense: 0
@@ -360,6 +361,7 @@ MonoBehaviour:
         shieldArmor: 0
         brangeAttackAble: 0
         rangeDamage: 0
+        rangeDamageAP: 0
         rangeAttackSpeed: 0
         rangeDiffense: 0
         rangeAccuracy: 0
