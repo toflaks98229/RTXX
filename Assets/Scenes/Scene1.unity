@@ -432,6 +432,7 @@ GameObject:
   - component: {fileID: 249093488}
   - component: {fileID: 249093489}
   - component: {fileID: 249093490}
+  - component: {fileID: 249093491}
   m_Layer: 0
   m_Name: Controller
   m_TagString: Untagged
@@ -496,6 +497,7 @@ MonoBehaviour:
   formation_End: {x: 0, y: 0, z: 0}
   Flag1: {fileID: 570279347}
   Flag2: {fileID: 290159903}
+  battle_Manager: {fileID: 249093491}
 --- !u!114 &249093489
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -530,6 +532,22 @@ MonoBehaviour:
   lineWidth: 0.06
   lineColor: {r: 0.95, g: 0.92, b: 0.75, a: 0.9}
   maxShots: 256
+--- !u!114 &249093491
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 249093485}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c899b68d72d2b46d5019d27bf1bf6c35, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  controller: {fileID: 249093488}
+  buseDeployment: 1
+  keyCode_Start_Battle: 32
+  resultDisplayTime: 0
 --- !u!4 &258271093 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 9147108713647118473, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}

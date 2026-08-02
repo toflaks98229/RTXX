@@ -104,6 +104,13 @@ public partial class Controller : MonoBehaviour
 
     // 비공개 멤버 변수
     /// <summary>
+    /// 전투 진행 단계를 관리합니다. (선택 사항)
+    /// 지정하면 배치 단계 동안 시뮬레이션이 멈춥니다.
+    /// 비워 두면 예전처럼 시작하자마자 계속 돌아갑니다.
+    /// </summary>
+    public Battle_Manager battle_Manager;
+
+    /// <summary>
     /// 드래그 선택 영역을 저장하는 Rect 구조체입니다.
     /// </summary>
     private Rect select_Box;
@@ -242,6 +249,15 @@ public partial class Controller : MonoBehaviour
                 Drag_Formaion();
             }
         }
+        // 배치 단계에서는 시뮬레이션을 돌리지 않습니다.
+        // 진형은 잡을 수 있어야 하므로 입력(Update)은 그대로 두고
+        // 전투 틱만 멈춥니다.
+        if (battle_Manager != null
+            && battle_Manager.phase == E_Battle_Phase.Deployment)
+        {
+            return;
+        }
+
         // 부대 상태를 업데이트합니다.
         _Update_Army();
     }
