@@ -366,6 +366,7 @@ MonoBehaviour:
         rangeDiffense: 0
         rangeAccuracy: 0
         rangeRange: 0
+        ammunition: 0
         attackDelay: 0
         size: 0
         interval: 0

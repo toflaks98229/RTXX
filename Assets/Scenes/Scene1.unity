@@ -431,6 +431,7 @@ GameObject:
   - component: {fileID: 249093487}
   - component: {fileID: 249093488}
   - component: {fileID: 249093489}
+  - component: {fileID: 249093490}
   m_Layer: 0
   m_Name: Controller
   m_TagString: Untagged
@@ -507,6 +508,23 @@ MonoBehaviour:
   heightOffset: 6
   bannerWidth: 132
   bshowModifierBreakdown: 1
+--- !u!114 &249093490
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 249093485}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b2d5ced9eed3e2a6863e4d9e81d0d120, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  flightTime: 0.35
+  arcHeight: 2.5
+  lineWidth: 0.06
+  lineColor: {r: 0.95, g: 0.92, b: 0.75, a: 0.9}
+  maxShots: 256
 --- !u!4 &258271093 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 9147108713647118473, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}

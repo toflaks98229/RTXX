@@ -74,6 +74,12 @@ public struct Unit_Stat
     public float rangeAccuracy;
     /// <summary>유닛의 원거리 공격 사거리입니다.</summary>
     public float rangeRange;
+    /// <summary>
+    /// 유닛 1인이 쏠 수 있는 총 발사 횟수입니다.
+    /// 다 쓰면 더 이상 사격할 수 없어 근접 전투로 전환됩니다.
+    /// 0 이하이면 무한으로 취급합니다. (기존 프리팹 호환)
+    /// </summary>
+    public int ammunition;
 
     // Attack
     /// <summary>공격 딜레이 시간입니다.</summary>

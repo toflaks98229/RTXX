@@ -84,6 +84,20 @@ public partial struct Unit_Data
     /// <summary>유닛의 공격 타입입니다 (근접, 원거리).</summary>
     public E_Unit_AttackType e_Unit_AttackType;
 
+    /// <summary>
+    /// 남은 탄약입니다. 사격할 때마다 1씩 줄어듭니다.
+    /// 0이 되면 더 이상 쏘지 못하고 근접으로만 싸웁니다.
+    /// 부대 스탯의 ammunition이 0 이하이면 무한이므로 이 값은 무시됩니다.
+    /// </summary>
+    public int ammunition;
+
+    /// <summary>
+    /// 이번 틱에 원거리 발사가 성립했는지 여부입니다.
+    /// 메인 스레드가 소비해 투사체 궤적을 그리고 다시 내립니다.
+    /// (Burst Job 안에서는 오브젝트를 만들 수 없으므로 플래그로 넘깁니다)
+    /// </summary>
+    public bool bfiredThisTick;
+
     // Public methods
     /// <summary>Unit_Data 구조체의 생성자입니다.</summary>
     public Unit_Data(Unit unit, int num, in Army_Data armyData, int armyIndex)
@@ -143,6 +157,9 @@ public partial struct Unit_Data
 
         e_Unit_Fight = E_Unit_Fight.Attack_Able;
         e_Unit_AttackType = E_Unit_AttackType.Melee;
+
+        ammunition = armyData.GetAmmunition();
+        bfiredThisTick = false;
     }
 
     /// <summary>유닛 데이터를 업데이트합니다.</summary>

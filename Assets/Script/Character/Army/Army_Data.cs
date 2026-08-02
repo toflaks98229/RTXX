@@ -694,6 +694,12 @@ public struct Army_Data
     public float GetRangeRange() => NonNegative(unit_Stat.rangeRange);
     public void AddRangeRange(float v) => unit_Stat.rangeRange += v;
 
+    /// <summary>유닛 1인의 총 탄약 수입니다. 0 이하이면 무한입니다.</summary>
+    public int GetAmmunition() => unit_Stat.ammunition;
+
+    /// <summary>탄약이 유한한지 여부입니다. 0 이하로 설정하면 무한 사격입니다.</summary>
+    public bool IsAmmunitionLimited() => unit_Stat.ammunition > 0;
+
     // 공격 지연
     public float GetAttackDelay() => NonNegative(unit_Stat.attackDelay);
     public void AddAttackDelay(float v) => unit_Stat.attackDelay += v;

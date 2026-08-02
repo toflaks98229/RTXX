@@ -521,6 +521,7 @@ MonoBehaviour:
       rangeDiffense: 10
       rangeAccuracy: 25
       rangeRange: 12
+      ammunition: 0
       attackDelay: 0.7
       size: 1
       interval: 1

@@ -41,7 +41,15 @@ partial class Army
 
                 if (_Update_Target_Army())
                 {
-                    Move_Cancel(); // 교전 시작 시 이동 취소
+                    // 근접 교전에 들어갈 때만 이동을 멈춥니다.
+                    //
+                    // 원거리 교전은 멀리서 성립하므로, 여기서 멈추면
+                    // 진격하던 부대가 적을 '보기만 해도' 얼어붙습니다.
+                    // 사격은 제자리 여부와 무관하게 Unit_Fight_Job이 처리합니다.
+                    if (army_Data.e_Army_Fight == E_Army_Fight.Melee)
+                    {
+                        Move_Cancel(); // 교전 시작 시 이동 취소
+                    }
                 }
             }
         }
@@ -77,8 +85,12 @@ partial class Army
     {
         bool bfindTarget = false;
 
-        // 이미 타겟이 있고 전투 중이면 추가적인 타겟을 찾지 않습니다.
-        if (targetArmy != null && army_Data.e_Army_Fight != E_Army_Fight.Non)
+        // 이미 근접 교전 중이면 표적을 바꾸지 않습니다.
+        //
+        // 원거리(Range) 교전은 예외입니다. 멀리서 쏘던 중에 적이 달려와
+        // 맞닿으면 난전으로 넘어가야 하는데, 여기서 막아 버리면
+        // 영원히 Range 상태로 굳어 근접 판정이 성립하지 않습니다.
+        if (targetArmy != null && army_Data.e_Army_Fight == E_Army_Fight.Melee)
         {
             return bfindTarget;
         }
@@ -95,9 +107,14 @@ partial class Army
 
         if (bfindTarget)
         {
-            // 가장 많은 인원을 접촉한 '적' 부대를 찾습니다.
+            // 접촉한 적이 있으면 그중 가장 많이 맞닿은 부대를 고릅니다.
+            // 아무도 닿지 않았다면 시야 안의 적을 고릅니다. (원거리 교전)
             Army bestArmy = null;
             int bestNum = 0;
+
+            Army bestSighted = null;
+            float bestSightedSqr = float.MaxValue;
+            Vector3 myPosition = GetPosition();
 
             foreach (var detected in army_Detected)
             {
@@ -111,7 +128,24 @@ partial class Army
                     bestNum = detected.num;
                     bestArmy = detected.army;
                 }
+
+                if (detected.bsighted)
+                {
+                    Vector3 to = detected.army.GetPosition() - myPosition;
+                    to.y = 0.0f;
+
+                    float sqr = to.sqrMagnitude;
+                    if (sqr < bestSightedSqr)
+                    {
+                        bestSightedSqr = sqr;
+                        bestSighted = detected.army;
+                    }
+                }
             }
+
+            // 접촉이 없으면 시야 표적으로 대체합니다.
+            bool bmelee = bestArmy != null;
+            if (!bmelee) bestArmy = bestSighted;
 
             // 유효한 적을 찾지 못했으면 타겟을 지정하지 않습니다.
             if (bestArmy == null)
@@ -121,7 +155,11 @@ partial class Army
             else
             {
                 targetArmy = bestArmy;
-                army_Data.e_Army_Fight = E_Army_Fight.Melee;
+
+                // 맞닿았으면 난전, 아직 떨어져 있으면 원거리 교전입니다.
+                army_Data.e_Army_Fight = bmelee
+                    ? E_Army_Fight.Melee
+                    : E_Army_Fight.Range;
 
                 GameEvents.RaiseArmyEngaged(this, targetArmy);
             }

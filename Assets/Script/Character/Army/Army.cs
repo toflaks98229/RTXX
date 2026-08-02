@@ -23,6 +23,15 @@ public class Army_Count
     public Army army;
 
     /// <summary>
+    /// 물리 접촉 없이 '시야'로만 탐지된 상태인지 여부입니다.
+    ///
+    /// num은 실제로 몸이 닿은 유닛 수이고, 이 플래그는 사거리 안에
+    /// 들어왔다는 뜻입니다. 원거리 부대는 닿지 않아도 쏠 수 있어야 하므로
+    /// 두 가지를 구분해서 들고 있어야 합니다.
+    /// </summary>
+    public bool bsighted;
+
+    /// <summary>
     /// Army_Count 클래스의 생성자입니다.
     /// </summary>
     /// <param name="army">접촉한 부대 인스턴스입니다.</param>
@@ -338,6 +347,7 @@ public partial class Army : MonoBehaviour
         }
 
         _Upadate_Data(); // 부대 데이터 업데이트
+        _Update_Detection(); // 사거리 안의 적을 접촉 없이 탐지
         _Update_Move(); // 이동 상태 업데이트
 
         unit_Datas = new NativeArray<Unit_Data>(units.Count, Allocator.TempJob);
@@ -884,6 +894,101 @@ public partial class Army : MonoBehaviour
     }
 
     /// <summary>
+    /// 사거리 안의 적 부대를 '접촉 없이' 탐지합니다.
+    ///
+    /// 왜 필요한가:
+    /// 기존 탐지(army_Detected)는 물리 충돌로만 채워졌습니다.
+    /// 즉 몸이 닿아야 적으로 인식하므로, 원거리 부대는 구조적으로
+    /// 사거리 밖의 적을 공격할 수 없었습니다. 이건 미구현이 아니라
+    /// 아키텍처 차원의 차단이었습니다.
+    ///
+    /// 여기서 시야 기반 탐지를 더해 그 벽을 걷어냅니다.
+    /// 충돌 기반 탐지(Add_Army_Detected)는 그대로 유지되며,
+    /// 이 함수는 '아직 닿지 않은' 적을 추가로 등록할 뿐입니다.
+    /// </summary>
+    private void _Update_Detection()
+    {
+        // 이 부대가 실제로 닿을 수 있는 최대 거리입니다.
+        float reach = army_Data.GetMeleeRange();
+
+        if (army_Data.GetE_Unit_AttackType() == E_Unit_AttackType.Range
+            || army_Data.IsRangeAttackAble())
+        {
+            float rangeRange = army_Data.GetRangeRange();
+            if (rangeRange > reach) reach = rangeRange;
+        }
+
+        // 근접 전용 부대는 시야 탐지가 필요 없습니다.
+        // 어차피 닿아야 싸우므로 충돌 기반 탐지로 충분합니다.
+        if (reach <= army_Data.GetMeleeRange()) return;
+
+        float reachSqr = reach * reach;
+        Vector3 myPosition = GetPosition();
+
+        for (int i = 0; i < allArmies.Count; i++)
+        {
+            Army other = allArmies[i];
+            if (other == null) continue;
+            if (other == this) continue;
+            if (other.units.Count == 0) continue;
+            if (other.army_Data.bplayer == army_Data.bplayer) continue;
+
+            Vector3 to = other.GetPosition() - myPosition;
+            to.y = 0.0f;
+
+            if (to.sqrMagnitude > reachSqr)
+            {
+                // 사거리를 벗어났으면 시야 탐지분을 거둬들입니다.
+                Remove_Army_Sighted(other);
+                continue;
+            }
+
+            Add_Army_Sighted(other);
+        }
+    }
+
+    /// <summary>
+    /// 시야로 탐지한 부대를 등록합니다.
+    /// 충돌 탐지와 달리 카운트를 누적하지 않고 '있다/없다'만 표시합니다.
+    /// </summary>
+    private void Add_Army_Sighted(Army army)
+    {
+        for (int i = 0; i < army_Detected.Count; i++)
+        {
+            if (army_Detected[i].army == army)
+            {
+                army_Detected[i].bsighted = true;
+                return;
+            }
+        }
+
+        Army_Count count = new Army_Count(army, 0);
+        count.bsighted = true;
+        army_Detected.Add(count);
+    }
+
+    /// <summary>
+    /// 시야에서 벗어난 부대의 탐지 표시를 지웁니다.
+    /// 물리 접촉 카운트가 남아 있으면 항목 자체는 유지합니다.
+    /// </summary>
+    private void Remove_Army_Sighted(Army army)
+    {
+        for (int i = 0; i < army_Detected.Count; i++)
+        {
+            if (army_Detected[i].army != army) continue;
+
+            army_Detected[i].bsighted = false;
+
+            // 접촉 카운트도 없으면 더 이상 탐지 대상이 아닙니다.
+            if (army_Detected[i].num <= 0)
+            {
+                army_Detected.RemoveAt(i);
+            }
+            return;
+        }
+    }
+
+    /// <summary>
     /// 탐지된 부대 리스트에 새로운 부대를 추가합니다.
     /// </summary>
     /// <param name="army">탐지된 부대 인스턴스입니다.</param>
@@ -921,7 +1026,10 @@ public partial class Army : MonoBehaviour
             if (army_Detected[i].army == army)
             {
                 army_Detected[i].num = army_Detected[i].num - 1;
-                if (army_Detected[i].num <= 0)
+
+                // 아직 시야 안에 있으면 항목을 지우지 않습니다.
+                // 지워 버리면 원거리 부대가 '떨어지는 순간' 표적을 놓칩니다.
+                if (army_Detected[i].num <= 0 && !army_Detected[i].bsighted)
                 {
                     army_Detected.RemoveAt(i);
                 }

@@ -52,8 +52,9 @@ partial struct Unit_Data
         float distanceSqr = to.sqrMagnitude;
 
         // 사거리 밖이면 후보가 아닙니다.
+        // 탄약이 떨어졌으면 원거리 사거리를 인정하지 않습니다. (근접만 가능)
         float reach = armyData.GetMeleeRange();
-        if (armyData.GetE_Unit_AttackType() == E_Unit_AttackType.Range)
+        if (Can_Shoot(armyData))
         {
             float rangeRange = armyData.GetRangeRange();
             if (rangeRange > reach) reach = rangeRange;
@@ -95,7 +96,7 @@ partial struct Unit_Data
             return true;
         }
 
-        if (armyData.GetE_Unit_AttackType() == E_Unit_AttackType.Range)
+        if (Can_Shoot(armyData))
         {
             float rangeRange = armyData.GetRangeRange();
             if (distanceSqr < rangeRange * rangeRange)
@@ -106,6 +107,27 @@ partial struct Unit_Data
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// 지금 사격할 수 있는지 판정합니다.
+    /// 원거리 병종이어야 하고, 탄약이 남아 있어야 합니다.
+    /// 부대 스탯의 ammunition이 0 이하이면 무한으로 취급합니다.
+    /// </summary>
+    public bool Can_Shoot(in Army_Data armyData)
+    {
+        if (armyData.GetE_Unit_AttackType() != E_Unit_AttackType.Range
+            && !armyData.IsRangeAttackAble())
+        {
+            return false;
+        }
+
+        if (armyData.GetRangeRange() <= 0.0f) return false;
+
+        // 탄약이 유한한데 다 썼으면 더 이상 쏘지 못합니다.
+        if (armyData.IsAmmunitionLimited() && ammunition <= 0) return false;
+
+        return true;
     }
 
     /// <summary>
@@ -320,11 +342,30 @@ partial struct Unit_Data
     {
         timer_AttackDelay.ReSetTimer();
 
-        float meleeRange = armyData.GetMeleeRange();
-
-        if ((position - unit_Target_Data.position).sqrMagnitude < meleeRange * meleeRange)
+        if (e_Unit_AttackType == E_Unit_AttackType.Range)
         {
-            bhitTarget = true;
+            // 원거리 타격은 사거리 안이면 성립합니다.
+            float rangeRange = armyData.GetRangeRange();
+
+            if ((position - unit_Target_Data.position).sqrMagnitude
+                < rangeRange * rangeRange)
+            {
+                bhitTarget = true;
+                bfiredThisTick = true;
+
+                // 화살 한 발을 소모합니다. 무한 탄약이면 줄이지 않습니다.
+                if (armyData.IsAmmunitionLimited() && ammunition > 0) ammunition--;
+            }
+        }
+        else
+        {
+            float meleeRange = armyData.GetMeleeRange();
+
+            if ((position - unit_Target_Data.position).sqrMagnitude
+                < meleeRange * meleeRange)
+            {
+                bhitTarget = true;
+            }
         }
 
         e_Unit_Fight = E_Unit_Fight.Attack_Disable;
@@ -334,9 +375,43 @@ partial struct Unit_Data
 partial class Unit
 {
     // Private methods
+    /// <summary>
+    /// 원거리 발사의 시각 표현을 담당하는 렌더러입니다.
+    /// 씬에 없으면 궤적만 안 그려질 뿐 전투는 정상 동작합니다.
+    /// </summary>
+    private static Projectile_Renderer projectileRenderer;
+
+    /// <summary>투사체 렌더러를 찾아 캐시합니다. 없으면 null을 유지합니다.</summary>
+    private static Projectile_Renderer Get_Projectile_Renderer()
+    {
+        // Unity의 == 오버로드 덕분에 파괴된 객체도 null로 판정됩니다.
+        if (projectileRenderer == null)
+        {
+            projectileRenderer = FindAnyObjectByType<Projectile_Renderer>();
+        }
+
+        return projectileRenderer;
+    }
+
     /// <summary>유닛의 전투 관련 로직을 업데이트합니다.</summary>
     private void _Update_Fight()
     {
+        // 이번 틱에 활을 쏘았으면 궤적을 하나 띄웁니다.
+        // 피해 판정은 이미 Job에서 끝났으므로 이건 순수한 표현입니다.
+        if (unit_Data.bfiredThisTick)
+        {
+            unit_Data.bfiredThisTick = false;
+
+            Projectile_Renderer renderer = Get_Projectile_Renderer();
+            if (renderer != null)
+            {
+                Vector3 from = transform.position + Vector3.up * 1.0f;
+                Vector3 to = unit_Data.unit_Target_Data.position + Vector3.up * 0.8f;
+
+                renderer.Fire(from, to);
+            }
+        }
+
         if (!unit_Data.bgetDamage) return;
 
         Vector3 damageVector = unit_Data.damageVector;

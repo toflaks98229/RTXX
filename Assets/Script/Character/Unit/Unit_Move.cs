@@ -335,6 +335,14 @@ partial struct Unit_Data
             return;
         }
 
+        // 0. 지금 쏠 수 있는 상태라면 다가가지 않습니다.
+        //    궁병이 사거리 안의 적을 향해 걸어 들어가면 근접에 휘말려
+        //    원거리 부대의 존재 의의가 사라집니다.
+        if (e_Unit_AttackType == E_Unit_AttackType.Range && Can_Shoot(armyData))
+        {
+            return;
+        }
+
         // 1. 이미 닿는 거리면 전진하지 않고 그 자리에서 교전합니다.
         if (toTarget.sqrMagnitude <= meleeRange * meleeRange) return;
 
