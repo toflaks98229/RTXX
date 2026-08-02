@@ -1,0 +1,327 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>
+/// 적 부대를 자동으로 지휘하는 전투 AI입니다.
+///
+/// 왜 필요한가:
+/// 지금까지 적 부대는 플레이어가 접촉할 때까지 가만히 서 있었습니다.
+/// Army.allArmies와 Find_Nearest_Enemy_Army()는 준비되어 있었지만
+/// 호출하는 주체가 없었기 때문입니다. 상대가 움직이지 않으면
+/// 측면 기동도 포위도 성립하지 않아 전술 자체가 무의미해집니다.
+///
+/// 설계 방침:
+/// 부대 단위 명령만 내립니다. 유닛 조작은 일절 하지 않습니다.
+/// AI는 플레이어가 쓰는 것과 똑같은 입구(Move_Start / Set_Stance)만
+/// 사용하므로, 시뮬레이션 규칙을 우회하거나 반칙하지 않습니다.
+///
+/// 판단 주기:
+/// 매 프레임 재판단하면 부대가 갈팡질팡합니다.
+/// 일정 간격으로만 명령을 갱신해 '결심하고 밀어붙이는' 모습을 만듭니다.
+/// </summary>
+public class Battle_AI : MonoBehaviour
+{
+    [Header("연결")]
+    public Controller controller;
+
+    [Tooltip("전투 단계를 볼 배틀 매니저입니다. 비워 두면 항상 동작합니다.")]
+    public Battle_Manager battle_Manager;
+
+    [Header("동작")]
+    [Tooltip("AI가 지휘할 진영입니다. 보통 적군(false)입니다.")]
+    public bool bcontrolPlayerSide = false;
+
+    [Tooltip("명령을 다시 내리는 간격(초)입니다. 짧으면 부대가 갈팡질팡합니다.")]
+    public float decisionInterval = 2.0f;
+
+    [Tooltip("이 거리 안에 들어오면 교전으로 보고 더 이상 재배치하지 않습니다.")]
+    public float engageDistance = 6.0f;
+
+    private float nextDecisionTime;
+
+    private void Update()
+    {
+        // 배치 단계에서는 움직이지 않습니다.
+        if (battle_Manager != null
+            && battle_Manager.phase != E_Battle_Phase.Fighting)
+        {
+            return;
+        }
+
+        if (Time.time < nextDecisionTime) return;
+        nextDecisionTime = Time.time + decisionInterval;
+
+        _Update_Decisions();
+    }
+
+    private List<Army> Get_Armies()
+    {
+        return controller != null ? controller.armies : Army.allArmies;
+    }
+
+    /// <summary>지휘 대상 부대들에 대해 각각 판단을 내립니다.</summary>
+    private void _Update_Decisions()
+    {
+        List<Army> armies = Get_Armies();
+        if (armies == null) return;
+
+        for (int i = 0; i < armies.Count; i++)
+        {
+            Army army = armies[i];
+            if (army == null) continue;
+            if (army.units.Count == 0) continue;
+            if (army.army_Data.bplayer != bcontrolPlayerSide) continue;
+
+            // 무너진 부대는 명령을 듣지 않습니다. 알아서 달아납니다.
+            if (army.army_Data.IsBroken()) continue;
+
+            Decide(army);
+        }
+    }
+
+    /// <summary>부대 하나의 행동을 결정합니다.</summary>
+    private void Decide(Army army)
+    {
+        Army enemy = army.Find_Nearest_Enemy_Army(out float distance);
+        if (enemy == null) return;
+
+        // 병종에 따라 태세와 거리 유지 방식이 달라집니다.
+        E_Unit_Class unitClass = army.army_Data.GetE_Unit_Class();
+
+        switch (unitClass)
+        {
+            case E_Unit_Class.Archer:
+                Decide_Archer(army, enemy, distance);
+                break;
+
+            case E_Unit_Class.Spear:
+                Decide_Spear(army, enemy, distance);
+                break;
+
+            case E_Unit_Class.Cavalry:
+                Decide_Cavalry(army, enemy, distance);
+                break;
+
+            default:
+                Decide_Infantry(army, enemy, distance);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// 궁병: 산개 태세로 거리를 유지하며 쏩니다.
+    /// 탄약이 떨어지면 근접에 합류합니다.
+    /// </summary>
+    private void Decide_Archer(Army army, Army enemy, float distance)
+    {
+        army.Set_Stance(E_Army_Stance.Skirmish);
+
+        float range = army.army_Data.GetEffectiveRangeRange();
+
+        // 사거리 안이면 제자리에서 사격합니다. 자동 후퇴는 태세가 처리합니다.
+        if (distance <= range) return;
+
+        // 사거리 밖이면 쏠 수 있는 위치까지만 다가갑니다.
+        Advance_To(army, enemy, range * 0.8f);
+    }
+
+    /// <summary>
+    /// 창병: 적 기병이 있으면 창벽을 세우고 버팁니다.
+    /// 기병이 없으면 평범하게 전진합니다.
+    /// </summary>
+    private void Decide_Spear(Army army, Army enemy, float distance)
+    {
+        bool bcavalryNear = Is_Cavalry_Near(army);
+
+        if (bcavalryNear)
+        {
+            // 창벽은 정지 상태에서만 돌격을 반사합니다. 그러니 멈춰 섭니다.
+            army.Set_Stance(E_Army_Stance.SpearWall);
+            return;
+        }
+
+        army.Set_Stance(E_Army_Stance.Line);
+
+        if (distance > engageDistance) Advance_To(army, enemy, engageDistance * 0.5f);
+    }
+
+    /// <summary>
+    /// 기병: 창병 정면을 피하고 측후방을 노립니다.
+    /// 창벽에 정면으로 뛰어들면 돌격이 반사되어 손해만 봅니다.
+    /// </summary>
+    private void Decide_Cavalry(Army army, Army enemy, float distance)
+    {
+        army.Set_Stance(E_Army_Stance.Loose);
+
+        // 창병이나 창벽을 세운 상대에게는 정면으로 가지 않습니다.
+        bool bavoidFront = enemy.army_Data.GetE_Unit_Class() == E_Unit_Class.Spear
+                           || enemy.army_Data.e_Army_Stance == E_Army_Stance.SpearWall;
+
+        // 더 나은 표적이 있으면 그쪽을 칩니다. (궁병이 최우선)
+        Army softer = Find_Soft_Target(army);
+        if (softer != null)
+        {
+            enemy = softer;
+            bavoidFront = false;
+        }
+
+        if (bavoidFront)
+        {
+            Flank_To(army, enemy);
+            return;
+        }
+
+        if (distance > engageDistance) Advance_To(army, enemy, engageDistance * 0.5f);
+    }
+
+    /// <summary>보병: 전열을 유지하며 곧장 전진합니다.</summary>
+    private void Decide_Infantry(Army army, Army enemy, float distance)
+    {
+        army.Set_Stance(E_Army_Stance.Line);
+
+        if (distance > engageDistance) Advance_To(army, enemy, engageDistance * 0.5f);
+    }
+
+    /// <summary>
+    /// 적 쪽으로 전진합니다. 목표 지점은 상대 앞 stopDistance 지점입니다.
+    ///
+    /// 전열 방향은 '적을 향한 정면'에 수직이 되도록 잡습니다.
+    /// 그래야 대열이 옆으로 펼쳐진 채로 부딪힙니다.
+    /// </summary>
+    private void Advance_To(Army army, Army enemy, float stopDistance)
+    {
+        Vector3 from = army.GetPosition();
+        Vector3 to = enemy.GetPosition();
+
+        Vector3 forward = to - from;
+        forward.y = 0.0f;
+
+        if (forward.sqrMagnitude < 0.0001f) return;
+
+        float distance = forward.magnitude;
+        forward /= distance;
+
+        // 상대 앞에서 멈춥니다.
+        float travel = distance - stopDistance;
+        if (travel < 0.0f) travel = 0.0f;
+
+        Vector3 center = from + forward * travel;
+
+        Issue_Line_Order(army, center, forward);
+    }
+
+    /// <summary>
+    /// 측면으로 우회합니다. 정면을 피해 옆으로 붙는 기동입니다.
+    /// </summary>
+    private void Flank_To(Army army, Army enemy)
+    {
+        Vector3 from = army.GetPosition();
+        Vector3 to = enemy.GetPosition();
+
+        Vector3 forward = to - from;
+        forward.y = 0.0f;
+
+        if (forward.sqrMagnitude < 0.0001f) return;
+
+        forward = forward.normalized;
+
+        // 상대의 좌우 중 내가 더 가까운 쪽으로 돌아갑니다.
+        Vector3 side = Vector3.Cross(Vector3.up, forward);
+
+        Vector3 enemyForward = enemy.formation_Move_Transform.forward;
+        enemyForward.y = 0.0f;
+
+        // 상대 정면의 반대쪽(측후방)을 노립니다.
+        float sign = Vector3.Dot(side, enemyForward) > 0.0f ? 1.0f : -1.0f;
+
+        float flankDistance = engageDistance * 2.0f;
+        Vector3 center = to + side * sign * flankDistance;
+
+        Vector3 approach = (center - from);
+        approach.y = 0.0f;
+
+        if (approach.sqrMagnitude < 0.0001f) return;
+
+        Issue_Line_Order(army, center, approach.normalized);
+    }
+
+    /// <summary>
+    /// 가장 무른 표적(궁병 등)을 찾습니다.
+    /// 기병은 대열이 단단한 정면 대신 이런 상대를 노려야 합니다.
+    /// </summary>
+    private Army Find_Soft_Target(Army army)
+    {
+        Army best = null;
+        float bestSqr = float.MaxValue;
+
+        Vector3 myPosition = army.GetPosition();
+
+        for (int i = 0; i < Army.allArmies.Count; i++)
+        {
+            Army other = Army.allArmies[i];
+            if (other == null) continue;
+            if (other.units.Count == 0) continue;
+            if (other.army_Data.bplayer == army.army_Data.bplayer) continue;
+
+            // 궁병만 노립니다. 근접 대열은 정면으로 치지 않습니다.
+            if (other.army_Data.GetE_Unit_Class() != E_Unit_Class.Archer) continue;
+
+            Vector3 to = other.GetPosition() - myPosition;
+            to.y = 0.0f;
+
+            float sqr = to.sqrMagnitude;
+            if (sqr < bestSqr)
+            {
+                bestSqr = sqr;
+                best = other;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>
+    /// 부대에 전열 이동 명령을 내립니다.
+    ///
+    /// 플레이어가 우클릭 드래그로 내리는 것과 같은 입구를 씁니다.
+    /// 전열축은 진행 방향에 수직이어야 대열이 옆으로 펼쳐집니다.
+    /// </summary>
+    private void Issue_Line_Order(Army army, Vector3 center, Vector3 forward)
+    {
+        Vector3 lineDirection = Vector3.Cross(Vector3.up, forward);
+        if (lineDirection.sqrMagnitude < 0.0001f) return;
+
+        lineDirection = lineDirection.normalized;
+
+        float length = army.GetFormation_Length();
+        Vector3 start = center - lineDirection * (length * 0.5f);
+
+        army.Move_Start(length, lineDirection, start);
+    }
+
+    /// <summary>가까이에 적 기병이 있는지 봅니다. 창벽을 세울지 결정하는 근거입니다.</summary>
+    private bool Is_Cavalry_Near(Army army)
+    {
+        Vector3 myPosition = army.GetPosition();
+
+        // 기병은 빠르므로 넉넉히 봅니다. 붙고 나서 세우면 늦습니다.
+        float radius = engageDistance * 4.0f;
+        float radiusSqr = radius * radius;
+
+        for (int i = 0; i < Army.allArmies.Count; i++)
+        {
+            Army other = Army.allArmies[i];
+            if (other == null) continue;
+            if (other.units.Count == 0) continue;
+            if (other.army_Data.bplayer == army.army_Data.bplayer) continue;
+            if (!other.army_Data.IsLarge()) continue;
+
+            Vector3 to = other.GetPosition() - myPosition;
+            to.y = 0.0f;
+
+            if (to.sqrMagnitude <= radiusSqr) return true;
+        }
+
+        return false;
+    }
+}

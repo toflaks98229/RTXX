@@ -433,6 +433,7 @@ GameObject:
   - component: {fileID: 249093489}
   - component: {fileID: 249093490}
   - component: {fileID: 249093491}
+  - component: {fileID: 249093492}
   m_Layer: 0
   m_Name: Controller
   m_TagString: Untagged
@@ -548,6 +549,23 @@ MonoBehaviour:
   buseDeployment: 1
   keyCode_Start_Battle: 32
   resultDisplayTime: 0
+--- !u!114 &249093492
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 249093485}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38922f4251a2169719f64eaef5333789, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  controller: {fileID: 249093488}
+  battle_Manager: {fileID: 249093491}
+  bcontrolPlayerSide: 0
+  decisionInterval: 2
+  engageDistance: 6
 --- !u!4 &258271093 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 9147108713647118473, guid: c5295907e695d3d4f872e8c41ab51d9d, type: 3}
