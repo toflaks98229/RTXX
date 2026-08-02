@@ -496,6 +496,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   army_Data:
     bplayer: 1
+    bgeneral: 0
     bonCommand: 0
     unit_Stat:
       moveSpeed: 3

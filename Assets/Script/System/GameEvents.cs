@@ -43,6 +43,12 @@ public static class GameEvents
     /// </summary>
     public static event Action<Army> OnArmyShattered;
 
+    /// <summary>
+    /// 장군 부대가 전멸했을 때 발행됩니다.
+    /// 전투의 흐름이 갈리는 사건이므로 별도로 알립니다.
+    /// </summary>
+    public static event Action<Army> OnGeneralDied;
+
     /// <summary>부대가 돌격을 시작했을 때 발행됩니다. (돌격 부대, 대상 부대)</summary>
     public static event Action<Army, Army> OnArmyCharged;
 
@@ -100,6 +106,13 @@ public static class GameEvents
         catch (Exception e) { Debug.LogException(e); }
     }
 
+    public static void RaiseGeneralDied(Army army)
+    {
+        if (OnGeneralDied == null) return;
+        try { OnGeneralDied(army); }
+        catch (Exception e) { Debug.LogException(e); }
+    }
+
     public static void RaiseArmyCharged(Army army, Army target)
     {
         if (OnArmyCharged == null) return;
@@ -128,6 +141,7 @@ public static class GameEvents
         OnArmyRouted = null;
         OnArmyRallied = null;
         OnArmyShattered = null;
+        OnGeneralDied = null;
         OnArmyCharged = null;
         OnArmySelectionChanged = null;
     }

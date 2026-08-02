@@ -242,6 +242,24 @@ static class Constant
     public const float charge_Max_Penetration_Rate = 0.5f;
 
     // ---------------------------------------------------------------------
+    // 지휘 (General)
+    //
+    // 토탈워에서 장군은 주변 부대의 사기를 떠받치는 기둥입니다.
+    // 그래서 장군을 잡으면 전선이 통째로 무너집니다.
+    // ---------------------------------------------------------------------
+    /// <summary>장군 오라가 미치는 반경입니다.</summary>
+    public const float general_Aura_Radius = 30.0f;
+
+    /// <summary>장군 근처에서 받는 최대 사기 보너스입니다. 가까울수록 큽니다.</summary>
+    public const float general_Aura_Morale = 15.0f;
+
+    /// <summary>
+    /// 장군이 전사했을 때 아군 전체가 받는 사기 충격입니다.
+    /// 반경과 무관하게 전군에 적용됩니다. 지휘 계통이 끊긴 충격입니다.
+    /// </summary>
+    public const float general_Death_Shock = 30.0f;
+
+    // ---------------------------------------------------------------------
     // 지형 (Terrain)
     //
     // 고지를 잡는 것은 토탈워 전투 배치의 첫 번째 원칙입니다.

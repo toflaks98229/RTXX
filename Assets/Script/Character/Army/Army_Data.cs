@@ -240,6 +240,11 @@ public struct Army_Data
     /// </summary>
     public bool bplayer;
     /// <summary>
+    /// 이 부대가 장군 부대인지 여부입니다.
+    /// 장군은 주변 아군의 사기를 떠받치고, 전사하면 전군이 흔들립니다.
+    /// </summary>
+    public bool bgeneral;
+    /// <summary>
     /// 명령 상태인지 여부입니다.
     /// </summary>
     public bool bonCommand;

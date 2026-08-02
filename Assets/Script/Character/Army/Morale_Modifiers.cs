@@ -42,6 +42,9 @@ public struct Morale_Modifiers
     /// <summary>고지를 점했을 때의 보너스입니다. 낮은 곳이면 음수입니다.</summary>
     public float terrain;
 
+    /// <summary>장군이 근처에 있을 때의 보너스입니다.</summary>
+    public float general;
+
     /// <summary>모든 항목의 합입니다. 목표 사기는 최대치에 이 값을 더해 구합니다.</summary>
     public float Sum()
     {
@@ -53,7 +56,8 @@ public struct Morale_Modifiers
              + alliedRouting
              + winning
              + shock
-             + terrain;
+             + terrain
+             + general;
     }
 
     /// <summary>매 틱 다시 계산하기 전에 모든 항목을 지웁니다.</summary>
@@ -68,5 +72,6 @@ public struct Morale_Modifiers
         winning = 0.0f;
         shock = 0.0f;
         terrain = 0.0f;
+        general = 0.0f;
     }
 }

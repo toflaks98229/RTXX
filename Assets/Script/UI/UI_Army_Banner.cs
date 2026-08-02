@@ -118,6 +118,11 @@ public class UI_Army_Banner : MonoBehaviour
 
         // 1행: 병종 · 인원 · 피로
         builder.Clear();
+
+        // 장군 부대는 한눈에 알아볼 수 있어야 합니다.
+        // 지켜야 할 대상이자 노려야 할 대상이기 때문입니다.
+        if (data.bgeneral) builder.Append("★ ");
+
         builder.Append(Get_Class_Name(data.GetE_Unit_Class()));
         builder.Append("  ");
         builder.Append(data.unit_Num);
@@ -207,6 +212,7 @@ public class UI_Army_Banner : MonoBehaviour
         Append_Modifier(builder, "우세", m.winning);
         Append_Modifier(builder, "충격", m.shock);
         Append_Modifier(builder, "고지", m.terrain);
+        Append_Modifier(builder, "장군", m.general);
 
         if (builder.Length == 0) return;
 

@@ -605,6 +605,9 @@ public partial class Army : MonoBehaviour
         // 6. 지형: 고지를 점하면 사기가 오르고, 올려다보는 쪽은 떨어집니다.
         modifiers.terrain = army_Data.GetHighGroundMorale();
 
+        // 6-1. 지휘: 장군이 가까이 있으면 부대가 버팁니다.
+        modifiers.general = Get_General_Aura();
+
         // 7. 연쇄 붕괴: 옆의 아군이 무너지면 이쪽도 흔들립니다.
         //    (GameEvents.OnArmyRouted 구독으로 누적된 값을 소비합니다)
         modifiers.alliedRouting = -alliedRoutPenalty;
@@ -720,6 +723,13 @@ public partial class Army : MonoBehaviour
         if (bwasAlive && units.Count == 0)
         {
             GameEvents.RaiseArmyWiped(this);
+
+            // 장군이 쓰러지면 지휘 계통이 끊겨 전군이 흔들립니다.
+            // 반경과 무관하게 같은 편 전체에 적용됩니다.
+            if (army_Data.bgeneral)
+            {
+                On_General_Died();
+            }
         }
 
         // 깃발을 든 유닛이 죽었으면 다른 생존 유닛에게 넘깁니다.
@@ -928,6 +938,69 @@ public partial class Army : MonoBehaviour
     public List<Unit> GetUnits()
     {
         return units;
+    }
+
+    /// <summary>
+    /// 장군이 전사했을 때 같은 편 전군에 사기 충격을 가합니다.
+    ///
+    /// 토탈워에서 장군의 죽음은 전선을 통째로 무너뜨리는 사건입니다.
+    /// 그래서 '장군을 노려 전투를 끝낸다'는 전술이 성립합니다.
+    /// </summary>
+    private void On_General_Died()
+    {
+        for (int i = 0; i < allArmies.Count; i++)
+        {
+            Army other = allArmies[i];
+            if (other == null) continue;
+            if (other == this) continue;
+            if (other.units.Count == 0) continue;
+            if (other.army_Data.bplayer != army_Data.bplayer) continue;
+
+            other.Apply_Morale_Shock(Constant.general_Death_Shock);
+        }
+
+        GameEvents.RaiseGeneralDied(this);
+    }
+
+    /// <summary>
+    /// 살아 있는 아군 장군에게서 받는 사기 보너스입니다.
+    /// 가까울수록 크며, 반경 밖이면 0입니다.
+    ///
+    /// 장군 자신도 이 보너스를 받습니다. 지휘관은 스스로도 흔들리지 않습니다.
+    /// </summary>
+    private float Get_General_Aura()
+    {
+        float best = 0.0f;
+        Vector3 myPosition = GetPosition();
+
+        float radius = Constant.general_Aura_Radius;
+        float radiusSqr = radius * radius;
+
+        for (int i = 0; i < allArmies.Count; i++)
+        {
+            Army other = allArmies[i];
+            if (other == null) continue;
+            if (!other.army_Data.bgeneral) continue;
+            if (other.units.Count == 0) continue;
+            if (other.army_Data.bplayer != army_Data.bplayer) continue;
+
+            // 무너진 장군은 아무도 떠받치지 못합니다.
+            if (other.army_Data.IsBroken()) continue;
+
+            Vector3 to = other.GetPosition() - myPosition;
+            to.y = 0.0f;
+
+            float sqr = to.sqrMagnitude;
+            if (sqr > radiusSqr) continue;
+
+            // 가까울수록 강한 선형 감쇠입니다.
+            float t = 1.0f - Mathf.Sqrt(sqr) / radius;
+            float value = t * Constant.general_Aura_Morale;
+
+            if (value > best) best = value;
+        }
+
+        return best;
     }
 
     /// <summary>
