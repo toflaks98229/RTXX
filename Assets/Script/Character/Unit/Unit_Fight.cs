@@ -401,6 +401,19 @@ partial class Unit
     /// <summary>유닛의 전투 관련 로직을 업데이트합니다.</summary>
     private void _Update_Fight()
     {
+        // 이번 틱에 근접 타격이 성립했으면 표적 쪽으로 짧게 내지릅니다.
+        //
+        // 매치드 컴뱃(두 병사를 짝지어 전용 애니메이션 재생)을 스프라이트로
+        // 흉내 내는 것은 비용 대비 이득이 없습니다. 이 짧은 전진만으로도
+        // 누가 누구를 치고 있는지 눈에 들어옵니다.
+        if (unit_Data.bhitTarget
+            && unit_Data.e_Unit_AttackType == E_Unit_AttackType.Melee
+            && unit_Animation != null)
+        {
+            Vector3 toTarget = unit_Data.unit_Target_Data.position - transform.position;
+            unit_Animation.Play_Attack_Lunge(toTarget);
+        }
+
         // 이번 틱에 활을 쏘았으면 궤적을 하나 띄웁니다.
         // 피해 판정은 이미 Job에서 끝났으므로 이건 순수한 표현입니다.
         if (unit_Data.bfiredThisTick)
