@@ -186,13 +186,18 @@ partial class Army
         Vector3 position = new Vector3();
         int alive = 0;
 
+        // 일괄 처리 모드에서는 unit_Data.position이 이번 틱의 진짜 위치입니다.
+        // Transform을 읽으면 네이티브 왕복이 인원수만큼 발생하는데,
+        // 9,600명 기준 그것만으로 6 ms입니다. 데이터를 읽으면 사실상 공짜입니다.
+        bool bbatched = Unit.bbatchedTransform;
+
         for (int i = 0; i < units.Count; i++)
         {
             Unit unit = units[i];
             if (unit == null) continue;
             if (unit.IsDead()) continue;
 
-            position += unit.transform.position;
+            position += bbatched ? unit.unit_Data.position : unit.transform.position;
             alive++;
         }
 

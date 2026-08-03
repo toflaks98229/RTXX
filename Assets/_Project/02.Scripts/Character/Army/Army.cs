@@ -1188,10 +1188,25 @@ public partial class Army : MonoBehaviour
         // 밸런스 값이라 컴파일 타임 상수가 아닙니다. 루프 밖에서 한 번만 읽습니다.
         float maxDistance = Constant.distance_Front_Block_Ray;
 
+        // 일괄 처리 모드에서는 Transform 대신 unit_Data를 씁니다.
+        // 위치는 이미 시뮬레이션이 들고 있고, 정면은 회전에서 유도할 수 있습니다.
+        // Transform을 읽으면 인원수만큼 네이티브 왕복이 발생합니다.
+        bool bbatched = Unit.bbatchedTransform;
+
         for (int i = 0; i < units.Count; i++)
         {
-            Vector3 origin = units[i].transform.position;
-            Vector3 direction = units[i].transform.forward;
+            Vector3 origin, direction;
+
+            if (bbatched)
+            {
+                origin = units[i].unit_Data.position;
+                direction = units[i].unit_Data.rotation * Vector3.forward;
+            }
+            else
+            {
+                origin = units[i].transform.position;
+                direction = units[i].transform.forward;
+            }
 
             commands[i] = new RaycastCommand(origin, direction, maxDistance, layerMask);
         }

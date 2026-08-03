@@ -824,12 +824,14 @@ partial class Unit
 
         Vector3 step = direction.normalized * speed * Constant.deltaTime;
 
+        // Apply_Move가 이미 unit_Data.position을 갱신했습니다.
+        // (일괄 모드) 또는 Transform을 옮겼습니다. (물리 모드)
         Apply_Move(step);
 
-        unit_Data.position = transform.position;
+        if (!bbatchedTransform) unit_Data.position = transform.position;
 
         // 진형 목표도 함께 끌고 가야 다음 재정비에서 되돌아가지 않습니다.
-        unit_Data.location = transform.position;
+        unit_Data.location = unit_Data.position;
     }
 
     /// <summary>
@@ -846,7 +848,7 @@ partial class Unit
 
         Apply_Move(escapeVector);
 
-        unit_Data.position = transform.position;
+        if (!bbatchedTransform) unit_Data.position = transform.position;
 
         // 달아나는 쪽을 바라봅니다.
         if (direction.sqrMagnitude > 0.0001f)
@@ -867,16 +869,20 @@ partial class Unit
     }
 
     /// <summary>
-    /// 유닛의 회전을 업데이트합니다.
+    /// 유닛의 회전을 반영합니다.
     ///
-    /// 주의: 여기에 '값이 같으면 건너뛰기' 캐시를 넣으면 안 됩니다.
-    /// 이 유닛의 Rigidbody는 회전 구속(constraints)이 걸려 있지 않아
-    /// 충돌로 물리 엔진이 트랜스폼을 직접 돌릴 수 있습니다.
-    /// 그러면 캐시한 값과 실제 회전이 어긋나 유닛이 비스듬히 누운 채 굳습니다.
-    /// 시뮬레이션이 정한 자세를 매 틱 다시 덮어써야 안전합니다.
+    /// 자체 충돌을 쓸 때는 여기서 Transform을 만지지 않습니다.
+    /// Controller._Update_Collision이 전 유닛의 위치/회전을 Job으로
+    /// 한 번에 쓰기 때문입니다. 유닛마다 대입하면 네이티브 왕복이
+    /// 인원수만큼 발생해 9,600명 기준 6 ms가 낭비됩니다.
+    ///
+    /// 물리 기반으로 되돌렸을 때(benableUnitCollision = false)는
+    /// 일괄 쓰기가 돌지 않으므로 여기서 직접 씁니다.
     /// </summary>
     private void Rotation()
     {
+        if (bbatchedTransform) return;
+
         transform.rotation = unit_Data.rotation;
     }
 
@@ -884,15 +890,17 @@ partial class Unit
     private void Move()
     {
         // Transform 접근은 네이티브 왕복이라 횟수 자체가 비용입니다.
-        // 위치를 한 번만 읽어 이동에 쓰고, 그 결과를 그대로 unit_Data에 옮깁니다.
-        // (예전에는 Apply_Move가 읽고 아래에서 또 읽어 틱당 2회였습니다)
+        //
+        // 일괄 처리 모드에서는 Transform을 아예 만지지 않습니다.
+        // unit_Data.position이 이번 틱의 진짜 위치이고,
+        // Controller가 마지막에 Job으로 한 번에 Transform에 반영합니다.
         Vector3 delta = unit_Data.GetMovementVector();
-        Vector3 position = transform.position;
+        Vector3 position = bbatchedTransform ? unit_Data.position : transform.position;
 
         if (delta.sqrMagnitude >= 0.0000001f)
         {
             position += delta;
-            transform.position = position;
+            if (!bbatchedTransform) transform.position = position;
         }
 
         // 조향 목표는 '가야 할 자리'입니다.
@@ -941,6 +949,14 @@ partial class Unit
     private void Apply_Move(Vector3 delta)
     {
         if (delta.sqrMagnitude < 0.0000001f) return;
+
+        // 일괄 처리 모드에서는 데이터만 옮깁니다.
+        // Transform 반영은 Controller가 틱 마지막에 한 번에 합니다.
+        if (bbatchedTransform)
+        {
+            unit_Data.position += delta;
+            return;
+        }
 
         transform.position += delta;
     }

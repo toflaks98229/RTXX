@@ -161,6 +161,11 @@ public partial class Controller : MonoBehaviour
         if (balance_Config != null) balance_Config.Apply();
         else Balance.Reset_To_Default();
 
+        // 자체 충돌을 쓸 때만 Transform 일괄 쓰기가 성립합니다.
+        // 물리 모드에서는 Rigidbody가 Transform을 직접 움직이므로
+        // 유닛이 스스로 써야 합니다.
+        Unit.bbatchedTransform = benableUnitCollision;
+
         // 정적 이벤트는 도메인 리로드를 끄면 플레이 모드 종료 후에도 살아남습니다.
         // 이전 세션의 죽은 구독자를 제거해 두어야 예외가 나지 않습니다.
         GameEvents.ClearAll();
@@ -207,6 +212,10 @@ public partial class Controller : MonoBehaviour
         // 시뮬레이션 버퍼를 한 번만 할당해 두고 매 틱 재사용합니다.
         unitDataMap = new NativeHashMap<EntityId, Unit_Data>(Mathf.Max(1, units.Count), Allocator.Persistent);
         army_Datas = new NativeArray<Army_Data>(Mathf.Max(1, armies.Count), Allocator.Persistent);
+
+        // 유닛이 죽으면 Transform이 파괴되므로 동기화 배열을 다시 만들어야 합니다.
+        GameEvents.OnUnitKilled -= On_Unit_Killed_Sync;
+        GameEvents.OnUnitKilled += On_Unit_Killed_Sync;
     }
 
     /// <summary>
@@ -215,9 +224,12 @@ public partial class Controller : MonoBehaviour
     /// </summary>
     private void OnDestroy()
     {
+        GameEvents.OnUnitKilled -= On_Unit_Killed_Sync;
+
         if (unitDataMap.IsCreated) unitDataMap.Dispose();
         if (army_Datas.IsCreated) army_Datas.Dispose();
         if (collisionBodies.IsCreated) collisionBodies.Dispose();
+        transformSync.Dispose();
     }
 
     /// <summary>
@@ -412,6 +424,40 @@ public partial class Controller : MonoBehaviour
     private float[] armyMass;
 
     /// <summary>
+    /// 전 유닛 Transform을 Job으로 일괄 처리하는 동기화 계층입니다.
+    /// Transform 접근이 틱 비용의 26%를 차지해 이 경로로 옮겼습니다.
+    /// </summary>
+    private readonly Unit_Transform_Sync transformSync = new Unit_Transform_Sync();
+
+    /// <summary>동기화 배열을 다시 만들어야 하는지 여부입니다. (유닛 사망 시 등)</summary>
+    private bool btransformSyncDirty = true;
+
+    /// <summary>
+    /// 이번 프레임에 사망한 유닛 수입니다.
+    /// 0보다 크면 Transform이 파괴되었으므로 동기화 배열을 다시 만들어야 합니다.
+    /// GameEvents.OnUnitKilled 구독으로 채워집니다.
+    /// </summary>
+    private int deadThisFrame;
+
+    /// <summary>
+    /// 유닛 목록이 바뀌었음을 알립니다.
+    /// 다음 틱에 Transform 동기화 배열을 다시 만듭니다.
+    /// </summary>
+    public void Invalidate_Transform_Sync()
+    {
+        btransformSyncDirty = true;
+    }
+
+    /// <summary>
+    /// 유닛이 죽었을 때 호출됩니다.
+    /// Transform이 파괴되므로 동기화 배열을 다시 만들어야 합니다.
+    /// </summary>
+    private void On_Unit_Killed_Sync(Unit unit, Army victimArmy, Army killerArmy)
+    {
+        deadThisFrame++;
+    }
+
+    /// <summary>
     /// 전 유닛의 겹침을 격자로 해소합니다.
     ///
     /// 왜 물리 엔진을 쓰지 않는가:
@@ -436,6 +482,27 @@ public partial class Controller : MonoBehaviour
         }
 
         var bodies = collisionBodies.GetSubArray(0, count);
+
+        // Transform 동기화 배열을 준비합니다.
+        //
+        // 유닛이 죽어 Destroy되면 units[i]가 null이 되고, 그 자리의 Transform도
+        // 파괴됩니다. 파괴된 Transform이 배열에 남아 있으면 Job이 예외를 던지므로
+        // 사망이 발생한 틱에는 반드시 다시 만들어야 합니다.
+        //
+        // 매 틱 전수 검사는 비싸므로, 사망 이벤트로 갱신되는 카운터만 비교합니다.
+        if (btransformSyncDirty || transformSync.Count != count || deadThisFrame > 0)
+        {
+            transformSync.Rebuild(units);
+            btransformSyncDirty = false;
+            deadThisFrame = 0;
+        }
+
+        // 위치를 Job으로 일괄 읽습니다.
+        //
+        // 유닛마다 transform.position을 읽으면 네이티브 왕복이 인원수만큼
+        // 발생합니다. 9,600명 기준 6.12 ms였고, Job으로 옮기면 0.38 ms입니다.
+        transformSync.Read_Positions();
+        bool bsync = transformSync.IsCreated && transformSync.Count == count;
 
         // 1. 현재 상태를 모읍니다.
         //
@@ -475,7 +542,7 @@ public partial class Controller : MonoBehaviour
 
             bodies[i] = new Collision_Body
             {
-                position = u.transform.position,
+                position = bsync ? transformSync.positions[i] : u.transform.position,
                 radius = bvalid ? armyRadius[ai] : 0.3f,
                 mass = bvalid ? armyMass[ai] : 1.0f,
                 bdead = u.IsDead(),
@@ -511,18 +578,39 @@ public partial class Controller : MonoBehaviour
         grid.Dispose();
 
         // 3. 결과를 유닛에 반영합니다.
+        //
+        //    Transform 쓰기는 배열에만 담고, 마지막에 Job으로 한 번에 씁니다.
+        //    여기서 유닛마다 transform.position에 대입하면 네이티브 왕복이
+        //    인원수만큼 다시 발생합니다.
         for (int i = 0; i < count; i++)
         {
             Unit u = units[i];
             if (u == null) continue;
 
             Collision_Body b = bodies[i];
-            if (b.bdead) continue;
+            if (b.bdead)
+            {
+                // 죽은 유닛도 배열에는 현재 값을 유지해야 Write_Transforms가
+                // 엉뚱한 자리로 옮기지 않습니다.
+                if (bsync) transformSync.rotations[i] = u.unit_Data.rotation;
+                continue;
+            }
 
+            Vector3 p = b.position;
             if (b.separation.sqrMagnitude > 0.0000001f)
             {
-                u.transform.position += b.separation;
-                u.unit_Data.position = u.transform.position;
+                p += b.separation;
+                u.unit_Data.position = p;
+            }
+
+            if (bsync)
+            {
+                transformSync.positions[i] = p;
+                transformSync.rotations[i] = u.unit_Data.rotation;
+            }
+            else if (b.separation.sqrMagnitude > 0.0000001f)
+            {
+                u.transform.position = p;
             }
 
             // 적 접촉 정보는 물리 콜백 대신 여기서 채웁니다.
@@ -530,6 +618,10 @@ public partial class Controller : MonoBehaviour
             u.unit_Data.benemyContact = b.benemyContact;
             u.unit_Data.enemyContactNormal = b.enemyContactNormal;
         }
+
+        // 4. 위치와 회전을 Job으로 일괄 반영합니다.
+        //    이 한 번의 호출이 유닛마다 하던 Transform 쓰기 전부를 대체합니다.
+        if (bsync) transformSync.Write_Transforms();
 
         _Update_Army_Contact();
     }

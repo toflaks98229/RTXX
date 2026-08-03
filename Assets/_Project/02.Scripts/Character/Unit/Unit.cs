@@ -31,6 +31,18 @@ public partial class Unit : MonoBehaviour
     // Private member variables
     /// <summary>유닛이 속한 군대입니다.</summary>
     private Army army;
+
+    /// <summary>
+    /// Transform을 Controller가 일괄로 쓰는 모드인지 여부입니다.
+    ///
+    /// true면 유닛은 Transform을 직접 만지지 않고 unit_Data.position에만
+    /// 결과를 남깁니다. Controller._Update_Collision이 틱 마지막에
+    /// TransformAccessArray Job으로 전 유닛을 한 번에 반영합니다.
+    ///
+    /// 유닛마다 Transform에 대입하면 네이티브 왕복이 인원수만큼 발생해
+    /// 9,600명 기준 약 6 ms가 낭비됩니다. (Job으로 옮기면 0.6 ms)
+    /// </summary>
+    public static bool bbatchedTransform;
     /// <summary>유닛의 물리적 움직임을 제어하는 리지드바디입니다.</summary>
     private Rigidbody rigidbody;
     /// <summary>유닛의 충돌체입니다.</summary>
