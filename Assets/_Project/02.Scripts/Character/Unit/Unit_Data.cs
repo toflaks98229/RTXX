@@ -8,8 +8,31 @@ using UnityEngine;
 public partial struct Unit_Data
 {
     // Public member variables
-    /// <summary>유닛의 고유 번호입니다.</summary>
+    /// <summary>
+    /// 유닛의 전역 고유 번호입니다. 한 번 부여되면 죽을 때까지 바뀌지 않습니다.
+    ///
+    /// 이 값의 유일한 용도는 '이 유닛이 누구인가'를 식별하는 것입니다.
+    ///   - 표적 지정 : unit_Target_Data.num과 비교해 내 표적인지 확인
+    ///   - 피격 판정 : enemy.unit_Target_Data.num == num 으로 나를 친 공격을 찾음
+    ///   - 킬 귀속   : killerNum
+    ///
+    /// 배열 인덱스로 쓰면 안 됩니다. 그 용도로는 simIndex를 쓰십시오.
+    /// (예전에는 이 값 하나가 두 역할을 겸했고, 그래서 유닛을 재배치하는
+    ///  기능을 넣는 순간 표적 지정이 조용히 틀어지는 구조였습니다)
+    /// </summary>
     public int num;
+
+    /// <summary>
+    /// 시뮬레이션 배열에서 이 유닛이 차지한 자리입니다.
+    ///
+    /// Controller.units / transformSync / collisionBodies 세 배열이 모두
+    /// 이 인덱스로 정렬되어 있습니다. 유닛 목록이 재구성되면 바뀔 수 있으므로
+    /// 신원 확인에는 절대 쓰지 마십시오. 그건 num의 역할입니다.
+    ///
+    /// -1이면 아직 배열에 등록되지 않았다는 뜻입니다.
+    /// </summary>
+    public int simIndex;
+
     /// <summary>유닛이 플레이어 소속인지 여부입니다.</summary>
     public bool bPlayer;
     /// <summary>유닛의 현재 위치입니다.</summary>
@@ -125,6 +148,11 @@ public partial struct Unit_Data
     {
         this.num = num;
         this.armyIndex = armyIndex;
+
+        // 배열 자리는 아직 정해지지 않았습니다.
+        // Controller가 유닛 목록을 확정한 뒤 Assign_Sim_Index()로 채웁니다.
+        simIndex = -1;
+
         bPlayer = armyData.bplayer;
 
         position = unit.transform.position;
