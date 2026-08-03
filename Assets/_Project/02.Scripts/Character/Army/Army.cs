@@ -706,20 +706,44 @@ public partial class Army : MonoBehaviour
     {
         if (units.Count == 0) return;
 
+        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.A_Animation);
         _Apply_Unit_Animation();
-        _Update_Formation();
+        Tick_Profiler.End_Sub();
 
-        for (int i = 0; i < units.Count; i++)
+        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.A_Formation);
+        _Update_Formation();
+        Tick_Profiler.End_Sub();
+
+        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.A_UnitUpdate);
+
+        int applyCount = units.Count;
+
+        for (int i = 0; i < applyCount; i++)
         {
-            units[i].unit_Data = unit_Datas[i];
-            units[i]._Update();
+            Unit u = units[i];
+            if (u == null) continue;
+
+            // 264바이트 구조체를 한 번만 씁니다.
+            // units[i]를 두 번 인덱싱하지 않는 것도 함께 아낍니다.
+            u.unit_Data = unit_Datas[i];
+            u._Update();
         }
+
+        Tick_Profiler.End_Sub();
 
         // unit_Datas는 재사용 버퍼이므로 해제하지 않습니다. (OnDestroy에서 반납)
 
+        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.A_Charge);
         _Update_Charge_Impact(); // 돌격 충돌을 상대 부대의 사기 충격으로 정산
+        Tick_Profiler.End_Sub();
+
+        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.A_Dead);
         _Update_Dead();          // 사망 유닛 정리 및 부대 통계 갱신
+        Tick_Profiler.End_Sub();
+
+        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.A_Morale);
         _Update_Morale_Input();  // 다음 틱 사기 계산에 쓰일 상황값 산출
+        Tick_Profiler.End_Sub();
     }
 
     /// <summary>
