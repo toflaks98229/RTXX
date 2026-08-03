@@ -61,6 +61,12 @@ public static class Mass_Battle_Runner
             {
                 if (args[i] == "-noGroundSync") controller.bdisableGroundSync = true;
             }
+
+            // 패주 검증 플래그는 프로브가 런타임에 처리합니다.
+            //
+            // 여기서 사기를 낮춰도 소용이 없습니다. 플레이 모드 진입 후
+            // Army._Start()가 사기를 최댓값으로 되돌리기 때문입니다.
+            // 따라서 시뮬레이션이 시작된 뒤에 낮춰야 합니다.
         }
 
         // 배치 단계를 건너뛰고 바로 전투를 시작하게 합니다.

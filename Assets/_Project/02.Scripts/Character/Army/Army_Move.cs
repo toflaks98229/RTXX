@@ -125,6 +125,22 @@ partial class Army
 
         navMeshAgent.Move(movementVector);
 
+        // 기준점이 NavMesh 위에 남아 있도록 붙잡습니다.
+        //
+        // 왜 필요한가:
+        // 패주는 '적 반대 방향'으로 무작정 달리는 유일한 경로입니다.
+        // 다른 이동은 전부 명령받은 목적지가 있어 NavMesh 안에 머물지만,
+        // 패주는 전장 가장자리에 닿아도 계속 같은 방향으로 밀어붙입니다.
+        //
+        // NavMeshAgent.Move()는 에이전트가 NavMesh 위에 있을 때만 표면에
+        // 붙여 줍니다. 일단 벗어나면 그 보정이 사라져 기준점이 지형과
+        // 무관한 높이로 떠 버립니다. 실측에서 패주 부대의 기준점이
+        // 지면에서 43.9m까지 벌어졌고, 그 값이 계속 커졌습니다.
+        //
+        // 기준점이 뜨면 진형 슬롯도 함께 뜨고, 유닛은 닿을 수 없는 자리를
+        // 향해 달리게 됩니다. (유닛 자체는 지면 동기화로 붙어 있습니다)
+        Clamp_Pivot_To_NavMesh();
+
         // 달아나는 쪽을 바라보게 합니다.
         Quaternion lookRotation = Quaternion.LookRotation(direction, Vector3.up);
         formation_Move_Transform.rotation = Quaternion.RotateTowards(
@@ -137,6 +153,34 @@ partial class Army
         {
             if (units[i] == null) continue;
             units[i].Move_Escape(direction);
+        }
+    }
+
+    /// <summary>
+    /// 부대 기준점을 NavMesh 위로 되돌립니다.
+    ///
+    /// 이미 NavMesh 위에 있으면 아무 일도 하지 않습니다.
+    /// 벗어났을 때만 가장 가까운 지점으로 끌어당깁니다.
+    ///
+    /// 왜 SamplePosition을 쓰는가:
+    /// agent.Warp()는 에이전트를 강제로 옮기지만 NavMesh 밖이면 실패합니다.
+    /// SamplePosition으로 유효한 지점을 먼저 찾은 뒤 옮겨야 확실합니다.
+    /// </summary>
+    void Clamp_Pivot_To_NavMesh()
+    {
+        if (navMeshAgent == null) return;
+        if (!navMeshAgent.isActiveAndEnabled) return;
+
+        // NavMesh 위에 잘 있으면 건드릴 이유가 없습니다.
+        if (navMeshAgent.isOnNavMesh) return;
+
+        Vector3 position = formation_Move_Transform.position;
+
+        // 반경은 넉넉히 잡습니다. 한 틱에 벗어나는 거리보다 훨씬 커야
+        // 가장자리에서 튕겨 나간 뒤에도 되돌아올 수 있습니다.
+        if (NavMesh.SamplePosition(position, out NavMeshHit hit, 50.0f, NavMesh.AllAreas))
+        {
+            navMeshAgent.Warp(hit.position);
         }
     }
 

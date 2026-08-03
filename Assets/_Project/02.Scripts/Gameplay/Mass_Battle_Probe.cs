@@ -87,6 +87,7 @@ public class Mass_Battle_Probe : MonoBehaviour
         for (int i = 0; i < args.Length; i++)
         {
             if (args[i] == "-profile") Tick_Profiler.benabled = true;
+            if (args[i] == "-forceRout") bforceRout = true;
         }
 
         Tick_Profiler.Reset();
@@ -123,9 +124,24 @@ public class Mass_Battle_Probe : MonoBehaviour
             tickCount++;
         }
 
+        // 전투가 자리를 잡은 뒤 강제 패주를 겁니다.
+        // 시작하자마자 걸면 부대가 아직 배치 중이라 도주 방향이 정해지지 않습니다.
+        if (bforceRout && !broutForced && tickCount > 120)
+        {
+            broutForced = true;
+            Apply_Force_Rout();
+        }
+
         // 주기적으로 시뮬레이션 상태를 검증합니다.
         // 매 틱 전수 검사하면 그 비용이 측정값을 오염시키므로 간격을 둡니다.
         if (tickCount % 60 == 0) Validate();
+
+        // 패주 검사는 더 자주 합니다.
+        //
+        // 패주는 몇 초 만에 끝나는 짧은 상태입니다. 60틱(1초) 간격으로
+        // 보면 그 사이에 시작해 끝난 패주를 통째로 놓칩니다.
+        // 실제로 첫 시도에서 붕괴가 7회 일어났는데 표본은 0회였습니다.
+        if (tickCount % 10 == 0) Check_Rout_Ground_Alignment();
 
         if (measureTicks > 0 && tickCount >= measureTicks && !breported)
         {
@@ -205,6 +221,138 @@ public class Mass_Battle_Probe : MonoBehaviour
                $"틱 {tickCount}: armyIndex 불일치 {armyIndexMismatch}건 " +
                "(킬 귀속이 엉뚱한 부대로 기록됩니다)");
     }
+
+    /// <summary>
+    /// 적군을 강제로 패주시킬지 여부입니다. (-forceRout)
+    ///
+    /// 왜 필요한가:
+    /// 패주는 진형을 버리고 달아나는 별도 경로(Army.Move_Escape ->
+    /// Unit.Move_Escape)를 탑니다. 그 경로가 일반 이동과 같은 처리를
+    /// 받는지 확인하려면 실제로 패주가 일어나야 하는데,
+    /// 평상시 700틱 실행에서는 붕괴가 0회입니다.
+    /// </summary>
+    private bool bforceRout;
+
+    /// <summary>강제 패주를 이미 적용했는지 여부입니다.</summary>
+    private bool broutForced;
+
+    /// <summary>
+    /// 적군 부대의 사기를 붕괴 직전으로 낮춥니다.
+    ///
+    /// 상태를 직접 Broken으로 대입하지 않는 이유:
+    /// 그러면 시뮬레이션이 스스로 붕괴를 판정하는 경로(_Update_Morale)를
+    /// 건너뛰게 되어, 실제 패주와 다른 상태가 만들어질 수 있습니다.
+    /// 사기만 낮추고 판정은 시뮬레이션에 맡깁니다.
+    /// </summary>
+    private void Apply_Force_Rout()
+    {
+        if (controller == null || controller.armies == null) return;
+
+        int affected = 0;
+
+        for (int i = 0; i < controller.armies.Count; i++)
+        {
+            Army army = controller.armies[i];
+            if (army == null) continue;
+
+            // 적군만 무너뜨립니다. 양쪽이 다 도망가면 전투가 성립하지 않습니다.
+            if (army.army_Data.bplayer) continue;
+
+            army.army_Data.morale = 1.0f;
+            army.army_Data.morale_Target = 0.0f;
+
+            affected++;
+        }
+
+        Debug.Log($"[MassBattle] 패주 검증: 적군 {affected}개 부대의 사기를 낮췄습니다.");
+    }
+
+    /// <summary>패주 중인 유닛의 최대 지면 이격입니다.</summary>
+    private float worstRoutGap;
+
+    /// <summary>패주 중인 유닛을 실제로 표본에서 본 횟수입니다.</summary>
+    private int routSamples;
+
+    /// <summary>
+    /// 패주 중인 부대의 유닛만 따로 지면 밀착을 검사합니다.
+    ///
+    /// 왜 따로 보는가:
+    /// 전체 표본 검사는 9,600명에서 64명만 뽑으므로, 패주 부대가 소수일 때
+    /// 그 유닛이 표본에 잡히지 않을 수 있습니다. 그러면 패주 경로에
+    /// 문제가 있어도 "이탈 0%"로 통과해 버립니다.
+    ///
+    /// 패주는 진형을 버리고 달아나는 별도 경로(Move_Escape)를 타므로,
+    /// 일반 이동과 같은 처리를 받는지 명시적으로 확인해야 합니다.
+    /// </summary>
+    private void Check_Rout_Ground_Alignment()
+    {
+        if (controller == null || controller.armies == null) return;
+
+        const float tolerance = 1.0f;
+
+        for (int a = 0; a < controller.armies.Count; a++)
+        {
+            Army army = controller.armies[a];
+            if (army == null) continue;
+            if (!army.army_Data.IsBroken()) continue;
+
+            List<Unit> armyUnits = army.units;
+            if (armyUnits == null) continue;
+
+            // 부대마다 몇 명만 봅니다. 전수로 보면 레이캐스트가 폭증합니다.
+            int stride = Mathf.Max(1, armyUnits.Count / 8);
+
+            for (int i = 0; i < armyUnits.Count; i += stride)
+            {
+                Unit u = armyUnits[i];
+                if (u == null) continue;
+                if (u.IsDead()) continue;
+
+                Vector3 p = u.unit_Data.position;
+                Vector3 origin = p + Vector3.up * Unit_Ground_Sync.rayStartHeight;
+
+                if (!Physics.Raycast(origin, Vector3.down, out RaycastHit hit,
+                                     Unit_Ground_Sync.rayDistance,
+                                     Unit_Ground_Sync.Ground_Mask))
+                {
+                    continue;
+                }
+
+                routSamples++;
+
+                float gap = Mathf.Abs(p.y - hit.point.y);
+                if (gap > worstRoutGap) worstRoutGap = gap;
+
+                Record(gap > tolerance,
+                       $"틱 {tickCount}: 패주 중인 유닛이 지면에서 {gap:F1}m 벗어났습니다. " +
+                       "패주 경로가 지형 높이를 반영하지 않습니다.");
+            }
+
+            // 부대 기준점도 함께 봅니다.
+            //
+            // 기준점은 유닛과 전혀 다른 경로로 움직입니다.
+            // (NavMeshAgent.Move, 지면 동기화 대상이 아님)
+            // 진형 슬롯이 이 지점을 기준으로 생성되므로, 기준점이 뜨면
+            // 슬롯도 함께 떠서 유닛이 매 틱 위아래로 끌려다닙니다.
+            Vector3 pivot = army.formation_Move_Transform.position;
+            Vector3 pivotOrigin = pivot + Vector3.up * Unit_Ground_Sync.rayStartHeight;
+
+            if (Physics.Raycast(pivotOrigin, Vector3.down, out RaycastHit pivotHit,
+                                Unit_Ground_Sync.rayDistance,
+                                Unit_Ground_Sync.Ground_Mask))
+            {
+                float pivotGap = Mathf.Abs(pivot.y - pivotHit.point.y);
+                if (pivotGap > worstRoutPivotGap) worstRoutPivotGap = pivotGap;
+
+                Record(pivotGap > tolerance,
+                       $"틱 {tickCount}: 패주 부대의 기준점이 지면에서 " +
+                       $"{pivotGap:F1}m 벗어났습니다.");
+            }
+        }
+    }
+
+    /// <summary>패주 부대 기준점의 최대 지면 이격입니다.</summary>
+    private float worstRoutPivotGap;
 
     /// <summary>지면에서 떨어진 정도의 최댓값입니다. 검증 결과에 남깁니다.</summary>
     private float worstGroundGap;
@@ -342,6 +490,8 @@ public class Mass_Battle_Probe : MonoBehaviour
         sb.AppendLine("--- 지형 밀착 ---");
         sb.AppendLine($"최대 이격   : {worstGroundGap:F2} m");
         sb.AppendLine($"이탈 비율   : {groundOffRate * 100.0f:F0}% (표본 기준)");
+        sb.AppendLine($"패주 이격   : {worstRoutGap:F2} m (표본 {routSamples}회)");
+        sb.AppendLine($"패주 기준점 : {worstRoutPivotGap:F2} m");
         sb.AppendLine("--- 검증 ---");
 
         // 전투가 실제로 진행되었는지 확인합니다.
