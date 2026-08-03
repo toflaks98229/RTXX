@@ -25,6 +25,24 @@
 *.meta       text
 *.physicMaterial text
 
+# 바이너리로 저장되는 .asset 예외
+#
+# 위의 "*.asset text" 규칙은 .asset이 전부 YAML이라고 가정합니다.
+# 하지만 TerrainData와 NavMesh는 Force Text 설정과 무관하게 Unity가
+# 항상 바이너리로 씁니다. (용량이 크고 구조가 텍스트에 맞지 않기 때문입니다)
+#
+# 그 파일에 text 규칙이 걸리면 체크아웃 시 모든 0x0A 앞에 0x0D가 삽입되어
+# 파일이 통째로 깨집니다. 실제로 그 사고가 있었습니다.
+#   증상: "Invalid serialized file header" / "Unknown error occurred while loading"
+#   원인: core.autocrlf=true + *.asset text -> 264,819개의 LF가 전부 CRLF로 변환
+#
+# 새로 바이너리 .asset이 생기면(라이트맵, 오클루전 등) 여기에 추가하십시오.
+# 판별법: 파일 앞 5바이트가 "%YAML"이 아니면 바이너리입니다.
+*Terrain*.asset       binary
+NavMesh.asset         binary
+LightingData.asset    binary
+NavMesh-*.asset       binary
+
 # 바이너리 (자동 판별에 맡기지 않음)
 *.fbx        binary
 *.blend      binary
