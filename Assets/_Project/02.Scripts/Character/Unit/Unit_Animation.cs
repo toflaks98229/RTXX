@@ -169,6 +169,11 @@ public class Unit_Animation : MonoBehaviour
                      * Mathf.Max(0.4f, power);
     }
 
+    /// <summary>지난 틱에 적용한 스케일입니다. 값이 그대로면 쓰기를 건너뜁니다.</summary>
+    private float appliedScale = float.NaN;
+    /// <summary>지난 틱에 적용한 좌우 반전입니다.</summary>
+    private bool bappliedFlip;
+
     /// <summary>매 프레임마다 호출되어 애니메이션을 업데이트합니다.</summary>
     public void _Update()
     {
@@ -180,13 +185,23 @@ public class Unit_Animation : MonoBehaviour
         // 반동으로 순간적으로 커졌다가 원래 크기로 돌아옵니다.
         float scale = size * (1.0f + punchScale * flash);
 
-        if (unit_Animation_Data.bflip)
+        // 값이 바뀐 틱에만 씁니다.
+        //
+        // Transform 대입은 네이티브 마샬링이라 호출 자체에 비용이 있고,
+        // Unity 내부에서 자식 트랜스폼 갱신까지 유발합니다.
+        // 스케일이 흔들리는 순간은 피격 직후의 짧은 반동뿐이라,
+        // 대부분의 틱에서는 지난 값과 완전히 같습니다.
+        // 유닛 수만큼 곱해지는 비용이므로 이 검사 하나가 의미 있게 큽니다.
+        bool bflip = unit_Animation_Data.bflip;
+
+        if (bflip != bappliedFlip || scale != appliedScale)
         {
-            transform.localScale = new Vector3(scale, scale, scale);
-        }
-        else
-        {
-            transform.localScale = new Vector3(-scale, scale, scale);
+            transform.localScale = bflip
+                ? new Vector3(scale, scale, scale)
+                : new Vector3(-scale, scale, scale);
+
+            appliedScale = scale;
+            bappliedFlip = bflip;
         }
     }
 

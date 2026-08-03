@@ -866,7 +866,15 @@ partial class Unit
         Rotation();
     }
 
-    /// <summary>유닛의 회전을 업데이트합니다.</summary>
+    /// <summary>
+    /// 유닛의 회전을 업데이트합니다.
+    ///
+    /// 주의: 여기에 '값이 같으면 건너뛰기' 캐시를 넣으면 안 됩니다.
+    /// 이 유닛의 Rigidbody는 회전 구속(constraints)이 걸려 있지 않아
+    /// 충돌로 물리 엔진이 트랜스폼을 직접 돌릴 수 있습니다.
+    /// 그러면 캐시한 값과 실제 회전이 어긋나 유닛이 비스듬히 누운 채 굳습니다.
+    /// 시뮬레이션이 정한 자세를 매 틱 다시 덮어써야 안전합니다.
+    /// </summary>
     private void Rotation()
     {
         transform.rotation = unit_Data.rotation;
@@ -875,7 +883,17 @@ partial class Unit
     /// <summary>유닛의 이동을 처리합니다.</summary>
     private void Move()
     {
-        Apply_Move(unit_Data.GetMovementVector());
+        // Transform 접근은 네이티브 왕복이라 횟수 자체가 비용입니다.
+        // 위치를 한 번만 읽어 이동에 쓰고, 그 결과를 그대로 unit_Data에 옮깁니다.
+        // (예전에는 Apply_Move가 읽고 아래에서 또 읽어 틱당 2회였습니다)
+        Vector3 delta = unit_Data.GetMovementVector();
+        Vector3 position = transform.position;
+
+        if (delta.sqrMagnitude >= 0.0000001f)
+        {
+            position += delta;
+            transform.position = position;
+        }
 
         // 조향 목표는 '가야 할 자리'입니다.
         //
@@ -887,7 +905,7 @@ partial class Unit
         // 유닛은 배정받은 진형 슬롯으로 갈 뿐이므로, 목표 지점을 그대로 쓰면
         // 결과가 같으면서 경로탐색 비용이 사라집니다.
         unit_Data.steeringTarget = unit_Data.location;
-        unit_Data.position = transform.position;
+        unit_Data.position = position;
 
         switch (unit_Data.e_Unit_Move)
         {
