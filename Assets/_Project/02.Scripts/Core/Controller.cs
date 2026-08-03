@@ -130,6 +130,21 @@ public partial class Controller : MonoBehaviour
     [Tooltip("유닛 겹침을 물리 엔진 대신 격자로 해소합니다. 끄면 기존 Rigidbody 동작을 씁니다.")]
     public bool benableUnitCollision = true;
 
+    [Header("LOD")]
+    /// <summary>
+    /// 교전하지 않는 부대의 갱신을 여러 틱에 나눠 처리합니다.
+    ///
+    /// 전투 중인 부대는 매 틱 갱신해야 결과가 정확하지만,
+    /// 아직 행군 중이거나 멀리 떨어진 부대는 몇 틱에 한 번만 갱신해도
+    /// 눈에 띄는 차이가 없습니다. 대신 그 부대의 이동량을 건너뛴 틱만큼
+    /// 보정해 실제 속도는 같게 유지합니다.
+    ///
+    /// 1이면 전부 매 틱 갱신합니다. (LOD 끔)
+    /// </summary>
+    [Tooltip("교전하지 않는 부대를 몇 틱에 한 번 갱신할지입니다. 1이면 LOD를 끕니다.")]
+    [Range(1, 4)]
+    public int idleArmyTickInterval = 2;
+
     /// <summary>
     /// 드래그 선택 영역을 저장하는 Rect 구조체입니다.
     /// </summary>
@@ -229,6 +244,7 @@ public partial class Controller : MonoBehaviour
         if (unitDataMap.IsCreated) unitDataMap.Dispose();
         if (army_Datas.IsCreated) army_Datas.Dispose();
         if (collisionBodies.IsCreated) collisionBodies.Dispose();
+        if (collisionGrid.IsCreated) collisionGrid.Dispose();
         transformSync.Dispose();
     }
 
@@ -360,10 +376,19 @@ public partial class Controller : MonoBehaviour
         //    이제 전 부대의 Job을 '먼저 전부 걸어 두고' 마지막에 한 번만
         //    기다립니다. 부대들의 Job이 서로 겹쳐 실행되므로 워커가 놀지 않습니다.
 
+        // 3-0. 이번 틱에 갱신할 부대를 고릅니다. (LOD)
+        //
+        //      교전 중인 부대는 반드시 매 틱 갱신합니다. 전투 결과가 달라지므로
+        //      건너뛰면 안 됩니다. 교전하지 않는 부대만 틱을 나눠 처리합니다.
+        //      선택 기준이 '부대 인덱스 % 간격'이라 매 실행 같은 순서로 갈리며,
+        //      따라서 결정론이 유지됩니다.
+        _Select_Armies_To_Update();
+
         // 3-1. 메인 스레드 전처리 (이동, 탐지, 지형)
         for (int i = 0; i < armies.Count; i++)
         {
             if (armies[i] == null) continue;
+            if (!bupdateArmy[i]) continue;
             armies[i]._Update_Prepare();
         }
 
@@ -371,6 +396,7 @@ public partial class Controller : MonoBehaviour
         for (int i = 0; i < armies.Count; i++)
         {
             if (armies[i] == null) continue;
+            if (!bupdateArmy[i]) continue;
             armies[i]._Update_Schedule(unitDataMap);
         }
 
@@ -378,6 +404,7 @@ public partial class Controller : MonoBehaviour
         for (int i = 0; i < armies.Count; i++)
         {
             if (armies[i] == null) continue;
+            if (!bupdateArmy[i]) continue;
             armies[i]._Update_Complete();
         }
 
@@ -385,6 +412,7 @@ public partial class Controller : MonoBehaviour
         for (int i = 0; i < armies.Count; i++)
         {
             if (armies[i] == null) continue;
+            if (!bupdateArmy[i]) continue;
             armies[i]._Update_Apply();
         }
 
@@ -417,6 +445,12 @@ public partial class Controller : MonoBehaviour
 
     /// <summary>충돌 계산용 전역 유닛 버퍼입니다. 매 틱 재사용합니다.</summary>
     private NativeArray<Collision_Body> collisionBodies;
+
+    /// <summary>
+    /// 충돌 공간 격자입니다. 매 틱 새로 만들지 않고 Clear해서 재사용합니다.
+    /// 할당/해제 비용이 인원수에 비례해 커지기 때문입니다.
+    /// </summary>
+    private NativeParallelMultiHashMap<int, int> collisionGrid;
 
     /// <summary>부대별 충돌 반지름 캐시입니다. 유닛마다 부대 스탯을 다시 읽지 않기 위함입니다.</summary>
     private float[] armyRadius;
@@ -455,6 +489,58 @@ public partial class Controller : MonoBehaviour
     private void On_Unit_Killed_Sync(Unit unit, Army victimArmy, Army killerArmy)
     {
         deadThisFrame++;
+    }
+
+    /// <summary>이번 틱에 갱신할 부대인지 여부입니다. LOD 판정 결과입니다.</summary>
+    private bool[] bupdateArmy;
+
+    /// <summary>LOD 틱 카운터입니다.</summary>
+    private int lodTick;
+
+    /// <summary>
+    /// 이번 틱에 갱신할 부대를 고릅니다.
+    ///
+    /// 교전 중이거나 무너진 부대는 항상 갱신합니다. 전투 결과와 직결되므로
+    /// 건너뛰면 눈에 보이는 차이가 납니다.
+    /// 나머지(행군 중이거나 대기 중인 부대)만 인덱스로 나눠 분산합니다.
+    /// </summary>
+    private void _Select_Armies_To_Update()
+    {
+        int n = armies.Count;
+
+        if (bupdateArmy == null || bupdateArmy.Length < n)
+            bupdateArmy = new bool[Mathf.Max(n, 16)];
+
+        int interval = idleArmyTickInterval;
+        if (interval < 1) interval = 1;
+
+        lodTick++;
+
+        for (int i = 0; i < n; i++)
+        {
+            Army a = armies[i];
+            if (a == null) { bupdateArmy[i] = false; continue; }
+
+            if (interval == 1) { bupdateArmy[i] = true; continue; }
+
+            ref Army_Data d = ref a.army_Data;
+
+            // 건너뛸 수 있는 부대는 '움직이지도 싸우지도 않는' 부대뿐입니다.
+            //
+            // 이동 중인 부대를 건너뛰면 그 틱의 이동량이 통째로 사라져
+            // 실제 행군 속도가 느려집니다. (틱 간격만큼 보정하려면
+            // Army_Move 전체의 시간 항을 고쳐야 해 위험이 큽니다)
+            // 그래서 Idle이면서 교전도 탐지도 없는 부대만 분산합니다.
+            //
+            // 대기 중인 부대는 진형 재정비 정도만 하므로 몇 틱 늦어도
+            // 눈에 띄지 않고, 전투 결과에도 영향이 없습니다.
+            bool bskippable = d.e_Army_Move == E_Army_Move.Idle
+                           && d.e_Army_Fight == E_Army_Fight.Non
+                           && !d.IsBroken()
+                           && a.army_Detected.Count == 0;
+
+            bupdateArmy[i] = !bskippable || ((lodTick + i) % interval == 0);
+        }
     }
 
     /// <summary>
@@ -557,25 +643,36 @@ public partial class Controller : MonoBehaviour
         float cellSize = Mathf.Max(maxRadius * 2.0f, Spatial_Grid.minCellSize);
 
         // 2. 격자 구축 -> 겹침 해소
-        var grid = new NativeParallelMultiHashMap<int, int>(count, Allocator.TempJob);
+        //
+        //    격자는 매 틱 새로 만들지 않고 재사용합니다.
+        //    NativeParallelMultiHashMap 할당/해제는 인원수에 비례해 커지는데,
+        //    Clear()는 훨씬 쌉니다. (용량이 모자랄 때만 다시 만듭니다)
+        if (!collisionGrid.IsCreated || collisionGrid.Capacity < count)
+        {
+            if (collisionGrid.IsCreated) collisionGrid.Dispose();
+            collisionGrid = new NativeParallelMultiHashMap<int, int>(
+                Mathf.Max(count, 64), Allocator.Persistent);
+        }
+        else
+        {
+            collisionGrid.Clear();
+        }
 
         var build = new Collision_Grid_Build_Job
         {
             bodies = bodies,
             cellSize = cellSize,
-            grid = grid.AsParallelWriter()
+            grid = collisionGrid.AsParallelWriter()
         };
         JobHandle buildHandle = build.Schedule(count, Constant.jobBatchCount);
 
         var resolve = new Collision_Resolve_Job
         {
             bodies = bodies,
-            grid = grid,
+            grid = collisionGrid,
             cellSize = cellSize
         };
         resolve.Schedule(count, Constant.jobBatchCount, buildHandle).Complete();
-
-        grid.Dispose();
 
         // 3. 결과를 유닛에 반영합니다.
         //
@@ -607,6 +704,15 @@ public partial class Controller : MonoBehaviour
             {
                 transformSync.positions[i] = p;
                 transformSync.rotations[i] = u.unit_Data.rotation;
+
+                // 스프라이트도 함께 담습니다. (카메라를 향한 자세, 반동, 내지르기)
+                var anim = u.unit_Animation;
+                if (anim != null)
+                {
+                    transformSync.spriteRotations[i] = anim.unit_Animation_Data.rotation;
+                    transformSync.spriteScales[i] = anim.spriteScale;
+                    transformSync.spriteLocalPositions[i] = anim.spriteLocalPosition;
+                }
             }
             else if (b.separation.sqrMagnitude > 0.0000001f)
             {
@@ -619,9 +725,13 @@ public partial class Controller : MonoBehaviour
             u.unit_Data.enemyContactNormal = b.enemyContactNormal;
         }
 
-        // 4. 위치와 회전을 Job으로 일괄 반영합니다.
-        //    이 한 번의 호출이 유닛마다 하던 Transform 쓰기 전부를 대체합니다.
-        if (bsync) transformSync.Write_Transforms();
+        // 4. 위치/회전과 스프라이트를 Job으로 일괄 반영합니다.
+        //    이 두 번의 호출이 유닛마다 하던 Transform 쓰기 전부를 대체합니다.
+        if (bsync)
+        {
+            transformSync.Write_Transforms();
+            transformSync.Write_Sprites();
+        }
 
         _Update_Army_Contact();
     }

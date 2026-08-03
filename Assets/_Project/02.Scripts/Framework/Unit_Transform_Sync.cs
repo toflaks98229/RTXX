@@ -27,11 +27,20 @@ public class Unit_Transform_Sync
 {
     /// <summary>동기화 대상 Transform들입니다.</summary>
     private TransformAccessArray transforms;
+    /// <summary>스프라이트(자식) Transform들입니다.</summary>
+    private TransformAccessArray spriteTransforms;
 
     /// <summary>유닛 본체 위치입니다. Read_Positions가 채웁니다.</summary>
     public NativeArray<Vector3> positions;
     /// <summary>유닛 본체 회전입니다. Write_Transforms가 소비합니다.</summary>
     public NativeArray<Quaternion> rotations;
+
+    /// <summary>스프라이트 회전입니다. (카메라를 향한 자세)</summary>
+    public NativeArray<Quaternion> spriteRotations;
+    /// <summary>스프라이트 스케일입니다. (피격 반동 포함)</summary>
+    public NativeArray<Vector3> spriteScales;
+    /// <summary>스프라이트 로컬 위치입니다. (공격 내지르기 포함)</summary>
+    public NativeArray<Vector3> spriteLocalPositions;
 
     /// <summary>현재 등록된 유닛 수입니다.</summary>
     public int Count => transforms.isCreated ? transforms.length : 0;
@@ -55,16 +64,27 @@ public class Unit_Transform_Sync
         if (n == 0) return;
 
         var array = new Transform[n];
+        var sprites = new Transform[n];
+
         for (int i = 0; i < n; i++)
         {
             // null 유닛은 null Transform으로 둡니다.
             // TransformAccessArray는 null 항목의 Execute를 호출하지 않습니다.
-            array[i] = units[i] != null ? units[i].transform : null;
+            Unit u = units[i];
+            array[i] = u != null ? u.transform : null;
+            sprites[i] = (u != null && u.unit_Animation != null)
+                ? u.unit_Animation.transform : null;
         }
 
         transforms = new TransformAccessArray(array);
+        spriteTransforms = new TransformAccessArray(sprites);
+
         positions = new NativeArray<Vector3>(n, Allocator.Persistent);
         rotations = new NativeArray<Quaternion>(n, Allocator.Persistent);
+
+        spriteRotations = new NativeArray<Quaternion>(n, Allocator.Persistent);
+        spriteScales = new NativeArray<Vector3>(n, Allocator.Persistent);
+        spriteLocalPositions = new NativeArray<Vector3>(n, Allocator.Persistent);
     }
 
     /// <summary>Transform에서 현재 위치를 일괄로 읽어 옵니다.</summary>
@@ -85,12 +105,30 @@ public class Unit_Transform_Sync
             .Schedule(transforms).Complete();
     }
 
+    /// <summary>스프라이트 회전/스케일/로컬위치를 Transform에 일괄로 씁니다.</summary>
+    public void Write_Sprites()
+    {
+        if (!spriteTransforms.isCreated) return;
+        if (!spriteRotations.IsCreated) return;
+
+        new Write_Sprite_Job
+        {
+            rotations = spriteRotations,
+            scales = spriteScales,
+            localPositions = spriteLocalPositions
+        }.Schedule(spriteTransforms).Complete();
+    }
+
     /// <summary>네이티브 자원을 반납합니다.</summary>
     public void Dispose()
     {
         if (transforms.isCreated) transforms.Dispose();
+        if (spriteTransforms.isCreated) spriteTransforms.Dispose();
         if (positions.IsCreated) positions.Dispose();
         if (rotations.IsCreated) rotations.Dispose();
+        if (spriteRotations.IsCreated) spriteRotations.Dispose();
+        if (spriteScales.IsCreated) spriteScales.Dispose();
+        if (spriteLocalPositions.IsCreated) spriteLocalPositions.Dispose();
     }
 }
 
@@ -117,5 +155,27 @@ public struct Write_Transform_Job : IJobParallelForTransform
     {
         transform.position = positions[index];
         transform.rotation = rotations[index];
+    }
+}
+
+/// <summary>
+/// 스프라이트(자식) Transform에 회전/스케일/로컬위치를 쓰는 잡입니다.
+///
+/// 스프라이트는 카메라를 향해 서고, 피격 시 커졌다 줄고, 공격할 때
+/// 표적 쪽으로 짧게 내지릅니다. 이 세 가지를 유닛마다 메인 스레드에서
+/// 대입하면 9,600명 기준 7.44 ms가 듭니다.
+/// </summary>
+[BurstCompile]
+public struct Write_Sprite_Job : IJobParallelForTransform
+{
+    [ReadOnly] public NativeArray<Quaternion> rotations;
+    [ReadOnly] public NativeArray<Vector3> scales;
+    [ReadOnly] public NativeArray<Vector3> localPositions;
+
+    public void Execute(int index, TransformAccess transform)
+    {
+        transform.rotation = rotations[index];
+        transform.localScale = scales[index];
+        transform.localPosition = localPositions[index];
     }
 }
