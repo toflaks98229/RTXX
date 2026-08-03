@@ -738,14 +738,13 @@ partial class Unit
     /// <summary>유닛의 이동을 시작합니다.</summary>
     public void Move_Start()
     {
-        navMeshAgent.SetDestination(unit_Data.location);
+        // 경로탐색을 쓰지 않으므로 목표만 정하면 됩니다.
         unit_Data.Move_Start();
     }
 
     /// <summary>지정된 목표 트랜스폼으로 유닛 이동을 시작합니다.</summary>
     public void Move_Start(Transform targetMoveTo)
     {
-        navMeshAgent.SetDestination(targetMoveTo.position);
         this.targetMoveTo = targetMoveTo;
         unit_Data.Move_Start(targetMoveTo);
     }
@@ -753,7 +752,6 @@ partial class Unit
     /// <summary>지정된 위치로 유닛 이동을 시작합니다.</summary>
     public void Move_Start(Vector3 location)
     {
-        navMeshAgent.SetDestination(location);
         Quaternion direction = Quaternion.LookRotation(army.GetFormation_Direction(), Vector3.up);
         direction = direction * Quaternion.Euler(new Vector3(0, -90.0f, 0));
 
@@ -801,7 +799,7 @@ partial class Unit
 
         Vector3 step = direction.normalized * speed * Constant.deltaTime;
 
-        navMeshAgent.Move(step);
+        Apply_Move(step);
 
         unit_Data.position = transform.position;
 
@@ -821,7 +819,7 @@ partial class Unit
         float speed = army.army_Data.GetMoveSpeed() * Constant.rout_Speed_Rate;
         Vector3 escapeVector = direction.normalized * speed * Constant.deltaTime;
 
-        navMeshAgent.Move(escapeVector);
+        Apply_Move(escapeVector);
 
         unit_Data.position = transform.position;
 
@@ -852,30 +850,56 @@ partial class Unit
     /// <summary>유닛의 이동을 처리합니다.</summary>
     private void Move()
     {
-        navMeshAgent.Move(unit_Data.GetMovementVector());
+        Apply_Move(unit_Data.GetMovementVector());
 
-        unit_Data.steeringTarget = navMeshAgent.steeringTarget;
+        // 조향 목표는 '가야 할 자리'입니다.
+        //
+        // 예전에는 navMeshAgent.steeringTarget을 읽었습니다. 그러려면 매 틱
+        // SetDestination()으로 경로를 다시 뽑아야 했고, 그 두 호출이
+        // 600명 기준 틱당 88ms로 프레임 예산(16.6ms)의 5배를 먹고 있었습니다.
+        //
+        // 유닛은 스스로 길을 찾지 않습니다. 부대 기준점이 NavMesh를 따라 움직이고
+        // 유닛은 배정받은 진형 슬롯으로 갈 뿐이므로, 목표 지점을 그대로 쓰면
+        // 결과가 같으면서 경로탐색 비용이 사라집니다.
+        unit_Data.steeringTarget = unit_Data.location;
         unit_Data.position = transform.position;
 
         switch (unit_Data.e_Unit_Move)
         {
             case E_Unit_Move.Move:
-                if (unit_Data.btargetMoveTo)
+                if (unit_Data.btargetMoveTo && targetMoveTo != null)
                 {
-                    navMeshAgent.SetDestination(targetMoveTo.position);
+                    unit_Data.location = targetMoveTo.position;
                     unit_Data.targetVector = targetMoveTo.position;
+                    unit_Data.steeringTarget = targetMoveTo.position;
                 }
                 break;
             case E_Unit_Move.Idle:
                 if (unit_Data.btarget)
                 {
-                    navMeshAgent.SetDestination(unit_Data.unit_Target_Data.position);
+                    // 교전 중에는 표적 쪽으로 향합니다.
+                    unit_Data.steeringTarget = unit_Data.unit_Target_Data.position;
                 }
                 break;
         }
 
         if (unit_Data.bstop)
             Move_Stop();
+    }
+
+    /// <summary>
+    /// 유닛을 실제로 옮깁니다.
+    ///
+    /// NavMeshAgent.Move() 대신 Transform을 직접 옮깁니다.
+    /// 에이전트를 거치면 내부 경로/조향 상태를 갱신하느라 호출당 비용이 크고,
+    /// 이 프로젝트의 유닛은 애초에 경로탐색을 쓰지 않습니다.
+    /// 유닛 간 겹침은 Rigidbody 충돌과 밀어내기 로직이 이미 처리합니다.
+    /// </summary>
+    private void Apply_Move(Vector3 delta)
+    {
+        if (delta.sqrMagnitude < 0.0000001f) return;
+
+        transform.position += delta;
     }
 
     /// <summary>유닛의 이동을 중지합니다.</summary>
@@ -931,6 +955,6 @@ partial class Unit
         }
 
         pushVector = pushVector.normalized * Constant.speed_Walk * Constant.engage_Push_Rate * Constant.deltaTime;
-        navMeshAgent.Move(pushVector);
+        Apply_Move(pushVector);
     }
 }

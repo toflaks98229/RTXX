@@ -19,6 +19,28 @@ partial class Army
 
     // 비공개 메서드
     /// <summary>
+    /// 표적을 정하고 전투 Job을 스케줄합니다. 완료 대기는 _Complete_Target()이 합니다.
+    /// </summary>
+    void _Schedule_Target()
+    {
+        _Update_Target();
+    }
+
+    /// <summary>
+    /// 전투 Job이 끝나기를 기다리고 임시 자원을 반납합니다.
+    /// </summary>
+    void _Complete_Target()
+    {
+        if (!bfightJobScheduled) return;
+
+        fightJobHandle.Complete();
+        bfightJobScheduled = false;
+
+        // 격자는 틱마다 인원이 달라져 크기가 변하므로 재사용하지 않고 반납합니다.
+        if (fightGrid.IsCreated) fightGrid.Dispose();
+    }
+
+    /// <summary>
     /// 타겟 업데이트를 처리하는 함수입니다.
     /// </summary>
     void _Update_Target()
@@ -203,12 +225,12 @@ partial class Army
         // 이렇게 하면 내 유닛이 적 '전부'가 아니라 인접 셀만 검사하면 됩니다.
         float cellSize = Spatial_Grid.GetCellSize(army_Data, targetArmy.army_Data);
 
-        var targetGrid = new NativeParallelMultiHashMap<int, int>(targetCount, Allocator.TempJob);
+        fightGrid = new NativeParallelMultiHashMap<int, int>(targetCount, Allocator.TempJob);
 
         Spatial_Grid_Build_Job buildJob = new Spatial_Grid_Build_Job();
         buildJob.unit_Datas = targetDatas;
         buildJob.cellSize = cellSize;
-        buildJob.grid = targetGrid.AsParallelWriter();
+        buildJob.grid = fightGrid.AsParallelWriter();
 
         // 반드시 targetCount만큼만 색인합니다. (버퍼 .Length가 아닙니다)
         JobHandle buildHandle = buildJob.Schedule(targetCount, Constant.jobBatchCount);
@@ -217,7 +239,7 @@ partial class Army
         Unit_Fight_Job unit_Fight_Job = new Unit_Fight_Job();
         unit_Fight_Job.unit_Datas = unit_Datas;
         unit_Fight_Job.target_Unit_Datas = targetDatas;
-        unit_Fight_Job.targetGrid = targetGrid;
+        unit_Fight_Job.targetGrid = fightGrid;
         unit_Fight_Job.cellSize = cellSize;
         unit_Fight_Job.armyData = army_Data;
         unit_Fight_Job.targetArmyData = targetArmy.army_Data;
@@ -225,10 +247,17 @@ partial class Army
         // '유닛마다 다른' 난수가 됩니다. 0은 Random 생성자가 거부하므로 피합니다.
         unit_Fight_Job.randomSeed = (uint)Random.Range(1, int.MaxValue);
 
-        JobHandle jobHandle = unit_Fight_Job.Schedule(units.Count, Constant.jobBatchCount, buildHandle);
-        jobHandle.Complete();
+        // 의존성 주의:
+        // 이 Job은 unit_Datas에 씁니다. 같은 배열에 쓰는 Unit_Job이 아직
+        // 끝나지 않았을 수 있으므로 반드시 그 핸들 뒤에 이어 붙여야 합니다.
+        // (안 그러면 두 Job이 같은 메모리를 동시에 써 결과가 뒤엉킵니다)
+        JobHandle dependency = JobHandle.CombineDependencies(buildHandle, unitJobHandle);
 
-        targetGrid.Dispose();
+        fightJobHandle = unit_Fight_Job.Schedule(units.Count, Constant.jobBatchCount, dependency);
+        bfightJobScheduled = true;
+
+        // 여기서 Complete()하지 않습니다. 전 부대가 스케줄을 끝낸 뒤
+        // Controller가 일괄로 기다립니다.
         // target_Unit_Datas는 재사용 버퍼이므로 해제하지 않습니다. (OnDestroy에서 반납)
     }
 }

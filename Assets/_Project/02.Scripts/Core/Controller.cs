@@ -328,10 +328,41 @@ public partial class Controller : MonoBehaviour
             armies[i].army_Data = army_Datas[i];
         }
 
-        // 3. 각 Army에 조회 테이블을 전달해 갱신합니다.
+        // 3. 부대 갱신을 4단계로 나눠 돌립니다.
+        //
+        //    예전에는 armies[i]._Update() 하나가 Job 스케줄과 Complete()를
+        //    함께 했습니다. 그러면 부대마다 메인 스레드가 워커를 기다려
+        //    부대 12개면 틱당 24회 이상 멈추고, 부대 간 병렬성이 0이 됩니다.
+        //
+        //    이제 전 부대의 Job을 '먼저 전부 걸어 두고' 마지막에 한 번만
+        //    기다립니다. 부대들의 Job이 서로 겹쳐 실행되므로 워커가 놀지 않습니다.
+
+        // 3-1. 메인 스레드 전처리 (이동, 탐지, 지형)
         for (int i = 0; i < armies.Count; i++)
         {
-            armies[i]._Update(unitDataMap);
+            if (armies[i] == null) continue;
+            armies[i]._Update_Prepare();
+        }
+
+        // 3-2. Job 스케줄만 (여기서 기다리지 않습니다)
+        for (int i = 0; i < armies.Count; i++)
+        {
+            if (armies[i] == null) continue;
+            armies[i]._Update_Schedule(unitDataMap);
+        }
+
+        // 3-3. 완료 대기
+        for (int i = 0; i < armies.Count; i++)
+        {
+            if (armies[i] == null) continue;
+            armies[i]._Update_Complete();
+        }
+
+        // 3-4. 결과 반영과 사후 정산
+        for (int i = 0; i < armies.Count; i++)
+        {
+            if (armies[i] == null) continue;
+            armies[i]._Update_Apply();
         }
 
         // 4. 부대 간 상호작용(사기 충격, 연쇄 붕괴, 피격 점멸)을 일괄 정산합니다.

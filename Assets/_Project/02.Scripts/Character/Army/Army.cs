@@ -164,6 +164,21 @@ public partial class Army : MonoBehaviour
     private NativeArray<Unit_Animation_Data> unitAnimationDatas;
 
     /// <summary>
+    /// 이번 틱에 건 유닛 Job 체인의 핸들입니다.
+    /// 스케줄 단계와 완료 대기 단계가 분리되어 있어 사이에 들고 있어야 합니다.
+    /// </summary>
+    private JobHandle unitJobHandle;
+    /// <summary>이번 틱에 유닛 Job을 실제로 걸었는지 여부입니다.</summary>
+    private bool bunitJobScheduled;
+
+    /// <summary>이번 틱에 건 전투 Job의 핸들입니다.</summary>
+    private JobHandle fightJobHandle;
+    /// <summary>이번 틱에 전투 Job을 실제로 걸었는지 여부입니다.</summary>
+    private bool bfightJobScheduled;
+    /// <summary>전투 Job이 쓰던 공간 격자입니다. 완료 후 해제해야 합니다.</summary>
+    private NativeParallelMultiHashMap<int, int> fightGrid;
+
+    /// <summary>
     /// 네이티브 버퍼가 요청한 크기 이상이 되도록 보장합니다.
     /// 모자라면 더 크게 다시 할당하고, 충분하면 그대로 씁니다.
     /// </summary>
@@ -302,6 +317,11 @@ public partial class Army : MonoBehaviour
         // 정적 이벤트 구독은 반드시 해지해야 합니다.
         // 남겨 두면 파괴된 부대가 호출되어 예외가 납니다.
         GameEvents.OnArmyRouted -= On_Other_Army_Routed;
+
+        // 진행 중인 Job이 있으면 반드시 끝내고 반납해야 합니다.
+        // 아직 도는 Job이 참조하는 버퍼를 해제하면 즉시 크래시가 납니다.
+        _Complete_Unit();
+        _Complete_Target();
 
         // Persistent로 잡아 둔 재사용 버퍼를 반납합니다.
         Dispose_Buffers();
@@ -451,6 +471,21 @@ public partial class Army : MonoBehaviour
     /// <param name="unitDataMap">모든 유닛의 데이터를 담고 있는 해시맵입니다.</param>
     public void _Update(NativeHashMap<EntityId, Unit_Data> unitDataMap)
     {
+        // 단일 호출 경로입니다. 4단계를 순서대로 실행합니다.
+        // Controller는 부대 간 병렬성을 얻기 위해 단계별로 나눠 호출하지만,
+        // 테스트나 단독 사용을 위해 이 형태도 유지합니다.
+        _Update_Prepare();
+        _Update_Schedule(unitDataMap);
+        _Update_Complete();
+        _Update_Apply();
+    }
+
+    /// <summary>
+    /// 0단계: 사망 유닛을 정리하고 전멸 여부를 판정합니다.
+    /// 이후 단계들은 이 결과(units.Count)를 보고 스스로 건너뜁니다.
+    /// </summary>
+    public void _Update_Prepare()
+    {
         // 파괴되었거나 사망 처리가 끝난 유닛을 리스트에서 제거합니다.
         // 뒤에서부터 순회해야 인덱스가 밀리지 않습니다.
         for (int i = units.Count - 1; i >= 0; i--)
@@ -469,10 +504,37 @@ public partial class Army : MonoBehaviour
             return;
         }
 
-        _Upadate_Data(); // 부대 데이터 업데이트
-        _Update_Terrain(); // 고지 우위와 경사 갱신
+        _Update_Begin();
+    }
+
+    // =====================================================================
+    // 틱을 3단계로 나눈 이유
+    //
+    // 예전에는 _Update() 하나가 Job 스케줄과 Complete()를 함께 했습니다.
+    // 그러면 부대마다 메인 스레드가 멈춰 워커를 기다리므로,
+    // 부대가 12개면 틱당 24회 이상 스톨이 생기고 부대 간 병렬성은 0이 됩니다.
+    // 유닛을 2배로 늘려도 Job 시간만 2배지, 스톨 횟수는 부대 수에 그대로 비례합니다.
+    //
+    // 이제 Controller가 전 부대에 대해
+    //   1) _Update_Begin      : 메인 스레드 전처리 (이동, 탐지, 지형)
+    //   2) _Update_Schedule   : Job을 '걸어만' 둠
+    //   3) _Update_Complete   : 여기서 한 번만 대기
+    //   4) _Update_Apply      : 결과 반영과 사후 정산
+    // 을 단계별로 돌립니다. 2번이 모든 부대에 대해 끝난 뒤 3번이 오므로
+    // 부대들의 Job이 서로 겹쳐 실행됩니다.
+    //
+    // 결정론: 1번은 틱 시작 시점의 스냅샷만 읽고, 부대 간 상호작용(사기 충격)은
+    // 이미 지연 큐로 분리되어 있어 단계를 나눠도 결과가 달라지지 않습니다.
+    // =====================================================================
+
+    /// <summary>1단계: 메인 스레드 전처리입니다. Job을 걸기 전에 끝나야 합니다.</summary>
+    private void _Update_Begin()
+    {
+        _Upadate_Data();     // 부대 데이터 + 평균 위치 캐시
+        _Update_Terrain();   // 고지 우위와 경사
         _Update_Detection(); // 사거리 안의 적을 접촉 없이 탐지
-        _Update_Move(); // 이동 상태 업데이트
+        _Update_Move();      // 이동 상태
+        _Update_Flag();      // 깃발 위치
 
         // 재사용 버퍼입니다. 실제 인원보다 클 수 있으므로 항상 units.Count까지만 씁니다.
         Ensure_Capacity(ref unit_Datas, units.Count);
@@ -480,11 +542,33 @@ public partial class Army : MonoBehaviour
         {
             unit_Datas[i] = units[i].unit_Data;
         }
+    }
 
-        _Update_Flag(); // 깃발 위치 업데이트
-        _Update_Unit(unitDataMap); // 유닛 상태 업데이트
-        _Update_Target(); // 타겟 상태 및 전투 정산
-        _Update_Formation(); // 진형 상태 업데이트
+    /// <summary>2단계: Job을 스케줄만 하고 즉시 반환합니다. 여기서 기다리지 않습니다.</summary>
+    public void _Update_Schedule(NativeHashMap<EntityId, Unit_Data> unitDataMap)
+    {
+        if (units.Count == 0) return;
+
+        _Schedule_Unit(unitDataMap); // 레이캐스트 -> 유닛 -> 애니메이션 체인
+        _Schedule_Target();          // 표적 선정 + 전투 정산
+    }
+
+    /// <summary>3단계: 이 부대가 건 Job들이 끝나기를 기다립니다.</summary>
+    public void _Update_Complete()
+    {
+        if (units.Count == 0) return;
+
+        _Complete_Unit();
+        _Complete_Target();
+    }
+
+    /// <summary>4단계: Job 결과를 유닛에 반영하고 사후 정산을 합니다.</summary>
+    public void _Update_Apply()
+    {
+        if (units.Count == 0) return;
+
+        _Apply_Unit_Animation();
+        _Update_Formation();
 
         for (int i = 0; i < units.Count; i++)
         {
@@ -495,8 +579,8 @@ public partial class Army : MonoBehaviour
         // unit_Datas는 재사용 버퍼이므로 해제하지 않습니다. (OnDestroy에서 반납)
 
         _Update_Charge_Impact(); // 돌격 충돌을 상대 부대의 사기 충격으로 정산
-        _Update_Dead(); // 사망 유닛 정리 및 부대 통계 갱신
-        _Update_Morale_Input(); // 다음 틱 사기 계산에 쓰일 상황값 산출
+        _Update_Dead();          // 사망 유닛 정리 및 부대 통계 갱신
+        _Update_Morale_Input();  // 다음 틱 사기 계산에 쓰일 상황값 산출
     }
 
     /// <summary>
@@ -1080,10 +1164,11 @@ public partial class Army : MonoBehaviour
     }
 
     /// <summary>
-    /// 유닛의 상태를 업데이트합니다.
+    /// 유닛 관련 Job(레이캐스트 -> 유닛 -> 애니메이션)을 스케줄만 합니다.
+    /// 완료 대기는 _Complete_Unit()에서 별도로 합니다.
     /// </summary>
     /// <param name="unitDataMap">모든 유닛의 데이터를 담고 있는 해시맵입니다.</param>
-    public void _Update_Unit(NativeHashMap<EntityId, Unit_Data> unitDataMap)
+    private void _Schedule_Unit(NativeHashMap<EntityId, Unit_Data> unitDataMap)
     {
         if (units.Count == 0) return;
 
@@ -1111,6 +1196,19 @@ public partial class Army : MonoBehaviour
             commands[i] = new RaycastCommand(origin, direction, maxDistance, layerMask);
         }
 
+        // 애니메이션 입력을 '스케줄 전에' 채웁니다.
+        //
+        // 순서 주의: Job을 건 뒤에 이 배열에 쓰면, 아직 도는 Job이 같은 메모리를
+        // 읽고 있어 Unity의 Job 안전 시스템이 예외를 던집니다.
+        // 메인 스레드 쓰기는 반드시 스케줄보다 앞서야 합니다.
+        Ensure_Capacity(ref unitAnimationDatas, units.Count);
+        var unit_Animation_Datas = unitAnimationDatas.GetSubArray(0, units.Count);
+
+        for (int i = 0; i < units.Count; i++)
+        {
+            unit_Animation_Datas[i] = units[i].unit_Animation.unit_Animation_Data;
+        }
+
         // 3. 레이캐스트 배치 잡(Batch Job) 스케줄링
         JobHandle raycastHandle = RaycastCommand.ScheduleBatch(commands, results, Constant.jobBatchCount);
 
@@ -1122,15 +1220,8 @@ public partial class Army : MonoBehaviour
         unit_Job.armyData = army_Data;
 
         // raycastHandle이 완료된 후에 unit_Job을 실행하도록 의존성 설정
-        JobHandle unitJobHandle = unit_Job.Schedule(units.Count, Constant.jobBatchCount, raycastHandle);
-
-        Ensure_Capacity(ref unitAnimationDatas, units.Count);
-        var unit_Animation_Datas = unitAnimationDatas.GetSubArray(0, units.Count);
-
-        for (int i = 0; i < units.Count; i++)
-        {
-            unit_Animation_Datas[i] = units[i].unit_Animation.unit_Animation_Data;
-        }
+        // (필드 unitJobHandle에 바로 담습니다. 지역 변수로 가리면 안 됩니다)
+        unitJobHandle = unit_Job.Schedule(units.Count, Constant.jobBatchCount, raycastHandle);
 
         Unit_Animation_Job unit_Animation_Job;
         unit_Animation_Job = new Unit_Animation_Job();
@@ -1140,18 +1231,35 @@ public partial class Army : MonoBehaviour
         unit_Animation_Job.cam_Rotation = Main_Camera.GetTransform().rotation;
 
         // 5. 애니메이션 잡은 Unit_Job이 끝난 후에 실행되도록 의존성 체인 연결
-        JobHandle animationJobHandle = unit_Animation_Job.Schedule(units.Count, Constant.jobBatchCount, unitJobHandle);
+        //    여기서 Complete()하지 않습니다. 다른 부대의 Job도 먼저 걸어 두어야
+        //    부대들이 서로 겹쳐 실행됩니다.
+        unitJobHandle = unit_Animation_Job.Schedule(units.Count, Constant.jobBatchCount, unitJobHandle);
+        bunitJobScheduled = true;
+    }
 
-        // 6. 모든 잡(레이캐스트 -> 유닛 -> 애니메이션)이 끝날 때까지 대기
-        animationJobHandle.Complete();
+    /// <summary>유닛 Job 체인이 끝나기를 기다립니다.</summary>
+    private void _Complete_Unit()
+    {
+        if (!bunitJobScheduled) return;
 
-        // 7. 결과 반영 및 메모리 해제
-        for (int i = 0; i < units.Count; i++)
+        unitJobHandle.Complete();
+        bunitJobScheduled = false;
+    }
+
+    /// <summary>Job이 계산한 애니메이션 데이터를 컴포넌트에 되돌려 반영합니다.</summary>
+    private void _Apply_Unit_Animation()
+    {
+        if (units.Count == 0) return;
+        if (!unitAnimationDatas.IsCreated) return;
+
+        int count = Mathf.Min(units.Count, unitAnimationDatas.Length);
+
+        for (int i = 0; i < count; i++)
         {
-            units[i].unit_Animation.unit_Animation_Data = unit_Animation_Datas[i];
+            units[i].unit_Animation.unit_Animation_Data = unitAnimationDatas[i];
         }
 
-        for (int i = 0; i < units.Count; i++)
+        for (int i = 0; i < count; i++)
         {
             units[i].unit_Animation._Update();
         }

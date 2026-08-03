@@ -48,9 +48,21 @@ public partial class Unit : MonoBehaviour
 
         unit_Data = new Unit_Data(this, num, army.army_Data, armyIndex);
 
+        // NavMeshAgent는 이제 선택 사항입니다.
+        //
+        // 유닛은 스스로 길을 찾지 않습니다. 부대 기준점이 NavMesh를 따라 움직이고
+        // 유닛은 배정받은 진형 슬롯으로 갈 뿐입니다. 그런데도 매 틱
+        // SetDestination()/Move()를 부르고 있어서, 600명 기준 틱당 88ms
+        // (프레임 예산의 5배)를 경로탐색에 쓰고 있었습니다.
+        //
+        // 지금은 Transform을 직접 옮기므로 에이전트가 없어도 동작합니다.
+        // 프리팹에서 컴포넌트를 떼면 유닛당 메모리도 함께 줄어듭니다.
         navMeshAgent = GetComponent<NavMeshAgent>();
-        navMeshAgent.isStopped = true;
-        navMeshAgent.updateRotation = false;
+        if (navMeshAgent != null)
+        {
+            navMeshAgent.isStopped = true;
+            navMeshAgent.updateRotation = false;
+        }
 
         capsuleCollider = GetComponent<CapsuleCollider>();
         colliderEntityId = capsuleCollider.GetEntityId();
