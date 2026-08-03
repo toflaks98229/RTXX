@@ -34,27 +34,36 @@ public static class Balance
     /// <summary>SharedStatic 식별용 태그 타입입니다. 인스턴스를 만들지 않습니다.</summary>
     private class Balance_Data_Key { }
 
-    /// <summary>초기화 여부입니다. 관리 측에서만 확인하므로 일반 static으로 충분합니다.</summary>
-    private static bool binitialized;
-
     /// <summary>
     /// 현재 적용된 밸런스 수치입니다.
     ///
-    /// 최초 접근 시 자동으로 기본값이 채워집니다. 따라서 Balance_Config를
-    /// 씬에 두지 않아도 리팩토링 이전과 완전히 동일하게 동작합니다.
+    /// Burst 주의:
+    /// 예전에는 여기서 binitialized(일반 static bool)를 검사해 지연 초기화를
+    /// 했습니다. 그런데 Burst는 readonly가 아닌 static 필드를 읽지 못합니다.
     ///
-    /// 주의: Burst Job 안에서는 이 프로퍼티가 아니라 Data를 통해 접근해야 합니다.
-    /// (프로퍼티 자체는 Burst에서도 인라인되므로 실제로는 양쪽 모두 안전합니다)
+    ///   Burst error BC1040: Loading from a non-readonly static field
+    ///   `Balance.binitialized` is not supported
+    ///
+    /// 이 프로퍼티는 Unit_Fight_Job과 Army_Data._Update 등 거의 모든 Burst
+    /// Job이 읽으므로, 그 Job들이 통째로 Burst 컴파일에 실패해 느린 관리
+    /// 코드로 실행되고 있었습니다. 최적화의 근간이 조용히 무력화된 셈입니다.
+    ///
+    /// 초기화는 정적 생성자로 옮겼습니다. 정적 생성자는 관리 측에서 타입에
+    /// 처음 접근할 때 한 번 돌고, Burst 코드는 이미 초기화된 네이티브
+    /// 메모리만 보므로 양쪽 모두 안전합니다.
     /// </summary>
-    public static ref Balance_Data Data
+    public static ref Balance_Data Data => ref store.Data;
+
+    /// <summary>
+    /// 기본값을 채워 둡니다.
+    ///
+    /// 정적 생성자는 이 타입에 처음 접근하는 시점에 한 번만 실행됩니다.
+    /// Controller.Awake가 Balance_Config를 적용하기 전에도 유효한 값이
+    /// 들어 있게 하는 것이 목적입니다.
+    /// </summary>
+    static Balance()
     {
-        get
-        {
-            // Burst 코드에서는 이 분기가 실행되지 않지만,
-            // 관리 코드가 먼저 한 번은 반드시 거치므로 초기화가 보장됩니다.
-            if (!binitialized) Reset_To_Default();
-            return ref store.Data;
-        }
+        store.Data = Balance_Data.Default();
     }
 
     /// <summary>
@@ -63,7 +72,6 @@ public static class Balance
     public static void Apply(in Balance_Data data)
     {
         store.Data = data;
-        binitialized = true;
     }
 
     /// <summary>
@@ -73,6 +81,5 @@ public static class Balance
     public static void Reset_To_Default()
     {
         store.Data = Balance_Data.Default();
-        binitialized = true;
     }
 }

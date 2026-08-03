@@ -268,7 +268,16 @@ partial class Army
         // 이 Job은 unit_Datas에 씁니다. 같은 배열에 쓰는 Unit_Job이 아직
         // 끝나지 않았을 수 있으므로 반드시 그 핸들 뒤에 이어 붙여야 합니다.
         // (안 그러면 두 Job이 같은 메모리를 동시에 써 결과가 뒤엉킵니다)
-        JobHandle dependency = JobHandle.CombineDependencies(buildHandle, unitJobHandle);
+        // 의존성 주의:
+        // 이 Job은 unit_Datas에 씁니다. 같은 배열을 '읽는' 자세 추출 Job이
+        // 아직 돌고 있으면 Unity의 Job 안전 시스템이 예외를 던집니다.
+        // (읽기-쓰기 충돌은 병렬로 둘 수 없습니다)
+        //
+        // 그래서 애니메이션 갈래의 첫 단계인 추출까지 기다린 뒤 씁니다.
+        // 추출은 자세만 복사하는 아주 짧은 Job이라 이 대기는 저렴하고,
+        // 정작 무거운 애니메이션 계산은 그 뒤에서 계속 병렬로 돕니다.
+        JobHandle dependency = JobHandle.CombineDependencies(
+            buildHandle, unitJobHandle, poseExtractHandle);
 
         fightJobHandle = unit_Fight_Job.Schedule(units.Count, Constant.jobBatchCount, dependency);
         bfightJobScheduled = true;

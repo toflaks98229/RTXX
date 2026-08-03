@@ -164,12 +164,37 @@ public partial class Army : MonoBehaviour
     private NativeArray<Unit_Animation_Data> unitAnimationDatas;
 
     /// <summary>
+    /// 애니메이션이 볼 유닛 자세만 추려 담는 버퍼입니다.
+    ///
+    /// 이 배열이 있어야 애니메이션 Job이 unit_Datas를 건드리지 않게 되고,
+    /// 그래야 전투 Job과 병렬로 실행될 수 있습니다.
+    /// </summary>
+    private NativeArray<Unit_Pose> unitPoses;
+
+    /// <summary>
     /// 이번 틱에 건 유닛 Job 체인의 핸들입니다.
     /// 스케줄 단계와 완료 대기 단계가 분리되어 있어 사이에 들고 있어야 합니다.
     /// </summary>
     private JobHandle unitJobHandle;
     /// <summary>이번 틱에 유닛 Job을 실제로 걸었는지 여부입니다.</summary>
     private bool bunitJobScheduled;
+
+    /// <summary>
+    /// 이번 틱에 건 애니메이션 Job 체인의 핸들입니다.
+    ///
+    /// unitJobHandle과 따로 두는 이유: 애니메이션을 그 뒤에 이어 붙이면
+    /// 전투 Job이 애니메이션을 기다리게 되어 체인이 다시 길어집니다.
+    /// 두 갈래를 각각 들고 있다가 완료 단계에서 함께 기다립니다.
+    /// </summary>
+    private JobHandle animationJobHandle;
+
+    /// <summary>
+    /// 자세 추출 Job의 핸들입니다.
+    ///
+    /// 이 Job은 unit_Datas를 읽으므로, 같은 배열에 쓰는 전투 Job은
+    /// 반드시 이것을 기다려야 합니다. 짧은 Job이라 대기 비용은 작습니다.
+    /// </summary>
+    private JobHandle poseExtractHandle;
 
     /// <summary>이번 틱에 건 전투 Job의 핸들입니다.</summary>
     private JobHandle fightJobHandle;
@@ -201,6 +226,7 @@ public partial class Army : MonoBehaviour
         if (raycastCommands.IsCreated) raycastCommands.Dispose();
         if (raycastResults.IsCreated) raycastResults.Dispose();
         if (unitAnimationDatas.IsCreated) unitAnimationDatas.Dispose();
+        if (unitPoses.IsCreated) unitPoses.Dispose();
         if (target_Unit_Datas.IsCreated) target_Unit_Datas.Dispose();
         if (fightGrid.IsCreated) fightGrid.Dispose();
     }
@@ -1020,26 +1046,55 @@ public partial class Army : MonoBehaviour
         // (필드 unitJobHandle에 바로 담습니다. 지역 변수로 가리면 안 됩니다)
         unitJobHandle = unit_Job.Schedule(units.Count, Constant.jobBatchCount, raycastHandle);
 
-        Unit_Animation_Job unit_Animation_Job;
-        unit_Animation_Job = new Unit_Animation_Job();
-        unit_Animation_Job.unit_Datas = unit_Datas;
+        // 5. 애니메이션 계통을 전투 계통과 '갈라' 겁니다.
+        //
+        //    예전에는 애니메이션 Job이 unit_Datas를 받아 그 배열에 되썼습니다.
+        //    그 쓰기 때문에 Job 안전 시스템이 전투 Job과 직렬화했고,
+        //    한 부대 안에서 Job 5개가 한 줄로 이어졌습니다.
+        //    메인 스레드가 그 체인을 기다리는 시간이 틱의 46%였습니다.
+        //
+        //    이제 자세(position/rotation)만 별도 배열로 추려낸 뒤,
+        //    애니메이션은 그 배열만 봅니다. 전투 Job이 unit_Datas에 쓰는
+        //    동안에도 함께 돌 수 있으므로 체인이 두 갈래로 갈라집니다.
+        //
+        //        Raycast -> Unit_Job -+-> Pose_Extract -> Animation
+        //                             +-> (Fight_Job: Army_Fight에서 연결)
+        Ensure_Capacity(ref unitPoses, units.Count);
+        var poses = unitPoses.GetSubArray(0, units.Count);
+
+        Unit_Pose_Extract_Job extractJob = new Unit_Pose_Extract_Job();
+        extractJob.unit_Datas = unit_Datas;
+        extractJob.poses = poses;
+
+        // 추출 핸들은 전투 Job도 기다려야 하므로 필드에 담아 둡니다.
+        poseExtractHandle =
+            extractJob.Schedule(units.Count, Constant.jobBatchCount, unitJobHandle);
+
+        Unit_Animation_Job unit_Animation_Job = new Unit_Animation_Job();
+        unit_Animation_Job.poses = poses;
         unit_Animation_Job.unit_Animation_Datas = unit_Animation_Datas;
         unit_Animation_Job.cam_Position = Main_Camera.GetTransform().position;
         unit_Animation_Job.cam_Rotation = Main_Camera.GetTransform().rotation;
 
-        // 5. 애니메이션 잡은 Unit_Job이 끝난 후에 실행되도록 의존성 체인 연결
-        //    여기서 Complete()하지 않습니다. 다른 부대의 Job도 먼저 걸어 두어야
-        //    부대들이 서로 겹쳐 실행됩니다.
-        unitJobHandle = unit_Animation_Job.Schedule(units.Count, Constant.jobBatchCount, unitJobHandle);
+        // 애니메이션 핸들은 별도로 들고 있다가 완료 단계에서 함께 기다립니다.
+        // unitJobHandle에 이어 붙이면 전투 Job이 다시 그 뒤로 밀립니다.
+        animationJobHandle =
+            unit_Animation_Job.Schedule(units.Count, Constant.jobBatchCount, poseExtractHandle);
+
         bunitJobScheduled = true;
     }
 
-    /// <summary>유닛 Job 체인이 끝나기를 기다립니다.</summary>
+    /// <summary>
+    /// 유닛 Job 체인이 끝나기를 기다립니다.
+    ///
+    /// 전투 갈래와 애니메이션 갈래를 하나로 묶어 한 번만 기다립니다.
+    /// 각각 Complete()하면 스케줄 왕복을 두 번 내는 셈입니다.
+    /// </summary>
     private void _Complete_Unit()
     {
         if (!bunitJobScheduled) return;
 
-        unitJobHandle.Complete();
+        JobHandle.CombineDependencies(unitJobHandle, animationJobHandle).Complete();
         bunitJobScheduled = false;
     }
 
