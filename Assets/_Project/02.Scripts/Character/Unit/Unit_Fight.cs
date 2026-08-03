@@ -410,6 +410,19 @@ partial class Unit
     /// <summary>유닛의 전투 관련 로직을 업데이트합니다.</summary>
     private void _Update_Fight()
     {
+        // 이번 틱에 아무 사건도 없으면 즉시 빠져나갑니다.
+        //
+        // 아래 처리는 전부 '이번 틱에 때렸거나, 쏘았거나, 맞았을 때'만
+        // 의미가 있습니다. 대규모 전투에서 그런 유닛은 소수이고
+        // 나머지 수천 명은 세 플래그가 모두 꺼져 있습니다.
+        // 그런데도 전원이 이 함수 본문을 끝까지 지나가고 있었습니다.
+        if (!unit_Data.bhitTarget
+            && !unit_Data.bfiredThisTick
+            && !unit_Data.bgetDamage)
+        {
+            return;
+        }
+
         // 이번 틱에 근접 타격이 성립했으면 표적 쪽으로 짧게 내지릅니다.
         //
         // 매치드 컴뱃(두 병사를 짝지어 전용 애니메이션 재생)을 스프라이트로
@@ -419,7 +432,9 @@ partial class Unit
             && unit_Data.e_Unit_AttackType == E_Unit_AttackType.Melee
             && unit_Animation != null)
         {
-            Vector3 toTarget = unit_Data.unit_Target_Data.position - transform.position;
+            // unit_Data.position이 이번 틱의 위치입니다.
+            // transform.position은 네이티브 왕복이라 읽을 이유가 없습니다.
+            Vector3 toTarget = unit_Data.unit_Target_Data.position - unit_Data.position;
             unit_Animation.Play_Attack_Lunge(toTarget);
         }
 
@@ -432,7 +447,7 @@ partial class Unit
             Projectile_Renderer renderer = Get_Projectile_Renderer();
             if (renderer != null)
             {
-                Vector3 from = transform.position + Vector3.up * 1.0f;
+                Vector3 from = unit_Data.position + Vector3.up * 1.0f;
                 Vector3 to = unit_Data.unit_Target_Data.position + Vector3.up * 0.8f;
 
                 renderer.Fire(from, to);

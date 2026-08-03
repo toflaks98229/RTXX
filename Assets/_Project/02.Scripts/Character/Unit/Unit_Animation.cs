@@ -169,6 +169,12 @@ public class Unit_Animation : MonoBehaviour
                      * Mathf.Max(0.4f, power);
     }
 
+    /// <summary>연출이 없는 상태에서 마지막으로 반영한 좌우 반전입니다.</summary>
+    private bool bidleFlip;
+
+    /// <summary>연출이 없는 상태의 값이 이미 계산되어 있는지 여부입니다.</summary>
+    private bool bidleValid;
+
     /// <summary>이번 틱에 계산된 스프라이트 스케일입니다. 일괄 쓰기가 읽어 갑니다.</summary>
     public Vector3 spriteScale { get; private set; }
     /// <summary>이번 틱에 계산된 스프라이트 로컬 위치입니다. (내지르기 포함)</summary>
@@ -181,13 +187,42 @@ public class Unit_Animation : MonoBehaviour
     /// </summary>
     public void _Update()
     {
+        bool bflip = unit_Animation_Data.bflip;
+
+        // 아무 연출도 진행 중이 아니면 계산을 건너뜁니다.
+        //
+        // 대규모 전투에서 '이번 틱에 맞았거나 내지르는' 유닛은 소수입니다.
+        // 나머지 수천 명은 점멸도 반동도 없어 결과가 지난 틱과 똑같습니다.
+        // 그런데도 매 틱 스케일을 다시 만들고 렌더러 색을 훑고 있었습니다.
+        //
+        // 좌우 반전만 바뀌었을 수 있으므로 그 경우는 스케일만 다시 만듭니다.
+        if (flash <= 0.0f && lunge <= 0.0f)
+        {
+            if (bflip != bidleFlip || !bidleValid)
+            {
+                float idleScale = size;
+
+                spriteScale = bflip
+                    ? new Vector3(idleScale, idleScale, idleScale)
+                    : new Vector3(-idleScale, idleScale, idleScale);
+
+                spriteLocalPosition = baseLocalPosition;
+
+                bidleFlip = bflip;
+                bidleValid = true;
+            }
+
+            return;
+        }
+
+        // 연출이 진행 중입니다. 다음에 멈출 때 한 번 다시 계산해야 합니다.
+        bidleValid = false;
+
         _Update_Flash();
         _Update_Lunge();
 
         // 반동으로 순간적으로 커졌다가 원래 크기로 돌아옵니다.
         float scale = size * (1.0f + punchScale * flash);
-
-        bool bflip = unit_Animation_Data.bflip;
 
         // 좌우 반전은 X 스케일 부호로 표현합니다.
         spriteScale = bflip

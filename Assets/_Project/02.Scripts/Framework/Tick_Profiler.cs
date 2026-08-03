@@ -33,6 +33,16 @@ public static class Tick_Profiler
         GroundSync,     // 지면 높이 동기화
         TransformWrite, // Transform 일괄 쓰기
         Contact,        // 부대 접촉 집계
+
+        // Apply 내부 세부 단계
+        // Apply가 30%를 차지하는데 그 안에서 무엇이 비싼지 몰라 추가했습니다.
+        A_Animation,    // 애니메이션 반영
+        A_Formation,    // 진형 유지 판정
+        A_UnitUpdate,   // 유닛별 _Update (이동/전투 후처리)
+        A_Charge,       // 돌격 충돌 정산
+        A_Dead,         // 사망 처리
+        A_Morale,       // 사기 입력 산출
+
         Count
     }
 
@@ -45,6 +55,45 @@ public static class Tick_Profiler
 
     private static Phase current;
     private static int samples;
+
+    /// <summary>
+    /// 중첩 측정용 보조 스톱워치입니다.
+    ///
+    /// 주 스톱워치(watch)는 상위 단계가 쓰고 있으므로, 그 안에서 다시
+    /// Begin/End를 부르면 상위 측정이 망가집니다. 세부 단계는 별도
+    /// 스톱워치로 재고 합계에서는 제외합니다. (이중 계산 방지)
+    /// </summary>
+    private static readonly Stopwatch subWatch = new Stopwatch();
+    private static Phase subCurrent;
+
+    /// <summary>세부 단계 측정을 시작합니다. 상위 측정과 겹쳐도 안전합니다.</summary>
+    public static void Begin_Sub(Phase phase)
+    {
+        if (!benabled) return;
+
+        subCurrent = phase;
+        subWatch.Restart();
+    }
+
+    /// <summary>세부 단계 측정을 끝냅니다.</summary>
+    public static void End_Sub()
+    {
+        if (!benabled) return;
+
+        subWatch.Stop();
+
+        double ms = subWatch.Elapsed.TotalMilliseconds;
+        int i = (int)subCurrent;
+
+        totals[i] += ms;
+        if (ms > worsts[i]) worsts[i] = ms;
+    }
+
+    /// <summary>이 단계가 합계에서 제외되는 세부 단계인지 여부입니다.</summary>
+    private static bool Is_Sub(Phase phase)
+    {
+        return phase >= Phase.A_Animation;
+    }
 
     /// <summary>한 단계의 측정을 시작합니다.</summary>
     public static void Begin(Phase phase)
@@ -87,13 +136,20 @@ public static class Tick_Profiler
         sb.AppendLine($"측정 틱: {samples}");
         sb.AppendLine($"{"단계",-16}{"평균(ms)",10}{"최악(ms)",10}{"비중",8}");
 
+        // 세부 단계는 상위 단계에 이미 포함되어 있으므로 합계에서 뺍니다.
         double grandTotal = 0.0;
-        for (int i = 0; i < (int)Phase.Count; i++) grandTotal += totals[i];
+        for (int i = 0; i < (int)Phase.Count; i++)
+        {
+            if (Is_Sub((Phase)i)) continue;
+            grandTotal += totals[i];
+        }
 
         if (grandTotal <= 0.0) return "측정값이 0입니다.";
 
         for (int i = 0; i < (int)Phase.Count; i++)
         {
+            if (Is_Sub((Phase)i)) continue;
+
             double avg = totals[i] / samples;
             double share = totals[i] / grandTotal * 100.0;
 
@@ -101,6 +157,23 @@ public static class Tick_Profiler
         }
 
         sb.AppendLine($"{"합계",-16}{grandTotal / samples,10:F2}");
+
+        // 세부 단계는 따로 보여 줍니다. (상위 단계에 포함된 값)
+        bool bhasSub = false;
+        for (int i = 0; i < (int)Phase.Count; i++)
+        {
+            if (!Is_Sub((Phase)i)) continue;
+            if (totals[i] <= 0.0) continue;
+
+            if (!bhasSub)
+            {
+                sb.AppendLine("--- Apply 내부 (위 Apply에 포함) ---");
+                bhasSub = true;
+            }
+
+            sb.AppendLine($"{(Phase)i,-16}{totals[i] / samples,10:F2}{worsts[i],10:F2}");
+        }
+
         sb.AppendLine("------------------------------------");
 
         return sb.ToString();
