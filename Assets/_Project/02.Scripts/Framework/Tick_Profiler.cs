@@ -43,6 +43,12 @@ public static class Tick_Profiler
         A_Dead,         // 사망 처리
         A_Morale,       // 사기 입력 산출
 
+        // Schedule 내부 세부 단계
+        S_RaycastSetup, // 레이캐스트 명령 생성 (유닛별 루프)
+        S_AnimInput,    // 애니메이션 입력 복사
+        S_TargetCopy,   // 적 유닛 데이터 복사
+        S_JobSchedule,  // 실제 Job 스케줄 호출
+
         Count
     }
 
@@ -167,7 +173,7 @@ public static class Tick_Profiler
 
             if (!bhasSub)
             {
-                sb.AppendLine("--- Apply 내부 (위 Apply에 포함) ---");
+                sb.AppendLine("--- 세부 (상위 단계에 포함) ---");
                 bhasSub = true;
             }
 

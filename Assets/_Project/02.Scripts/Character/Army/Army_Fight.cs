@@ -214,10 +214,14 @@ partial class Army
         Ensure_Capacity(ref target_Unit_Datas, targetCount);
         var targetDatas = target_Unit_Datas.GetSubArray(0, targetCount);
 
+        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.S_TargetCopy);
+
         for (int i = 0; i < targetCount; i++)
         {
             targetDatas[i] = targetUnits[i].unit_Data;
         }
+
+        Tick_Profiler.End_Sub();
 
         // 적 유닛을 공간 격자에 색인합니다.
         // 이렇게 하면 내 유닛이 적 '전부'가 아니라 인접 셀만 검사하면 됩니다.

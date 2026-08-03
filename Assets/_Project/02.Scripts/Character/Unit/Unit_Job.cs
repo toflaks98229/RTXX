@@ -478,6 +478,38 @@ public struct Unit_Fight_Job : IJobParallelFor
 
 
 /// <summary>
+/// 전방 차단 검사용 레이캐스트 명령을 만드는 잡입니다.
+///
+/// 왜 Job으로 옮겼는가:
+/// 이 루프는 유닛마다 unit_Data에서 위치와 회전을 읽어 RaycastCommand를
+/// 만드는 것이 전부입니다. 계측에서 1.27ms가 나왔는데, 계산이 무거워서가
+/// 아니라 9,600번의 관리 객체 역참조 때문입니다.
+///
+/// 명령 생성은 이미 unit_Datas 배열이 들고 있는 값만 쓰므로 Job으로
+/// 그대로 옮길 수 있습니다. 결과 배열(RaycastCommand)도 네이티브라
+/// 중간 복사가 필요 없습니다.
+/// </summary>
+[BurstCompile]
+public struct Raycast_Setup_Job : IJobParallelFor
+{
+    [ReadOnly] public NativeArray<Unit_Data> unit_Datas;
+    [WriteOnly] public NativeArray<RaycastCommand> commands;
+
+    public QueryParameters parameters;
+    public float maxDistance;
+
+    public void Execute(int index)
+    {
+        Unit_Data data = unit_Datas[index];
+
+        Vector3 direction = data.rotation * Vector3.forward;
+
+        commands[index] = new RaycastCommand(
+            data.position, direction, parameters, maxDistance);
+    }
+}
+
+/// <summary>
 /// 애니메이션이 필요로 하는 유닛 자세만 담은 최소 구조체입니다.
 ///
 /// 왜 Unit_Data를 통째로 넘기지 않는가:

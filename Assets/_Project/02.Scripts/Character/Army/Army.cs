@@ -1011,13 +1011,25 @@ public partial class Army : MonoBehaviour
         // Transform 대신 unit_Data를 읽습니다.
         // 위치는 이미 시뮬레이션이 들고 있고, 정면은 회전에서 유도할 수 있습니다.
         // Transform을 읽으면 인원수만큼 네이티브 왕복이 발생합니다.
-        for (int i = 0; i < units.Count; i++)
-        {
-            Vector3 origin = units[i].unit_Data.position;
-            Vector3 direction = units[i].unit_Data.rotation * Vector3.forward;
+        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.S_RaycastSetup);
 
-            commands[i] = new RaycastCommand(origin, direction, maxDistance, layerMask);
-        }
+        // 명령 생성을 Job으로 넘깁니다.
+        //
+        // 유닛마다 관리 객체를 역참조해 위치와 회전을 읽던 루프였습니다.
+        // 그 값은 이미 unit_Datas 배열에 들어 있으므로(_Update_Begin이 채웁니다)
+        // Job에서 그대로 읽으면 역참조가 통째로 사라집니다.
+        var setupJob = new Raycast_Setup_Job
+        {
+            unit_Datas = unit_Datas,
+            commands = commands,
+            parameters = new QueryParameters(layerMask, false,
+                                             QueryTriggerInteraction.UseGlobal, false),
+            maxDistance = maxDistance
+        };
+
+        JobHandle setupHandle = setupJob.Schedule(units.Count, Constant.jobBatchCount);
+
+        Tick_Profiler.End_Sub();
 
         // 애니메이션 입력을 '스케줄 전에' 채웁니다.
         //
@@ -1027,13 +1039,19 @@ public partial class Army : MonoBehaviour
         Ensure_Capacity(ref unitAnimationDatas, units.Count);
         var unit_Animation_Datas = unitAnimationDatas.GetSubArray(0, units.Count);
 
+        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.S_AnimInput);
+
         for (int i = 0; i < units.Count; i++)
         {
             unit_Animation_Datas[i] = units[i].unit_Animation.unit_Animation_Data;
         }
 
+        Tick_Profiler.End_Sub();
+
         // 3. 레이캐스트 배치 잡(Batch Job) 스케줄링
-        JobHandle raycastHandle = RaycastCommand.ScheduleBatch(commands, results, Constant.jobBatchCount);
+        //    명령을 만드는 Job이 끝난 뒤에 실행되어야 합니다.
+        JobHandle raycastHandle = RaycastCommand.ScheduleBatch(
+            commands, results, Constant.jobBatchCount, setupHandle);
 
         // 4. Unit_Job에 필요한 데이터 전달
         Unit_Job unit_Job = new Unit_Job();
