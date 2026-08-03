@@ -118,8 +118,19 @@ partial struct Unit_Data
     /// 목적지가 가까울 때만 성립합니다. 멀리 재배치할 때까지 게걸음으로 가면
     /// 한없이 느려지므로, 그때는 몸을 돌려 정상 행군합니다.
     /// </summary>
-    private bool Is_Combat_Footwork()
+    private bool Is_Combat_Footwork(in Army_Data armyData)
     {
+        // 무너진 부대는 발놀림을 쓰지 않습니다.
+        //
+        // 패주는 '적을 마주한 채 물러나는 것'이 아니라 등을 보이고 달아나는 것입니다.
+        // 이 검사가 없으면 붕괴한 부대가 뒷걸음(속도 45%)으로 도망쳐
+        // 패주 속도 배율(160%)이 상쇄되고, 전열을 유지한 채 후퇴하는 것처럼 보입니다.
+        //
+        // 표적 해제(Lose_Target)만으로는 막을 수 없습니다.
+        // Army.On_Rout이 표적을 지워도 같은 틱의 Unit_Fight_Job이 다시 표적을 잡아
+        // btarget이 곧바로 되살아나기 때문입니다. 부대 상태를 직접 봐야 확실합니다.
+        if (armyData.IsBroken()) return false;
+
         // 돌격 중에는 절대 발놀림으로 전환하지 않습니다.
         // 표적을 잡았다고 뒷걸음/옆걸음 속도로 떨어지면
         // 충돌 직전에 감속해 돌격 자체가 무의미해집니다.
@@ -163,7 +174,7 @@ partial struct Unit_Data
         //
         // 멀리 재배치할 때까지 이 자세를 유지하면 게걸음으로 한없이 느려지므로,
         // 반드시 Is_Combat_Footwork()로 거리를 함께 봅니다.
-        if (Is_Combat_Footwork())
+        if (Is_Combat_Footwork(armyData))
         {
             // 주의: 예전에는 targetVector를 봤는데, 그 값은 진형 이동에서만 갱신되어
             //       전투 중에는 낡은 방향이었습니다. 실제 표적 위치를 써야 합니다.
@@ -268,7 +279,7 @@ partial struct Unit_Data
                 Move_Stop();
         }
 
-        if (Is_Combat_Footwork())
+        if (Is_Combat_Footwork(armyData))
         {
             // 교전 중 근거리 재배치: 몸을 돌리지 않고 목적지 쪽으로 곧장 발을 옮깁니다.
             // 정면 성분과 섞으면 표적을 향한 자세가 흐트러지므로 여기서는 섞지 않습니다.
@@ -374,6 +385,19 @@ partial struct Unit_Data
     /// <summary>유닛이 유휴 상태일 때의 행동을 처리합니다.</summary>
     private void Idle(in Army_Data armyData)
     {
+        // 무너진 부대는 표적을 붙들고 있어도 교전 행동을 하지 않습니다.
+        //
+        // btarget은 부대가 붕괴한 뒤에도 참일 수 있습니다.
+        // Army.On_Rout이 표적을 지워도 같은 틱의 Unit_Fight_Job이 사거리 안의 적을
+        // 다시 잡기 때문입니다. 그 상태로 여기 들어오면 패주 중인 병사가
+        // 적을 마주 본 채 제자리 교전을 하거나 대열을 메우려 듭니다.
+        // 실제 이동은 부대의 Move_Escape가 담당하므로 여기서는 아무것도 하지 않습니다.
+        if (armyData.IsBroken())
+        {
+            movementVector = new Vector3();
+            return;
+        }
+
         if (btarget)
         {
             Move_Target(armyData);
@@ -399,7 +423,8 @@ partial struct Unit_Data
                 float movementSpeed = Constant.speed_Walk;
 
                 // 교전 중이라면 적을 바라본 채 걸음을 옮깁니다.
-                if (btarget) movementSpeed *= Get_Footwork_Speed_Rate(step);
+                // 무너진 부대는 예외입니다. 달아나는 병사는 발을 맞추지 않습니다.
+                if (Is_Combat_Footwork(armyData)) movementSpeed *= Get_Footwork_Speed_Rate(step);
 
                 movementSpeed = movementSpeed * Constant.deltaTime;
 
