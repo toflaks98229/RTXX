@@ -37,9 +37,36 @@ public class Battle_AI : MonoBehaviour
     [Tooltip("이 거리 안에 들어오면 교전으로 보고 더 이상 재배치하지 않습니다.")]
     public float engageDistance = 6.0f;
 
-    private float nextDecisionTime;
+    /// <summary>다음 판단을 내릴 시뮬레이션 틱입니다.</summary>
+    private uint nextDecisionTick;
 
-    private void Update()
+    /// <summary>
+    /// 판단 주기를 시뮬레이션 틱으로 환산한 값입니다.
+    ///
+    /// 최소 1틱을 보장합니다. 0이 되면 매 틱 재판단해 부대가 갈팡질팡합니다.
+    /// </summary>
+    private uint Decision_Interval_Ticks()
+    {
+        int ticks = Mathf.RoundToInt(decisionInterval / Constant.deltaTime);
+        return (uint)Mathf.Max(1, ticks);
+    }
+
+    /// <summary>
+    /// AI 판단을 갱신합니다.
+    ///
+    /// 왜 Update가 아니라 FixedUpdate인가:
+    /// 예전에는 Update에서 Time.time으로 주기를 쟀습니다. 그런데 Time.time은
+    /// 실제 경과 시간이고 Update 호출 빈도는 프레임 레이트에 좌우되므로,
+    /// '몇 번째 시뮬레이션 틱에 명령이 내려가는가'가 실행할 때마다 달라졌습니다.
+    ///
+    /// 명령 시점이 한 틱만 어긋나도 그 뒤의 전투는 통째로 달라집니다.
+    /// 실제로 같은 시드로 두 번 돌렸을 때 사망자가 438명과 554명으로
+    /// 갈렸고, 원인이 바로 이것이었습니다.
+    ///
+    /// 시뮬레이션 틱을 기준으로 삼으면 프레임 레이트와 무관하게
+    /// 언제나 같은 틱에 같은 명령이 내려가므로 전투가 재현됩니다.
+    /// </summary>
+    private void FixedUpdate()
     {
         // 배치 단계에서는 움직이지 않습니다.
         if (battle_Manager != null
@@ -48,8 +75,10 @@ public class Battle_AI : MonoBehaviour
             return;
         }
 
-        if (Time.time < nextDecisionTime) return;
-        nextDecisionTime = Time.time + decisionInterval;
+        uint tick = Simulation_Clock.tick;
+        if (tick < nextDecisionTick) return;
+
+        nextDecisionTick = tick + Decision_Interval_Ticks();
 
         _Update_Decisions();
     }

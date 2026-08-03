@@ -77,8 +77,21 @@ public class Battle_Manager : MonoBehaviour
 
     private void Awake()
     {
-        // Controller.Awake가 GameEvents.ClearAll을 부르므로
-        // 구독은 반드시 Start에서 해야 합니다. (Awake에서 하면 지워집니다)
+        // 구독은 여기서 하지 않습니다.
+        // Controller.Awake가 GameEvents.ClearAll을 부르므로 지워집니다.
+
+        // 단계는 반드시 Awake에서 정합니다.
+        //
+        // 왜 Start가 아닌가:
+        // Controller.FixedUpdate는 phase가 Deployment면 시뮬레이션을 통째로
+        // 건너뜁니다. 그런데 Start()의 실행 순서는 컴포넌트 간에 보장되지
+        // 않으므로, Controller가 먼저 돌면 배치를 쓰지 않는 씬에서도
+        // 첫 몇 틱이(혹은 영원히) 멈춘 채 지나갑니다.
+        //
+        // 실제로 배치모드 검증에서 이 순서 문제로 600프레임 동안 시뮬레이션이
+        // 한 틱도 돌지 않았습니다. Awake는 모든 Start보다 앞서므로,
+        // 여기서 정하면 어떤 실행 순서에서도 첫 틱부터 올바릅니다.
+        phase = buseDeployment ? E_Battle_Phase.Deployment : E_Battle_Phase.Fighting;
     }
 
     private void Start()
@@ -86,11 +99,6 @@ public class Battle_Manager : MonoBehaviour
         GameEvents.OnUnitKilled += On_Unit_Killed;
 
         Record_Starting_Strength();
-
-        if (!buseDeployment)
-        {
-            Start_Battle();
-        }
     }
 
     private void OnDestroy()

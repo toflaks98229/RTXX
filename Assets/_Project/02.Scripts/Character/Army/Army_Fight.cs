@@ -4,7 +4,6 @@ using UnityEngine;
 using Unity.Collections;
 using Unity.Jobs;
 
-using Random = UnityEngine.Random;
 using System.Linq;
 using System;
 
@@ -253,9 +252,17 @@ partial class Army
         unit_Fight_Job.cellSize = cellSize;
         unit_Fight_Job.armyData = army_Data;
         unit_Fight_Job.targetArmyData = targetArmy.army_Data;
-        // 시드는 틱마다 달라야 하고, Job 안에서 유닛 인덱스와 섞여
-        // '유닛마다 다른' 난수가 됩니다. 0은 Random 생성자가 거부하므로 피합니다.
-        unit_Fight_Job.randomSeed = (uint)Random.Range(1, int.MaxValue);
+        // 시드는 '틱 번호와 부대 인덱스의 함수'입니다.
+        //
+        // UnityEngine.Random을 쓰면 전역 난수 상태를 소비하므로,
+        // 이펙트나 UI가 난수를 몇 번 뽑았는지에 따라 전투 결과가 달라집니다.
+        // 같은 명령을 같은 순서로 내려도 재현되지 않습니다.
+        //
+        // 좌표의 함수로 만들면 호출 횟수와 순서에 영향받지 않으므로
+        // 리플레이와 회귀 테스트가 성립합니다.
+        // Job 안에서 다시 유닛 인덱스와 섞여 '유닛마다 다른' 난수가 됩니다.
+        unit_Fight_Job.randomSeed =
+            Simulation_Random.Seed_For(Simulation_Clock.tick, armyIndex);
 
         // 의존성 주의:
         // 이 Job은 unit_Datas에 씁니다. 같은 배열에 쓰는 Unit_Job이 아직
