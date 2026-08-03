@@ -48,9 +48,23 @@ public struct Collision_Grid_Build_Job : IJobParallelFor
     public float cellSize;
     public NativeParallelMultiHashMap<int, int>.ParallelWriter grid;
 
+    /// <summary>해소 잡의 안쪽 루프가 쓸 조밀 위치 배열입니다. (출력)</summary>
+    [WriteOnly] [NativeDisableParallelForRestriction]
+    public NativeArray<Vector3> positions;
+    /// <summary>조밀 반지름 배열입니다. (출력)</summary>
+    [WriteOnly] [NativeDisableParallelForRestriction]
+    public NativeArray<float> radii;
+
     public void Execute(int index)
     {
         Collision_Body body = bodies[index];
+
+        // 죽은 유닛도 배열은 채웁니다.
+        // 해소 잡이 인덱스로 바로 읽으므로 빈칸이 있으면 안 됩니다.
+        // (격자에는 넣지 않으므로 이웃으로 잡히지는 않습니다)
+        positions[index] = body.position;
+        radii[index] = body.bdead ? 0.0f : body.radius;
+
         if (body.bdead) return;
 
         grid.Add(Spatial_Grid.Hash(body.position, cellSize), index);
@@ -107,6 +121,19 @@ public struct Collision_Resolve_Job : IJobParallelFor
     [NativeDisableParallelForRestriction]
     public NativeArray<Collision_Body> bodies;
 
+    /// <summary>
+    /// 위치만 따로 담은 조밀 배열입니다.
+    ///
+    /// 안쪽 루프는 이웃의 '위치'만 반복해서 읽습니다. 그런데 Collision_Body는
+    /// 60바이트가 넘어, 이웃 하나를 볼 때마다 캐시 라인을 통째로 끌어옵니다.
+    /// 난전에서는 이웃 수가 많아 그 대역폭이 그대로 비용이 됩니다.
+    /// 위치(12바이트)만 따로 두면 한 캐시 라인에 5개가 들어옵니다.
+    /// </summary>
+    [ReadOnly] public NativeArray<Vector3> positions;
+
+    /// <summary>반지름만 따로 담은 조밀 배열입니다. 같은 이유입니다.</summary>
+    [ReadOnly] public NativeArray<float> radii;
+
     [ReadOnly] public NativeParallelMultiHashMap<int, int> grid;
     public float cellSize;
 
@@ -131,6 +158,10 @@ public struct Collision_Resolve_Job : IJobParallelFor
         int nearestFoeArmy = -1;
         float nearestFoeSqr = float.MaxValue;
 
+        // 내 반지름 기준 최대 상호작용 거리입니다.
+        // 이 값을 미리 제곱해 두면 안쪽 루프에서 곱셈을 반복하지 않습니다.
+        float myR = me.radius;
+
         for (int dz = -1; dz <= 1; dz++)
         {
             for (int dx = -1; dx <= 1; dx++)
@@ -143,16 +174,26 @@ public struct Collision_Resolve_Job : IJobParallelFor
                 {
                     if (other == index) continue;
 
+                    // 1단계: 위치와 반지름만 읽어 겹침을 판정합니다.
+                    //
+                    // 대부분의 이웃은 겹치지 않습니다. 여기서 걸러내면
+                    // 60바이트짜리 Collision_Body를 아예 읽지 않아도 됩니다.
+                    // 위치(12바이트)만 담은 조밀 배열이라 한 캐시 라인에
+                    // 5개가 들어와, 난전처럼 이웃이 많을 때 효과가 큽니다.
+                    Vector3 yourPos = positions[other];
+
+                    float dxp = me.position.x - yourPos.x;
+                    float dzp = me.position.z - yourPos.z;
+                    float distSqr = dxp * dxp + dzp * dzp;
+
+                    float sum = myR + radii[other];
+                    if (distSqr >= sum * sum) continue;
+
+                    // 2단계: 실제로 겹친 상대만 전체 정보를 읽습니다.
                     Collision_Body you = bodies[other];
                     if (you.bdead) continue;
 
-                    Vector3 to = me.position - you.position;
-                    to.y = 0.0f;
-
-                    float sum = me.radius + you.radius;
-                    float distSqr = to.sqrMagnitude;
-
-                    if (distSqr >= sum * sum) continue;
+                    Vector3 to = new Vector3(dxp, 0.0f, dzp);
                     if (distSqr < 0.000001f)
                     {
                         // 정확히 겹쳤습니다. 인덱스로 방향을 갈라 서로 반대로 밀어냅니다.

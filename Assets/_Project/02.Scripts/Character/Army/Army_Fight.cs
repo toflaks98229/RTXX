@@ -36,8 +36,7 @@ partial class Army
         fightJobHandle.Complete();
         bfightJobScheduled = false;
 
-        // 격자는 틱마다 인원이 달라져 크기가 변하므로 재사용하지 않고 반납합니다.
-        if (fightGrid.IsCreated) fightGrid.Dispose();
+        // 격자는 재사용하므로 여기서 해제하지 않습니다. (OnDestroy에서 반납)
     }
 
     /// <summary>
@@ -225,7 +224,18 @@ partial class Army
         // 이렇게 하면 내 유닛이 적 '전부'가 아니라 인접 셀만 검사하면 됩니다.
         float cellSize = Spatial_Grid.GetCellSize(army_Data, targetArmy.army_Data);
 
-        fightGrid = new NativeParallelMultiHashMap<int, int>(targetCount, Allocator.TempJob);
+        // 격자는 매 틱 새로 만들지 않고 재사용합니다.
+        // 부대마다 할당/해제하면 교전이 붙은 틱에 그 비용이 부대 수만큼 쌓입니다.
+        if (!fightGrid.IsCreated || fightGrid.Capacity < targetCount)
+        {
+            if (fightGrid.IsCreated) fightGrid.Dispose();
+            fightGrid = new NativeParallelMultiHashMap<int, int>(
+                Mathf.Max(targetCount, 64), Allocator.Persistent);
+        }
+        else
+        {
+            fightGrid.Clear();
+        }
 
         Spatial_Grid_Build_Job buildJob = new Spatial_Grid_Build_Job();
         buildJob.unit_Datas = targetDatas;

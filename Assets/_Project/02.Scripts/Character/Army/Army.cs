@@ -202,6 +202,7 @@ public partial class Army : MonoBehaviour
         if (raycastResults.IsCreated) raycastResults.Dispose();
         if (unitAnimationDatas.IsCreated) unitAnimationDatas.Dispose();
         if (target_Unit_Datas.IsCreated) target_Unit_Datas.Dispose();
+        if (fightGrid.IsCreated) fightGrid.Dispose();
     }
     /// <summary>
     /// 타겟 재설정을 위한 타이머입니다.

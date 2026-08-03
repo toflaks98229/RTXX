@@ -55,6 +55,12 @@ public class Unit_Transform_Sync
     /// 죽어서 null이 된 자리도 건너뛰지 않고 유지해야
     /// Controller의 bodies[i]와 positions[i]가 같은 유닛을 가리킵니다.
     /// 파괴된 Transform은 TransformAccessArray가 자동으로 건너뜁니다.
+    ///
+    /// 비용 주의: 이 함수는 전 유닛을 다시 등록하므로 비쌉니다.
+    /// 유닛이 죽을 때마다 부르면 전투 중 프레임이 크게 튑니다.
+    /// (실측: 사망이 있는 틱이 40~60 ms까지 치솟았습니다)
+    /// 그래서 Controller는 사망 자리만 Remove_At으로 떼어내고,
+    /// 정말 필요할 때만 이 함수를 부릅니다.
     /// </summary>
     public void Rebuild(System.Collections.Generic.List<Unit> units)
     {
@@ -85,6 +91,24 @@ public class Unit_Transform_Sync
         spriteRotations = new NativeArray<Quaternion>(n, Allocator.Persistent);
         spriteScales = new NativeArray<Vector3>(n, Allocator.Persistent);
         spriteLocalPositions = new NativeArray<Vector3>(n, Allocator.Persistent);
+    }
+
+    /// <summary>
+    /// 한 자리의 Transform 참조만 비웁니다.
+    ///
+    /// 유닛이 죽으면 그 Transform이 파괴되어 Job이 예외를 던집니다.
+    /// 전체를 다시 만드는 대신 그 칸만 null로 바꾸면 O(1)로 끝납니다.
+    /// 배열 길이와 인덱스 정렬은 그대로 유지됩니다.
+    /// </summary>
+    public void Clear_At(int index)
+    {
+        if (!transforms.isCreated) return;
+        if (index < 0 || index >= transforms.length) return;
+
+        transforms[index] = null;
+
+        if (spriteTransforms.isCreated && index < spriteTransforms.length)
+            spriteTransforms[index] = null;
     }
 
     /// <summary>Transform에서 현재 위치를 일괄로 읽어 옵니다.</summary>

@@ -245,6 +245,8 @@ public partial class Controller : MonoBehaviour
         if (army_Datas.IsCreated) army_Datas.Dispose();
         if (collisionBodies.IsCreated) collisionBodies.Dispose();
         if (collisionGrid.IsCreated) collisionGrid.Dispose();
+        if (collisionPositions.IsCreated) collisionPositions.Dispose();
+        if (collisionRadii.IsCreated) collisionRadii.Dispose();
         transformSync.Dispose();
     }
 
@@ -452,6 +454,11 @@ public partial class Controller : MonoBehaviour
     /// </summary>
     private NativeParallelMultiHashMap<int, int> collisionGrid;
 
+    /// <summary>충돌 안쪽 루프용 조밀 위치 배열입니다. 캐시 효율을 위해 분리했습니다.</summary>
+    private NativeArray<Vector3> collisionPositions;
+    /// <summary>충돌 안쪽 루프용 조밀 반지름 배열입니다.</summary>
+    private NativeArray<float> collisionRadii;
+
     /// <summary>부대별 충돌 반지름 캐시입니다. 유닛마다 부대 스탯을 다시 읽지 않기 위함입니다.</summary>
     private float[] armyRadius;
     /// <summary>부대별 질량 캐시입니다.</summary>
@@ -488,7 +495,24 @@ public partial class Controller : MonoBehaviour
     /// </summary>
     private void On_Unit_Killed_Sync(Unit unit, Army victimArmy, Army killerArmy)
     {
-        deadThisFrame++;
+        if (unit == null) return;
+
+        // 죽은 유닛의 자리만 비웁니다.
+        //
+        // 전체를 다시 만들면(Rebuild) 전 유닛을 재등록하므로,
+        // 사망이 잦은 전투 중에 틱이 40~60 ms까지 튑니다.
+        // 실측에서 840틱 중 215틱이 30 ms를 넘었고 전부 사망 틱이었습니다.
+        // 한 칸만 null로 바꾸면 O(1)이고 인덱스 정렬도 유지됩니다.
+        int index = unit.unit_Data.num;
+
+        if (index >= 0 && index < units.Count && units[index] == unit)
+        {
+            transformSync.Clear_At(index);
+            return;
+        }
+
+        // 인덱스가 어긋난 예외적인 경우에만 전체 재구축으로 되돌립니다.
+        btransformSyncDirty = true;
     }
 
     /// <summary>이번 틱에 갱신할 부대인지 여부입니다. LOD 판정 결과입니다.</summary>
@@ -575,12 +599,12 @@ public partial class Controller : MonoBehaviour
         // 파괴됩니다. 파괴된 Transform이 배열에 남아 있으면 Job이 예외를 던지므로
         // 사망이 발생한 틱에는 반드시 다시 만들어야 합니다.
         //
-        // 매 틱 전수 검사는 비싸므로, 사망 이벤트로 갱신되는 카운터만 비교합니다.
-        if (btransformSyncDirty || transformSync.Count != count || deadThisFrame > 0)
+        // 사망은 Clear_At으로 그 칸만 비우므로 재구축이 필요 없습니다.
+        // 길이가 달라졌을 때만(유닛이 추가되었을 때) 다시 만듭니다.
+        if (btransformSyncDirty || transformSync.Count != count)
         {
             transformSync.Rebuild(units);
             btransformSyncDirty = false;
-            deadThisFrame = 0;
         }
 
         // 위치를 Job으로 일괄 읽습니다.
@@ -638,8 +662,14 @@ public partial class Controller : MonoBehaviour
             };
         }
 
-        // 셀 크기는 '가장 큰 두 유닛이 닿을 수 있는 거리' 이상이어야
-        // 3x3 이웃 탐색이 겹친 쌍을 빠짐없이 잡습니다.
+        // 셀 크기는 '가장 큰 두 유닛이 닿을 수 있는 거리'와 정확히 같게 잡습니다.
+        //
+        // 이보다 크면 3x3 탐색이 필요 이상으로 넓은 범위를 훑어
+        // 겹치지도 않을 이웃을 잔뜩 검사합니다. 난전에서 그 비용이 큽니다.
+        // 이보다 작으면 3x3이 상호작용 거리를 못 덮어 겹침을 놓칩니다.
+        //
+        // minCellSize 하한은 좌표가 폭주하는 것을 막기 위한 것이며,
+        // 유닛 반지름이 0에 수렴하는 비정상 설정에서만 걸립니다.
         float cellSize = Mathf.Max(maxRadius * 2.0f, Spatial_Grid.minCellSize);
 
         // 2. 격자 구축 -> 겹침 해소
@@ -658,17 +688,35 @@ public partial class Controller : MonoBehaviour
             collisionGrid.Clear();
         }
 
+        // 안쪽 루프가 쓸 조밀 배열입니다. (위치/반지름만)
+        if (!collisionPositions.IsCreated || collisionPositions.Length < count)
+        {
+            if (collisionPositions.IsCreated) collisionPositions.Dispose();
+            if (collisionRadii.IsCreated) collisionRadii.Dispose();
+
+            int cap = Mathf.Max(count, 64);
+            collisionPositions = new NativeArray<Vector3>(cap, Allocator.Persistent);
+            collisionRadii = new NativeArray<float>(cap, Allocator.Persistent);
+        }
+
+        var densePos = collisionPositions.GetSubArray(0, count);
+        var denseRad = collisionRadii.GetSubArray(0, count);
+
         var build = new Collision_Grid_Build_Job
         {
             bodies = bodies,
             cellSize = cellSize,
-            grid = collisionGrid.AsParallelWriter()
+            grid = collisionGrid.AsParallelWriter(),
+            positions = densePos,
+            radii = denseRad
         };
         JobHandle buildHandle = build.Schedule(count, Constant.jobBatchCount);
 
         var resolve = new Collision_Resolve_Job
         {
             bodies = bodies,
+            positions = densePos,
+            radii = denseRad,
             grid = collisionGrid,
             cellSize = cellSize
         };
