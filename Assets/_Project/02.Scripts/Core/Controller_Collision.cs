@@ -158,6 +158,9 @@ partial class Controller
                            && a.army_Detected.Count == 0;
 
             bupdateArmy[i] = !bskippable || ((lodTick + i) % interval == 0);
+
+            // 계산 주기 조절이 실제로 몇 개를 건너뛰는지 셉니다.
+            if (!bupdateArmy[i]) Tick_Profiler.Count_Army_Skipped();
         }
     }
 

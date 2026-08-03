@@ -61,6 +61,14 @@ public static class Tick_Profiler
         P_SetDestination, // 경로 재계산 (명령 시에만)
         P_AgentMove,      // NavMeshAgent.Move (틱당, 부대 단위)
 
+        /// <summary>
+        /// 부대 AI 판단입니다. (Battle_AI._Update_Decisions)
+        ///
+        /// '유닛 1만 개가 아니라 부대 수십 개만 판단한다'는 주장이
+        /// 실제로 성립하는지 재기 위한 항목입니다.
+        /// </summary>
+        AI_Decision,
+
         Count
     }
 
@@ -127,6 +135,37 @@ public static class Tick_Profiler
     {
         if (!benabled) return;
         pathRequests++;
+    }
+
+    /// <summary>
+    /// 부대 AI 판단 횟수입니다.
+    ///
+    /// 유닛 수와 비교해야 '부대 단위 AI'가 성립하는지 알 수 있습니다.
+    /// 개체별 AI라면 이 값이 유닛 수 x 틱 수에 비례해야 합니다.
+    /// </summary>
+    public static int aiDecisions { get; private set; }
+
+    /// <summary>부대 AI 판단 한 건을 셉니다.</summary>
+    public static void Count_AI_Decision()
+    {
+        if (!benabled) return;
+        aiDecisions++;
+    }
+
+    /// <summary>
+    /// 계산 주기 조절(LOD)로 이번 틱에 갱신을 건너뛴 부대의 누적 수입니다.
+    ///
+    /// '모든 부대를 매 틱 계산하지 않고 여러 틱에 분산한다'는 주장이
+    /// 실제로 성립하는지 확인하기 위한 값입니다.
+    /// 0이면 분산이 전혀 일어나지 않고 있다는 뜻입니다.
+    /// </summary>
+    public static int armiesSkipped { get; private set; }
+
+    /// <summary>갱신을 건너뛴 부대 한 개를 셉니다.</summary>
+    public static void Count_Army_Skipped()
+    {
+        if (!benabled) return;
+        armiesSkipped++;
     }
 
     /// <summary>한 단계의 측정을 시작합니다.</summary>
@@ -212,9 +251,13 @@ public static class Tick_Profiler
         //
         // 시간만 봐서는 '군집 기반인지 개체별인지'를 알 수 없습니다.
         // 요청 횟수를 틱 수와 비교해야 판단이 섭니다.
-        sb.AppendLine("--- 길찾기 ---");
+        sb.AppendLine("--- 길찾기 / AI ---");
         sb.AppendLine($"경로 재계산   : {pathRequests}회 " +
                       $"(틱당 {(double)pathRequests / samples:F3}회)");
+        sb.AppendLine($"AI 판단       : {aiDecisions}회 " +
+                      $"(틱당 {(double)aiDecisions / samples:F3}회)");
+        sb.AppendLine($"갱신 건너뜀   : {armiesSkipped}개 " +
+                      $"(틱당 {(double)armiesSkipped / samples:F2}개 부대)");
 
         sb.AppendLine("------------------------------------");
 
@@ -232,5 +275,7 @@ public static class Tick_Profiler
 
         samples = 0;
         pathRequests = 0;
+        aiDecisions = 0;
+        armiesSkipped = 0;
     }
 }

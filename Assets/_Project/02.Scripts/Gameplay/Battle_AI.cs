@@ -80,7 +80,9 @@ public class Battle_AI : MonoBehaviour
 
         nextDecisionTick = tick + Decision_Interval_Ticks();
 
+        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.AI_Decision);
         _Update_Decisions();
+        Tick_Profiler.End_Sub();
     }
 
     private List<Army> Get_Armies()
@@ -103,6 +105,11 @@ public class Battle_AI : MonoBehaviour
 
             // 무너진 부대는 명령을 듣지 않습니다. 알아서 달아납니다.
             if (army.army_Data.IsBroken()) continue;
+
+            // 판단 횟수를 셉니다.
+            // '유닛이 아니라 부대만 판단한다'는 주장은 이 값과 유닛 수를
+            // 비교해야 확인됩니다. 시간만 봐서는 알 수 없습니다.
+            Tick_Profiler.Count_AI_Decision();
 
             Decide(army);
         }
