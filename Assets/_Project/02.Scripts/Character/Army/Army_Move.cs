@@ -89,7 +89,9 @@ partial class Army
         away = away.normalized;
 
         float speed = army_Data.GetMoveSpeed() * Constant.stance_Skirmish_Flee_Rate;
+        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.P_AgentMove);
         navMeshAgent.Move(away * speed * Time.fixedDeltaTime);
+        Tick_Profiler.End_Sub();
 
         // 물러나면서도 적을 향한 자세는 유지합니다. 계속 쏘아야 하기 때문입니다.
         for (int i = 0; i < units.Count; i++)
@@ -123,7 +125,9 @@ partial class Army
         float speed = army_Data.GetMoveSpeed() * Constant.rout_Speed_Rate;
         Vector3 movementVector = direction * speed * Time.fixedDeltaTime;
 
+        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.P_AgentMove);
         navMeshAgent.Move(movementVector);
+        Tick_Profiler.End_Sub();
 
         // 기준점이 NavMesh 위에 남아 있도록 붙잡습니다.
         //
@@ -336,7 +340,10 @@ partial class Army
             }
         }
 
+        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.P_SetDestination);
         navMeshAgent.SetDestination(locationMoveTo);
+        Tick_Profiler.End_Sub();
+        Tick_Profiler.Count_Path_Request();
 
         // uI_Units는 생성 시점 인원, formation은 현재 생존 인원 기준이라 길이가 다릅니다.
         int uiCount = Mathf.Min(uI_Units.Count, formation_Data.formation.Count);
@@ -374,7 +381,10 @@ partial class Army
             }
         }
 
+        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.P_SetDestination);
         navMeshAgent.SetDestination(locationMoveTo);
+        Tick_Profiler.End_Sub();
+        Tick_Profiler.Count_Path_Request();
 
         // uI_Units는 생성 시점 인원, formation은 현재 생존 인원 기준이라 길이가 다릅니다.
         int uiCount = Mathf.Min(uI_Units.Count, formation_Data.formation.Count);
@@ -445,7 +455,9 @@ partial class Army
             // 유닛들은 닿지도 못할 자리를 향해 계속 적을 밀게 됩니다.
             if (!Is_Blocked_By_Enemy())
             {
+                Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.P_AgentMove);
                 navMeshAgent.Move(movementVector);
+                Tick_Profiler.End_Sub();
             }
 
             Rotation();
@@ -458,7 +470,9 @@ partial class Army
 
             if (navMeshAgent.remainingDistance > Constant.distance_Stop)
             {
+                Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.P_AgentMove);
                 navMeshAgent.Move(movementVector);
+                Tick_Profiler.End_Sub();
             }
             else
             {
@@ -576,7 +590,9 @@ partial class Army
             float step = speed * Time.fixedDeltaTime;
             if (step > remaining) step = remaining;
 
+            Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.P_AgentMove);
             navMeshAgent.Move(direction * step);
+            Tick_Profiler.End_Sub();
         }
 
         Quaternion lookRotation = Quaternion.LookRotation(direction, Vector3.up);

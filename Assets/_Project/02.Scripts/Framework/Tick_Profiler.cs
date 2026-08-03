@@ -53,6 +53,14 @@ public static class Tick_Profiler
         C_Gather,       // Collision_Body 채우기 (유닛별 루프)
         C_Writeback,    // 결과 반영 루프 (유닛별)
 
+        // 길찾기
+        //
+        // 이 프로젝트는 부대 기준점만 NavMesh를 쓰고, 유닛은 진형 슬롯을
+        // 향한 벡터 연산만 합니다. 즉 '군집 기반 길찾기'가 이미 구현되어
+        // 있습니다. 그 비용이 실제로 얼마인지 재기 위한 항목입니다.
+        P_SetDestination, // 경로 재계산 (명령 시에만)
+        P_AgentMove,      // NavMeshAgent.Move (틱당, 부대 단위)
+
         Count
     }
 
@@ -103,6 +111,22 @@ public static class Tick_Profiler
     private static bool Is_Sub(Phase phase)
     {
         return phase >= Phase.A_Animation;
+    }
+
+    /// <summary>
+    /// 경로 재계산(SetDestination) 요청 횟수입니다.
+    ///
+    /// 이 값이 '틱 수 x 부대 수'에 가까우면 매 틱 길을 다시 찾는 것이고,
+    /// 명령 횟수 수준이면 군집 기반 길찾기가 성립한 것입니다.
+    /// 시간만 재서는 그 차이를 구분할 수 없어 횟수를 따로 셉니다.
+    /// </summary>
+    public static int pathRequests { get; private set; }
+
+    /// <summary>경로 재계산 한 건을 셉니다.</summary>
+    public static void Count_Path_Request()
+    {
+        if (!benabled) return;
+        pathRequests++;
     }
 
     /// <summary>한 단계의 측정을 시작합니다.</summary>
@@ -184,6 +208,14 @@ public static class Tick_Profiler
             sb.AppendLine($"{(Phase)i,-16}{totals[i] / samples,10:F2}{worsts[i],10:F2}");
         }
 
+        // 길찾기 실태를 함께 보여 줍니다.
+        //
+        // 시간만 봐서는 '군집 기반인지 개체별인지'를 알 수 없습니다.
+        // 요청 횟수를 틱 수와 비교해야 판단이 섭니다.
+        sb.AppendLine("--- 길찾기 ---");
+        sb.AppendLine($"경로 재계산   : {pathRequests}회 " +
+                      $"(틱당 {(double)pathRequests / samples:F3}회)");
+
         sb.AppendLine("------------------------------------");
 
         return sb.ToString();
@@ -199,5 +231,6 @@ public static class Tick_Profiler
         }
 
         samples = 0;
+        pathRequests = 0;
     }
 }
