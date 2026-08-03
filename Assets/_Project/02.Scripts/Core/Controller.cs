@@ -445,12 +445,17 @@ public partial class Controller : MonoBehaviour
         // 1. 프레임 시작 시점의 유닛 스냅샷을 만듭니다.
         //    모든 부대가 '같은' 스냅샷을 보므로 부대 처리 순서와 무관하게 결과가 같습니다.
         //    (부대마다 다시 만들면 순서에 따라 결과가 달라져 결정론이 깨집니다)
+        Tick_Profiler.Begin(Tick_Profiler.Phase.Snapshot);
+
         unitDataMap.Clear();
         for (int i = 0; i < units.Count; i++)
         {
             if (units[i] == null) continue;
             unitDataMap.TryAdd(units[i].colliderEntityId, units[i].unit_Data);
         }
+
+        Tick_Profiler.End();
+        Tick_Profiler.Begin(Tick_Profiler.Phase.ArmyJob);
 
         // 2. 부대 상태 머신을 갱신합니다.
         if (army_Datas.Length < armies.Count)
@@ -492,9 +497,13 @@ public partial class Controller : MonoBehaviour
         //      건너뛰면 안 됩니다. 교전하지 않는 부대만 틱을 나눠 처리합니다.
         //      선택 기준이 '부대 인덱스 % 간격'이라 매 실행 같은 순서로 갈리며,
         //      따라서 결정론이 유지됩니다.
+        Tick_Profiler.End();
+
         _Select_Armies_To_Update();
 
         // 3-1. 메인 스레드 전처리 (이동, 탐지, 지형)
+        Tick_Profiler.Begin(Tick_Profiler.Phase.Prepare);
+
         for (int i = 0; i < armies.Count; i++)
         {
             if (armies[i] == null) continue;
@@ -502,7 +511,11 @@ public partial class Controller : MonoBehaviour
             armies[i]._Update_Prepare();
         }
 
+        Tick_Profiler.End();
+
         // 3-2. Job 스케줄만 (여기서 기다리지 않습니다)
+        Tick_Profiler.Begin(Tick_Profiler.Phase.Schedule);
+
         for (int i = 0; i < armies.Count; i++)
         {
             if (armies[i] == null) continue;
@@ -510,7 +523,11 @@ public partial class Controller : MonoBehaviour
             armies[i]._Update_Schedule(unitDataMap);
         }
 
+        Tick_Profiler.End();
+
         // 3-3. 완료 대기
+        Tick_Profiler.Begin(Tick_Profiler.Phase.Complete);
+
         for (int i = 0; i < armies.Count; i++)
         {
             if (armies[i] == null) continue;
@@ -518,13 +535,19 @@ public partial class Controller : MonoBehaviour
             armies[i]._Update_Complete();
         }
 
+        Tick_Profiler.End();
+
         // 3-4. 결과 반영과 사후 정산
+        Tick_Profiler.Begin(Tick_Profiler.Phase.Apply);
+
         for (int i = 0; i < armies.Count; i++)
         {
             if (armies[i] == null) continue;
             if (!bupdateArmy[i]) continue;
             armies[i]._Update_Apply();
         }
+
+        Tick_Profiler.End();
 
         // 3-5. 유닛 겹침 해소 (자체 충돌)
         //
@@ -547,5 +570,7 @@ public partial class Controller : MonoBehaviour
         {
             armies[i].Commit_Pending_Morale_Shock();
         }
+
+        Tick_Profiler.End_Tick();
     }
 }

@@ -314,7 +314,9 @@ partial class Controller
             grid = collisionGrid,
             cellSize = cellSize
         };
+        Tick_Profiler.Begin(Tick_Profiler.Phase.Collision);
         resolve.Schedule(count, Constant.jobBatchCount, buildHandle).Complete();
+        Tick_Profiler.End();
 
         // 2-1. 지면 높이 조회를 걸어 둡니다.
         //
@@ -377,16 +379,22 @@ partial class Controller
         //
         //      위 루프가 XZ를 확정했으므로 이제 Y를 얹습니다.
         //      Transform에 쓰기 '전에' 해야 이번 틱에 바로 반영됩니다.
+        Tick_Profiler.Begin(Tick_Profiler.Phase.GroundSync);
         _Complete_Ground_Sync(count, bsync);
+        Tick_Profiler.End();
 
         // 4. 위치/회전과 스프라이트를 Job으로 일괄 반영합니다.
         //    이 두 번의 호출이 유닛마다 하던 Transform 쓰기 전부를 대체합니다.
         // 본체와 스프라이트를 하나의 대기 지점으로 묶습니다.
         // 두 Job은 서로 다른 Transform 집합을 건드려 의존성이 없으므로,
         // 각각 기다리면 스케줄 왕복만 두 번 내는 셈입니다.
+        Tick_Profiler.Begin(Tick_Profiler.Phase.TransformWrite);
         if (bsync) transformSync.Write_All();
+        Tick_Profiler.End();
 
+        Tick_Profiler.Begin(Tick_Profiler.Phase.Contact);
         _Update_Army_Contact();
+        Tick_Profiler.End();
     }
 
     // =====================================================================

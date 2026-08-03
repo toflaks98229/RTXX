@@ -83,6 +83,14 @@ public class Mass_Battle_Probe : MonoBehaviour
             if (args[i] == "-runTicks") int.TryParse(args[i + 1], out measureTicks);
         }
 
+        // 단계별 계측은 명시적으로 요청했을 때만 켭니다.
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (args[i] == "-profile") Tick_Profiler.benabled = true;
+        }
+
+        Tick_Profiler.Reset();
+
         GameEvents.OnUnitKilled += (u, v, k) => deaths++;
         GameEvents.OnArmyRouted += a => routs++;
         GameEvents.OnArmyShattered += a => shatters++;
@@ -353,6 +361,11 @@ public class Mass_Battle_Probe : MonoBehaviour
         }
 
         sb.AppendLine("==========================================");
+
+        if (Tick_Profiler.benabled)
+        {
+            sb.AppendLine(Tick_Profiler.Report());
+        }
 
         Debug.Log(sb.ToString());
 
