@@ -674,8 +674,10 @@ public partial class Army : MonoBehaviour
         _Update_Flag();      // 깃발 위치
 
         // 재사용 버퍼입니다. 실제 인원보다 클 수 있으므로 항상 units.Count까지만 씁니다.
-        Ensure_Capacity(ref unit_Datas, units.Count);
-        for (int i = 0; i < units.Count; i++)
+        int unitCount = units.Count;
+        Ensure_Capacity(ref unit_Datas, unitCount);
+
+        for (int i = 0; i < unitCount; i++)
         {
             unit_Datas[i] = units[i].unit_Data;
         }

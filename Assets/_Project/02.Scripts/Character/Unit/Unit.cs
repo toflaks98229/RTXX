@@ -10,6 +10,23 @@ public partial class Unit : MonoBehaviour
     // Public member variables
     /// <summary>유닛의 데이터가 담긴 구조체입니다.</summary>
     public Unit_Data unit_Data;
+
+    /// <summary>
+    /// unit_Data를 참조로 돌려줍니다.
+    ///
+    /// 왜 필요한가:
+    /// Unit_Data는 264바이트 구조체입니다. u.unit_Data.field = x 를
+    /// 여러 번 쓰면 그때마다 필드 오프셋 계산이 새로 붙고, 읽기는
+    /// 구조체 전체를 복사할 수도 있습니다.
+    ///
+    /// 한 곳에서 여러 필드를 연달아 만질 때는 ref로 한 번만 잡아 두는
+    /// 편이 훨씬 쌉니다. 충돌 결과 반영 루프처럼 9,600번 도는 자리에서
+    /// 그 차이가 드러납니다.
+    ///
+    /// 주의: 참조를 오래 들고 있지 마십시오. 이 구조체는 매 틱
+    /// Job 배열과 오가므로, 보관하면 낡은 값을 가리키게 됩니다.
+    /// </summary>
+    public ref Unit_Data unit_DataRef => ref unit_Data;
     /// <summary>
     /// 콜라이더의 EntityId를 캐시한 값입니다.
     /// 매 틱 GetComponent를 호출하지 않기 위해 _Start에서 한 번만 구합니다.

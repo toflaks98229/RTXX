@@ -231,6 +231,8 @@ partial class Controller
             if (armyRadius[a] > maxRadius) maxRadius = armyRadius[a];
         }
 
+        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.C_Gather);
+
         for (int i = 0; i < count; i++)
         {
             Unit u = units[i];
@@ -255,6 +257,8 @@ partial class Controller
                 contactArmyIndex = -1
             };
         }
+
+        Tick_Profiler.End_Sub();
 
         // 셀 크기는 '가장 큰 두 유닛이 닿을 수 있는 거리'와 정확히 같게 잡습니다.
         //
@@ -333,17 +337,38 @@ partial class Controller
         //    Transform 쓰기는 배열에만 담고, 마지막에 Job으로 한 번에 씁니다.
         //    여기서 유닛마다 transform.position에 대입하면 네이티브 왕복이
         //    인원수만큼 다시 발생합니다.
+        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.C_Writeback);
+
+        // 지역 변수로 미리 꺼내 둡니다.
+        //
+        // transformSync.positions 같은 프로퍼티 접근은 루프 안에서 매번
+        // 일어나면 그 자체가 비용입니다. 9,600명 x 5개 배열이면
+        // 틱당 48,000번의 프로퍼티 조회입니다.
+        var syncPositions = transformSync.positions;
+        var syncRotations = transformSync.rotations;
+        var syncSpriteRot = transformSync.spriteRotations;
+        var syncSpriteScale = transformSync.spriteScales;
+        var syncSpriteLocal = transformSync.spriteLocalPositions;
+
         for (int i = 0; i < count; i++)
         {
             Unit u = units[i];
             if (u == null) continue;
 
             Collision_Body b = bodies[i];
+
+            // unit_Data를 한 번만 읽고 한 번만 씁니다.
+            //
+            // 예전에는 u.unit_Data를 최대 다섯 번 따로 건드렸습니다.
+            // 264바이트 구조체라 접근마다 필드 오프셋 계산이 붙습니다.
+            // 지역 복사본에서 처리하고 마지막에 한 번 되돌려 씁니다.
+            ref Unit_Data data = ref u.unit_DataRef;
+
             if (b.bdead)
             {
                 // 죽은 유닛도 배열에는 현재 값을 유지해야 Write_Transforms가
                 // 엉뚱한 자리로 옮기지 않습니다.
-                if (bsync) transformSync.rotations[i] = u.unit_Data.rotation;
+                if (bsync) syncRotations[i] = data.rotation;
                 continue;
             }
 
@@ -351,29 +376,31 @@ partial class Controller
             if (b.separation.sqrMagnitude > 0.0000001f)
             {
                 p += b.separation;
-                u.unit_Data.position = p;
+                data.position = p;
             }
 
             if (bsync)
             {
-                transformSync.positions[i] = p;
-                transformSync.rotations[i] = u.unit_Data.rotation;
+                syncPositions[i] = p;
+                syncRotations[i] = data.rotation;
 
                 // 스프라이트도 함께 담습니다. (카메라를 향한 자세, 반동, 내지르기)
                 var anim = u.unit_Animation;
                 if (anim != null)
                 {
-                    transformSync.spriteRotations[i] = anim.unit_Animation_Data.rotation;
-                    transformSync.spriteScales[i] = anim.spriteScale;
-                    transformSync.spriteLocalPositions[i] = anim.spriteLocalPosition;
+                    syncSpriteRot[i] = anim.unit_Animation_Data.rotation;
+                    syncSpriteScale[i] = anim.spriteScale;
+                    syncSpriteLocal[i] = anim.spriteLocalPosition;
                 }
             }
 
             // 적 접촉 정보를 계산 결과에서 채웁니다.
             // 물리 콜백(OnCollisionStay) 없이 격자 판정만으로 얻습니다.
-            u.unit_Data.benemyContact = b.benemyContact;
-            u.unit_Data.enemyContactNormal = b.enemyContactNormal;
+            data.benemyContact = b.benemyContact;
+            data.enemyContactNormal = b.enemyContactNormal;
         }
+
+        Tick_Profiler.End_Sub();
 
         // 3-1. 지면 높이를 반영합니다.
         //

@@ -450,8 +450,13 @@ public partial class Controller : MonoBehaviour
         unitDataMap.Clear();
         for (int i = 0; i < units.Count; i++)
         {
-            if (units[i] == null) continue;
-            unitDataMap.TryAdd(units[i].colliderEntityId, units[i].unit_Data);
+            Unit u = units[i];
+            if (u == null) continue;
+
+            // units[i]를 두 번 인덱싱하지 않습니다.
+            // List 인덱서는 경계 검사가 붙는 메서드 호출이라
+            // 9,600번 도는 루프에서는 그 중복이 그대로 비용입니다.
+            unitDataMap.TryAdd(u.colliderEntityId, u.unit_Data);
         }
 
         Tick_Profiler.End();

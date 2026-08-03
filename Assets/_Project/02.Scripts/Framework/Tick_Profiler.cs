@@ -49,6 +49,10 @@ public static class Tick_Profiler
         S_TargetCopy,   // 적 유닛 데이터 복사
         S_JobSchedule,  // 실제 Job 스케줄 호출
 
+        // Collision 내부
+        C_Gather,       // Collision_Body 채우기 (유닛별 루프)
+        C_Writeback,    // 결과 반영 루프 (유닛별)
+
         Count
     }
 
