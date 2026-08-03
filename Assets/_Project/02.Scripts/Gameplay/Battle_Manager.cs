@@ -53,6 +53,12 @@ public class Battle_Manager : MonoBehaviour
     [Tooltip("전투 종료 후 결과를 표시하는 시간(초)입니다. 0이면 계속 표시합니다.")]
     public float resultDisplayTime = 0.0f;
 
+    [Header("표시")]
+    [Tooltip("이 컴포넌트가 직접 단계/결과 문구를 그릴지 여부입니다.\n" +
+             "UI_Command_Bar가 같은 내용을 더 나은 배치로 그리므로 기본값은 꺼짐입니다.\n" +
+             "HUD 없이 이 스크립트만 쓸 때만 켜십시오.")]
+    public bool bdrawOwnGUI = false;
+
     /// <summary>현재 전투 단계입니다.</summary>
     public E_Battle_Phase phase { get; private set; } = E_Battle_Phase.Deployment;
 
@@ -233,6 +239,10 @@ public class Battle_Manager : MonoBehaviour
 
     private void OnGUI()
     {
+        // HUD(UI_Command_Bar)가 같은 내용을 그리므로 기본적으로 비워 둡니다.
+        // 둘 다 그리면 배치/결과 문구가 겹쳐 보입니다.
+        if (!bdrawOwnGUI) return;
+
         Ensure_Styles();
 
         switch (phase)

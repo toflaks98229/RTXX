@@ -36,6 +36,11 @@ public class UI_Army_Banner : MonoBehaviour
     [Tooltip("선택된 부대에 사기 모디파이어 내역을 함께 표시합니다.")]
     public bool bshowModifierBreakdown = true;
 
+    [Tooltip("선택된 부대의 배너만 표시합니다.\n" +
+             "하단 카드 바(UI_Command_Bar)가 전 부대 상태를 이미 보여주므로,\n" +
+             "전장 위에는 지금 지휘 중인 부대만 띄우는 편이 덜 어수선합니다.")]
+    public bool bselectedOnly = false;
+
     // 매 프레임 문자열을 새로 만들면 GC가 계속 돌므로 재사용합니다.
     private readonly StringBuilder builder = new StringBuilder(256);
 
@@ -88,6 +93,7 @@ public class UI_Army_Banner : MonoBehaviour
             if (army == null) continue;
             if (army.units.Count == 0) continue;
             if (!bshowEnemy && !army.army_Data.bplayer) continue;
+            if (bselectedOnly && !army.IsSelected()) continue;
 
             Draw_Army(camera, army);
         }
