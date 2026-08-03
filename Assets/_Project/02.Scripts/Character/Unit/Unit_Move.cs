@@ -42,13 +42,6 @@ partial struct Unit_Data
         bstop = true;
     }
 
-    /// <summary>유닛 충돌 진입을 업데이트합니다.</summary>
-    public void _Update_Collision_Enter(in Army_Data armyData, in Unit_Data other, in Army_Data otherArmyData)
-    {
-        if (e_Unit_Move == E_Unit_Move.Move)
-            SetResistance(armyData, other, otherArmyData);
-    }
-
     /// <summary>유닛의 현재 이동 벡터를 반환합니다.</summary>
     public Vector3 GetMovementVector()
     {
@@ -703,57 +696,12 @@ partial struct Unit_Data
             currentMoveSpeed = 0;
     }
 
-    /// <summary>충돌 시 유닛의 저항력을 설정합니다.</summary>
-    private void SetResistance(in Army_Data armyData, in Unit_Data unit_Data, in Army_Data otherArmyData)
-    {
-        Vector3 dirationVecotr = unit_Data.position - position;
-        dirationVecotr.y = 0.0f;
-
-        float angle = Quaternion.Angle(rotation, Quaternion.LookRotation(dirationVecotr));
-        if (angle > 15.0f)
-        {
-            return;
-        }
-
-        if (unit_Data.bPlayer == bPlayer)
-        {
-            // 돌격 중에는 멈춰 선 아군에 막혀 서지 않습니다.
-            // (앞서 교전에 들어간 아군이나 다른 부대와 스치면 돌격이 죽습니다)
-            if (bcharging) return;
-
-            if (unit_Data.e_Unit_Move == E_Unit_Move.Idle)
-            {
-                Move_Cancel();
-                return;
-            }
-        }
-        else if (bcharging)
-        {
-            // 돌격 충돌 순간입니다. 여기서 속도를 깎으면 충격량이 사라집니다.
-            return;
-        }
-        else
-        {
-            // 적과 부딪혔습니다. 여기서 밀고 들어가면 두 대열이 뒤섞이므로
-            // 전진을 사실상 차단해 '접촉면'을 형성합니다.
-            float myMass = armyData.GetMass();
-            float otherMass = otherArmyData.GetMass();
-
-            // 질량이 크게 앞서면 조금은 밀어붙일 수 있습니다. (기병 돌파의 토대)
-            float massAdvantage = myMass / (myMass + otherMass + 0.0001f); // 0.5면 동급
-            float speedMultiplier = (massAdvantage - 0.5f) * 2.0f;         // 동급이면 0
-
-            if (speedMultiplier < Constant.engage_Block_Rate)
-                speedMultiplier = Constant.engage_Block_Rate;
-
-            currentMoveSpeed *= speedMultiplier;
-
-            if (currentMoveSpeed < 0.01f)
-            {
-                Move_Cancel();
-            }
-        }
-    }
+    // SetResistance는 제거되었습니다.
+    //
+    // 물리 충돌 진입 시점에 속도를 한 번 깎던 함수인데, 그 역할은 이미
+    // Accelerate()의 benemyContact 분기(blocked_Accelerate_Rate)와
+    // Block_Into_Enemy()의 진입 성분 제거가 매 틱 수행하고 있습니다.
+    // 질량 우위에 따른 밀어붙임도 Collision_Resolve_Job이 반영합니다.
 }
 
 // 유닛 클래스
@@ -824,11 +772,7 @@ partial class Unit
 
         Vector3 step = direction.normalized * speed * Constant.deltaTime;
 
-        // Apply_Move가 이미 unit_Data.position을 갱신했습니다.
-        // (일괄 모드) 또는 Transform을 옮겼습니다. (물리 모드)
         Apply_Move(step);
-
-        if (!bbatchedTransform) unit_Data.position = transform.position;
 
         // 진형 목표도 함께 끌고 가야 다음 재정비에서 되돌아가지 않습니다.
         unit_Data.location = unit_Data.position;
@@ -848,8 +792,6 @@ partial class Unit
 
         Apply_Move(escapeVector);
 
-        if (!bbatchedTransform) unit_Data.position = transform.position;
-
         // 달아나는 쪽을 바라봅니다.
         if (direction.sqrMagnitude > 0.0001f)
         {
@@ -861,46 +803,33 @@ partial class Unit
     }
 
     // Private methods
-    /// <summary>유닛의 이동과 회전을 업데이트합니다.</summary>
+    /// <summary>
+    /// 유닛의 이동을 업데이트합니다.
+    ///
+    /// 회전은 여기서 하지 않습니다. unit_Data.rotation은 시뮬레이션
+    /// (Unit_Data.Rotation)이 이미 정했고, Transform 반영은 틱 마지막의
+    /// Write_Transform_Job이 위치와 함께 한 번에 처리합니다.
+    /// </summary>
     private void _Update_Move()
     {
         Move();
-        Rotation();
-    }
-
-    /// <summary>
-    /// 유닛의 회전을 반영합니다.
-    ///
-    /// 자체 충돌을 쓸 때는 여기서 Transform을 만지지 않습니다.
-    /// Controller._Update_Collision이 전 유닛의 위치/회전을 Job으로
-    /// 한 번에 쓰기 때문입니다. 유닛마다 대입하면 네이티브 왕복이
-    /// 인원수만큼 발생해 9,600명 기준 6 ms가 낭비됩니다.
-    ///
-    /// 물리 기반으로 되돌렸을 때(benableUnitCollision = false)는
-    /// 일괄 쓰기가 돌지 않으므로 여기서 직접 씁니다.
-    /// </summary>
-    private void Rotation()
-    {
-        if (bbatchedTransform) return;
-
-        transform.rotation = unit_Data.rotation;
     }
 
     /// <summary>유닛의 이동을 처리합니다.</summary>
     private void Move()
     {
-        // Transform 접근은 네이티브 왕복이라 횟수 자체가 비용입니다.
+        // Transform을 만지지 않습니다.
         //
-        // 일괄 처리 모드에서는 Transform을 아예 만지지 않습니다.
-        // unit_Data.position이 이번 틱의 진짜 위치이고,
-        // Controller가 마지막에 Job으로 한 번에 Transform에 반영합니다.
+        // unit_Data.position이 이번 틱의 진짜 위치이고, Controller가
+        // 마지막에 Write_Transform_Job으로 전 유닛을 한 번에 반영합니다.
+        // 유닛마다 대입하면 네이티브 왕복이 인원수만큼 발생해
+        // 9,600명 기준 6 ms가 낭비됩니다. (Job으로 옮기면 0.6 ms)
         Vector3 delta = unit_Data.GetMovementVector();
-        Vector3 position = bbatchedTransform ? unit_Data.position : transform.position;
+        Vector3 position = unit_Data.position;
 
         if (delta.sqrMagnitude >= 0.0000001f)
         {
             position += delta;
-            if (!bbatchedTransform) transform.position = position;
         }
 
         // 조향 목표는 '가야 할 자리'입니다.
@@ -941,24 +870,15 @@ partial class Unit
     /// <summary>
     /// 유닛을 실제로 옮깁니다.
     ///
-    /// NavMeshAgent.Move() 대신 Transform을 직접 옮깁니다.
-    /// 에이전트를 거치면 내부 경로/조향 상태를 갱신하느라 호출당 비용이 크고,
-    /// 이 프로젝트의 유닛은 애초에 경로탐색을 쓰지 않습니다.
-    /// 유닛 간 겹침은 Rigidbody 충돌과 밀어내기 로직이 이미 처리합니다.
+    /// 시뮬레이션 위치만 갱신하고 Transform은 건드리지 않습니다.
+    /// 반영은 Controller가 틱 마지막에 Job으로 한 번에 합니다.
+    /// 유닛 간 겹침은 Collision_Resolve_Job이 처리합니다.
     /// </summary>
     private void Apply_Move(Vector3 delta)
     {
         if (delta.sqrMagnitude < 0.0000001f) return;
 
-        // 일괄 처리 모드에서는 데이터만 옮깁니다.
-        // Transform 반영은 Controller가 틱 마지막에 한 번에 합니다.
-        if (bbatchedTransform)
-        {
-            unit_Data.position += delta;
-            return;
-        }
-
-        transform.position += delta;
+        unit_Data.position += delta;
     }
 
     /// <summary>유닛의 이동을 중지합니다.</summary>
@@ -967,53 +887,7 @@ partial class Unit
         unit_Data.bstop = false;
     }
 
-    /// <summary>다른 유닛과의 충돌 진입을 처리합니다.</summary>
-    private void Move_Collision_Enter(Unit unit_collision)
-    {
-        Army otherArmy = unit_collision.GetArmy();
-        if (otherArmy == null || army == null) return;
-
-        unit_Data._Update_Collision_Enter(
-            army.army_Data,
-            unit_collision.GetUnit_Data(),
-            otherArmy.army_Data);
-    }
-
-    /// <summary>다른 유닛과의 충돌이 지속되는 동안의 움직임을 처리합니다.</summary>
-    private void Move_Collision_Stay(Unit unit_collision)
-    {
-        if (this.unit_Data.e_Unit_Move == E_Unit_Move.Idle)
-        {
-            return;
-        }
-
-        if (unit_Data.bPlayer != unit_collision.unit_Data.bPlayer)
-        {
-            return;
-        }
-
-        // 교전 중인 유닛은 옆으로 비켜서지 않습니다.
-        // 비켜서면 대열에 구멍이 생기고 그 틈으로 적이 파고들어 뒤섞입니다.
-        if (unit_Data.btarget || unit_collision.unit_Data.btarget)
-        {
-            return;
-        }
-
-        Vector3 pushVector = unit_Data.GetMovementVector();
-        Vector3 directionVector = transform.position - unit_collision.transform.position;
-        Vector3 cross = Vector3.Cross(pushVector, directionVector);
-        float Dot = Vector3.Dot(cross, Vector3.up);
-
-        if (Dot > 0.0f)
-        {
-            pushVector = new Vector3(pushVector.z, pushVector.y, -pushVector.x);
-        }
-        else if (Dot < 0.0f)
-        {
-            pushVector = new Vector3(-pushVector.z, pushVector.y, pushVector.x);
-        }
-
-        pushVector = pushVector.normalized * Constant.speed_Walk * Constant.engage_Push_Rate * Constant.deltaTime;
-        Apply_Move(pushVector);
-    }
+    // Move_Collision_Enter / Move_Collision_Stay는 제거되었습니다.
+    // 물리 콜백에서만 호출되던 함수들이며, 유닛 간 밀어내기는
+    // Collision_Resolve_Job이 질량비까지 반영해 처리합니다.
 }

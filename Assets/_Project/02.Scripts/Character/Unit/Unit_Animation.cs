@@ -169,22 +169,15 @@ public class Unit_Animation : MonoBehaviour
                      * Mathf.Max(0.4f, power);
     }
 
-    /// <summary>지난 틱에 적용한 스케일입니다. 값이 그대로면 쓰기를 건너뜁니다.</summary>
-    private float appliedScale = float.NaN;
-    /// <summary>지난 틱에 적용한 좌우 반전입니다.</summary>
-    private bool bappliedFlip;
-
     /// <summary>이번 틱에 계산된 스프라이트 스케일입니다. 일괄 쓰기가 읽어 갑니다.</summary>
     public Vector3 spriteScale { get; private set; }
     /// <summary>이번 틱에 계산된 스프라이트 로컬 위치입니다. (내지르기 포함)</summary>
     public Vector3 spriteLocalPosition { get; private set; }
 
     /// <summary>
-    /// 매 프레임마다 호출되어 애니메이션을 계산합니다.
-    ///
-    /// 일괄 처리 모드에서는 Transform을 직접 만지지 않고 값만 계산해 둡니다.
-    /// Controller가 틱 마지막에 Write_Sprites()로 전 유닛을 한 번에 씁니다.
-    /// 유닛마다 대입하면 9,600명 기준 7.44 ms가 듭니다.
+    /// 매 프레임마다 호출되어 애니메이션 값을 계산합니다.
+    /// Transform 반영은 하지 않습니다. 계산 결과만 남기면
+    /// Controller의 일괄 쓰기가 읽어 갑니다.
     /// </summary>
     public void _Update()
     {
@@ -201,19 +194,10 @@ public class Unit_Animation : MonoBehaviour
             ? new Vector3(scale, scale, scale)
             : new Vector3(-scale, scale, scale);
 
-        if (Unit.bbatchedTransform) return;
-
-        // 물리 모드에서는 여기서 직접 씁니다.
-        transform.rotation = unit_Animation_Data.rotation;
-
-        if (bflip != bappliedFlip || scale != appliedScale)
-        {
-            transform.localScale = spriteScale;
-            appliedScale = scale;
-            bappliedFlip = bflip;
-        }
-
-        transform.localPosition = spriteLocalPosition;
+        // Transform은 여기서 만지지 않습니다.
+        // Controller가 틱 마지막에 Write_Sprite_Job으로 전 유닛의
+        // 회전/스케일/로컬위치를 한 번에 씁니다.
+        // 유닛마다 대입하면 9,600명 기준 7.44 ms가 듭니다.
     }
 
     /// <summary>

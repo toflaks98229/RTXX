@@ -291,12 +291,43 @@ public partial class Army : MonoBehaviour
 
     /// <summary>
     /// armyIndex -> Army 색인표를 설정합니다.
-    /// 유닛에 armyIndex를 부여하는 쪽에서 같은 리스트로 호출해야 합니다.
+    ///
+    /// 직접 부르지 마십시오. Army_Registry.Rebuild_Indices()가 유닛의 armyIndex를
+    /// 부여하면서 같은 배열로 호출합니다. 따로 부르면 두 값이 어긋납니다.
     /// </summary>
-    public static void Set_Army_Index_Table(List<Army> armies)
+    public static void Set_Army_Index_Table(Army[] armies)
     {
-        armyIndexTable = armies != null ? armies.ToArray() : null;
+        armyIndexTable = armies;
     }
+
+    /// <summary>
+    /// 이 부대와 소속 유닛 전체에 armyIndex를 부여합니다.
+    ///
+    /// Army_Registry가 색인표를 만드는 것과 '같은 루프'에서 호출하므로,
+    /// 색인표와 유닛이 보는 인덱스는 구조적으로 같을 수밖에 없습니다.
+    ///
+    /// 유닛이 아직 생성되기 전(_Start 이전)에 호출되면 units가 비어 있어
+    /// 아무 일도 하지 않습니다. 그 경우 Spawn_Units 이후 다시 부르면 됩니다.
+    /// </summary>
+    /// <param name="armyIndex">이 부대에 부여할 인덱스입니다.</param>
+    public void Assign_Army_Index(int armyIndex)
+    {
+        this.armyIndex = armyIndex;
+
+        if (units == null) return;
+
+        for (int i = 0; i < units.Count; i++)
+        {
+            if (units[i] == null) continue;
+            units[i].unit_Data.armyIndex = armyIndex;
+        }
+    }
+
+    /// <summary>
+    /// 이 부대의 색인입니다. Army_Registry가 부여합니다.
+    /// 아직 등록되지 않았으면 -1입니다.
+    /// </summary>
+    public int armyIndex { get; private set; } = -1;
 
     /// <summary>
     /// armyIndex로 부대를 찾습니다. 범위를 벗어나면 null입니다.
@@ -310,10 +341,23 @@ public partial class Army : MonoBehaviour
         return armyIndexTable[armyIndex];
     }
 
+    /// <summary>
+    /// 이 부대가 파괴되었음을 등록소에 알리는 콜백입니다.
+    ///
+    /// Army는 자기를 소유한 Controller를 알지 못하므로(그래야 테스트가 쉽습니다),
+    /// 등록소 쪽에서 이 자리를 채워 둡니다. 비어 있으면 아무 일도 하지 않습니다.
+    /// </summary>
+    public static System.Action<Army> onArmyDestroyed;
+
     /// <summary>이 부대를 전역 목록에서 제거합니다.</summary>
     private void OnDestroy()
     {
         allArmies.Remove(this);
+
+        // 등록소의 색인을 무효화합니다.
+        // 이 알림이 없으면 파괴된 부대가 색인표에 남아, 그 자리를 조회한
+        // 킬 귀속이 조용히 null을 받습니다.
+        onArmyDestroyed?.Invoke(this);
 
         // 정적 이벤트 구독은 반드시 해지해야 합니다.
         // 남겨 두면 파괴된 부대가 호출되어 예외가 납니다.
@@ -366,9 +410,75 @@ public partial class Army : MonoBehaviour
     /// <param name="distance">찾은 부대까지의 거리입니다.</param>
     public Army Find_Nearest_Enemy_Army(out float distance)
     {
+        Vector3 myPosition = formation_Move_Transform.position;
+
+        // 반경을 넓혀 가며 찾습니다.
+        //
+        // '가장 가까운 하나'는 반경이 정해져 있지 않아 격자와 잘 맞지 않습니다.
+        // 그래서 좁은 반경부터 훑고, 못 찾으면 두 배로 넓힙니다.
+        // 대부분의 호출은 첫 반경에서 끝나므로 전수 순회보다 훨씬 쌉니다.
+        //
+        // 주의: 한 반경 안에서 찾았더라도 그 결과가 전역 최근접입니다.
+        // 질의 반경 안의 후보를 '빠짐없이' 받아 그중 최소를 고르기 때문입니다.
+        float radius = Army_Grid.cellSize;
+
+        for (int step = 0; step < 6; step++)
+        {
+            Army nearest = Find_Nearest_Enemy_In(myPosition, radius, out float bestSqr);
+
+            // 찾았고, 그 거리가 질의 반경 안이면 전역 최근접이 확정됩니다.
+            // 반경 경계에 걸친 경우에는 더 넓혀 봐야 확실합니다.
+            if (nearest != null && bestSqr <= radius * radius)
+            {
+                distance = Mathf.Sqrt(bestSqr);
+                return nearest;
+            }
+
+            radius *= 2.0f;
+        }
+
+        // 여기까지 왔으면 아주 멀리 흩어져 있는 경우입니다. 전수로 확인합니다.
+        return Find_Nearest_Enemy_Exhaustive(myPosition, out distance);
+    }
+
+    /// <summary>주어진 반경 안에서 가장 가까운 적 부대를 찾습니다.</summary>
+    private Army Find_Nearest_Enemy_In(Vector3 myPosition, float radius, out float bestSqr)
+    {
+        Army nearest = null;
+        bestSqr = float.MaxValue;
+
+        List<Army> candidates = Query_Nearby(myPosition, radius);
+
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            Army other = candidates[i];
+            if (other == null) continue;
+            if (other == this) continue;
+            if (other.units.Count == 0) continue;
+            if (other.army_Data.bplayer == army_Data.bplayer) continue;
+
+            Vector3 to = other.formation_Move_Transform.position - myPosition;
+            to.y = 0.0f;
+
+            float sqr = to.sqrMagnitude;
+            if (sqr < bestSqr)
+            {
+                bestSqr = sqr;
+                nearest = other;
+            }
+        }
+
+        return nearest;
+    }
+
+    /// <summary>
+    /// 전수 순회로 가장 가까운 적 부대를 찾습니다.
+    /// 격자 탐색이 반경을 계속 넓혀도 못 찾았을 때의 마지막 수단입니다.
+    /// </summary>
+    private Army Find_Nearest_Enemy_Exhaustive(Vector3 myPosition, out float distance)
+    {
         Army nearest = null;
         float bestSqr = float.MaxValue;
-        Vector3 myPosition = formation_Move_Transform.position;
 
         for (int i = 0; i < allArmies.Count; i++)
         {
@@ -585,204 +695,6 @@ public partial class Army : MonoBehaviour
     }
 
     /// <summary>
-    /// 이번 틱에 발생한 돌격 충돌을 정산합니다.
-    /// 충돌한 유닛 수에 비례해 상대 부대에 사기 충격을 가합니다.
-    /// </summary>
-    private void _Update_Charge_Impact()
-    {
-        if (targetArmy == null) return;
-
-        int impacts = 0;
-
-        for (int i = 0; i < units.Count; i++)
-        {
-            if (units[i] == null) continue;
-            if (!units[i].unit_Data.bchargeImpact) continue;
-
-            units[i].unit_Data.bchargeImpact = false;
-            impacts++;
-
-            // 대형 유닛은 부딪히는 것만으로 피해를 줍니다. (충돌 공격)
-            if (units[i].unit_Data.bcollisionAttack)
-            {
-                units[i].unit_Data.bcollisionAttack = false;
-                Apply_Collision_Attack(units[i]);
-            }
-
-            // 돌격한 쪽: 충돌 순간을 크게 번쩍입니다.
-            if (units[i].unit_Animation != null)
-            {
-                units[i].unit_Animation.Flash_Charge_Impact(units[i].unit_Data.chargeImpactPower);
-            }
-        }
-
-        if (impacts == 0) return;
-
-        // 충돌 비율만큼 충격을 가합니다. 전원이 부딪히면 전량입니다.
-        float rate = army_Data.unit_Num > 0 ? (float)impacts / army_Data.unit_Num : 0.0f;
-        if (rate > 1.0f) rate = 1.0f;
-
-        // 충격량은 부딪힌 속도에도 비례합니다.
-        // 느릿하게 밀고 들어간 접촉은 사기를 거의 흔들지 못합니다.
-        float momentum = 0.0f;
-        for (int i = 0; i < units.Count; i++)
-        {
-            if (units[i] == null) continue;
-            if (units[i].unit_Data.chargeImpactPower > momentum)
-                momentum = units[i].unit_Data.chargeImpactPower;
-        }
-
-        float shock = Constant.morale_Shock_Charge * rate * momentum;
-        if (shock <= 0.0f) return;
-
-        // 측후방에서 받은 돌격은 훨씬 크게 흔듭니다.
-        Vector3 toVictim = targetArmy.GetPosition() - GetPosition();
-        toVictim.y = 0.0f;
-
-        if (toVictim.sqrMagnitude > 0.0001f)
-        {
-            Vector3 victimForward = targetArmy.formation_Move_Transform.forward;
-            victimForward.y = 0.0f;
-
-            // 피격 부대의 정면과 '돌격이 들어온 방향'이 이루는 각도로 판정합니다.
-            float dot = Vector3.Dot(victimForward.normalized, toVictim.normalized);
-
-            // dot이 양수면 뒤에서 찔린 것입니다.
-            if (dot > 0.0f) shock *= Constant.morale_Shock_Flank_Rate;
-        }
-
-        // 창벽에 정면으로 뛰어들었다면 돌격이 되받아쳐집니다.
-        //
-        // 창을 세우고 버티는 대열에 말을 몰아넣으면 손해를 보는 쪽은
-        // 돌격한 쪽입니다. 충격이 상대가 아니라 나에게 돌아옵니다.
-        if (targetArmy.army_Data.IsChargeReflecting() && Is_Charging_Into_Front(targetArmy))
-        {
-            Apply_Morale_Shock(Constant.stance_SpearWall_Reflect_Shock * rate);
-
-            // 되받아친 쪽도 접촉면이 번쩍여 무슨 일이 일어났는지 보이게 합니다.
-            targetArmy.Request_Charge_Flash(GetPosition(), momentum);
-            return;
-        }
-
-        targetArmy.Apply_Morale_Shock(shock);
-
-        // 충격을 받은 쪽에서도 접촉면의 유닛들이 번쩍이도록 합니다.
-        // 어느 방향에서 돌격이 들어왔는지 눈으로 알 수 있게 하기 위함입니다.
-        targetArmy.Request_Charge_Flash(GetPosition(), momentum);
-    }
-
-    /// <summary>
-    /// 내가 상대의 '정면'으로 돌격해 들어갔는지 판정합니다.
-    /// 돌격 반사는 정면에서만 성립합니다. 측후방을 친 돌격은 반사되지 않습니다.
-    /// </summary>
-    private bool Is_Charging_Into_Front(Army victim)
-    {
-        Vector3 toMe = GetPosition() - victim.GetPosition();
-        toMe.y = 0.0f;
-
-        if (toMe.sqrMagnitude < 0.0001f) return true;
-
-        Vector3 victimForward = victim.formation_Move_Transform.forward;
-        victimForward.y = 0.0f;
-
-        if (victimForward.sqrMagnitude < 0.0001f) return true;
-
-        return Vector3.Dot(victimForward.normalized, toMe.normalized)
-               >= Constant.stance_Front_Dot;
-    }
-
-    /// <summary>
-    /// 충돌 공격을 적용합니다. 대형 유닛이 '몸으로' 들이받는 피해입니다.
-    ///
-    /// 무기 공격과 별개인 이유:
-    /// 전속력으로 달려든 말은 창을 쓰기 전에 부딪히는 것만으로 사람을 넘어뜨립니다.
-    /// 이 처리가 있어야 기병 돌파가 보병 대열을 실제로 흩뜨립니다.
-    ///
-    /// 피해량은 질량비와 속도에 비례합니다.
-    /// 무거운 쪽이 가벼운 쪽을 밀어내는 것이지 그 반대는 성립하지 않습니다.
-    /// </summary>
-    private void Apply_Collision_Attack(Unit attacker)
-    {
-        if (targetArmy == null) return;
-        if (attacker == null) return;
-
-        float myMass = army_Data.GetMass();
-        float otherMass = targetArmy.army_Data.GetMass();
-        if (otherMass <= 0.0f) otherMass = 1.0f;
-
-        // 질량이 앞설수록 강하게 들이받습니다. 동급이면 거의 효과가 없습니다.
-        float massRatio = myMass / otherMass;
-        if (massRatio < 1.0f) return;
-
-        float t = (massRatio - 1.0f)
-                  / Mathf.Max(0.0001f, Constant.collision_Mass_Full_Ratio - 1.0f);
-        if (t > 1.0f) t = 1.0f;
-
-        float power = t * attacker.unit_Data.chargeImpactPower;
-        if (power <= 0.0f) return;
-
-        float damage = Constant.collision_Damage_Base * power;
-        float impulse = Constant.collision_Knockback_Impulse * power;
-
-        // 충돌 지점 주변의 적들이 함께 밀려납니다.
-        // 말 한 마리가 정확히 한 명만 치고 지나가지는 않습니다.
-        float radius = army_Data.GetRadius() + targetArmy.army_Data.GetRadius();
-        if (radius <= 0.0f) radius = 1.0f;
-
-        float radiusSqr = radius * radius;
-        Vector3 origin = attacker.transform.position;
-        Vector3 forward = attacker.transform.forward;
-
-        List<Unit> victims = targetArmy.units;
-
-        for (int i = 0; i < victims.Count; i++)
-        {
-            Unit victim = victims[i];
-            if (victim == null) continue;
-            if (victim.IsDead()) continue;
-
-            Vector3 to = victim.transform.position - origin;
-            to.y = 0.0f;
-
-            if (to.sqrMagnitude > radiusSqr) continue;
-
-            // 앞으로 밀어냅니다. 겹쳐 있으면 진행 방향을 씁니다.
-            Vector3 push = to.sqrMagnitude > 0.000001f ? to.normalized : forward;
-
-            victim.Take_Collision_Hit(damage, push, impulse,
-                                      attacker.unit_Data.num, attacker.unit_Data.armyIndex);
-        }
-    }
-
-    /// <summary>
-    /// 돌격을 받은 쪽의 시각 피드백입니다.
-    /// 돌격이 들어온 방향에 가까운 유닛들만 번쩍여 충돌 지점을 드러냅니다.
-    /// </summary>
-    /// <param name="fromPosition">돌격이 들어온 지점입니다.</param>
-    /// <param name="power">충돌 세기(0~1)입니다.</param>
-    public void Flash_Charge_Received(Vector3 fromPosition, float power)
-    {
-        // 접촉면 판정 반경입니다. 진형 간격을 기준으로 잡습니다.
-        float radius = army_Data.GetInterval() * Constant.charge_Flash_Radius_Rate;
-        if (radius <= 0.0f) radius = 4.0f;
-
-        float radiusSqr = radius * radius;
-
-        for (int i = 0; i < units.Count; i++)
-        {
-            if (units[i] == null) continue;
-            if (units[i].unit_Animation == null) continue;
-
-            Vector3 to = units[i].transform.position - fromPosition;
-            to.y = 0.0f;
-
-            if (to.sqrMagnitude > radiusSqr) continue;
-
-            units[i].unit_Animation.Flash_Charge_Impact(power);
-        }
-    }
-
-    /// <summary>
     /// 부대의 재정비 태세를 바꿉니다.
     ///
     /// Line(방어): 명령으로 잡아 둔 전열의 방향과 폭을 유지하며 정비합니다.
@@ -856,154 +768,6 @@ public partial class Army : MonoBehaviour
 
         pendingFlashFrom = fromPosition;
         pendingFlashPower = power;
-    }
-
-    /// <summary>
-    /// 사기의 '목표값'을 계산합니다. 실제 사기 이동은 Burst Job(Army_Data._Update)이 수행합니다.
-    /// 토탈워식으로 손실률, 포위, 지휘(깃발) 상황을 종합합니다.
-    /// </summary>
-    private void _Update_Morale_Input()
-    {
-        // 항목별로 계산해 남겨 둡니다. UI가 "왜 사기가 떨어지는가"를
-        // 이 내역에서 그대로 읽어 갑니다. (합계만 두면 그 화면을 못 만듭니다)
-        Morale_Modifiers modifiers = army_Data.morale_Modifiers;
-        modifiers.Clear();
-
-        // 1. 사상자: 손실률이 클수록 크게 떨어집니다. 가장 지배적인 요인입니다.
-        if (army_Data.unit_Num_Max > 0)
-        {
-            float lossRate = 1.0f - ((float)army_Data.unit_Num / army_Data.unit_Num_Max);
-            if (lossRate < 0.0f) lossRate = 0.0f;
-            modifiers.casualties = -lossRate * Constant.morale_Penalty_Casualty;
-        }
-
-        // 2. 포위: 나를 상대로 교전 중인 적 부대가 둘 이상이면 급격히 흔들립니다.
-        //    동시에 교전 중인 적의 총 인원도 세어 수적 열세 판정에 씁니다.
-        int enemyArmies = 0;
-        int enemyUnits = 0;
-
-        for (int i = 0; i < army_Detected.Count; i++)
-        {
-            Army other = army_Detected[i].army;
-            if (other == null) continue;
-            if (other.units.Count == 0) continue;
-            if (other.army_Data.bplayer == army_Data.bplayer) continue;
-
-            enemyArmies++;
-            enemyUnits += other.units.Count;
-        }
-
-        if (enemyArmies > 1)
-        {
-            modifiers.surrounded = -(enemyArmies - 1) * Constant.morale_Penalty_Surrounded;
-        }
-
-        // 3. 수적 열세 / 우세: 눈앞의 적이 나보다 많으면 흔들리고, 적으면 버팁니다.
-        if (enemyUnits > 0 && army_Data.unit_Num > 0)
-        {
-            float ratio = (float)enemyUnits / army_Data.unit_Num;
-
-            if (ratio > 1.0f)
-            {
-                // 열세: 정해진 비율에서 페널티가 최대에 도달합니다.
-                float t = (ratio - 1.0f)
-                          / Mathf.Max(0.0001f, Constant.morale_Outnumbered_Full_Ratio - 1.0f);
-                if (t > 1.0f) t = 1.0f;
-
-                modifiers.outnumbered = -t * Constant.morale_Penalty_Outnumbered;
-            }
-            else
-            {
-                // 우세: 이기고 있다는 실감이 부대를 버티게 합니다.
-                float t = 1.0f - ratio;
-                modifiers.winning = t * Constant.morale_Bonus_Winning;
-            }
-        }
-
-        // 4. 피로: 지친 병사는 먼저 무너집니다.
-        modifiers.fatigue = -army_Data.GetFatigueMoralePenalty();
-
-        // 5. 지휘: 깃발을 든 유닛이 살아 있으면 부대가 결속을 유지합니다.
-        if (unit_Bearing_Flag != null && !unit_Bearing_Flag.IsDead())
-        {
-            modifiers.flag = Constant.morale_Bonus_Flag;
-        }
-
-        // 6. 지형: 고지를 점하면 사기가 오르고, 올려다보는 쪽은 떨어집니다.
-        modifiers.terrain = army_Data.GetHighGroundMorale();
-
-        // 6-1. 지휘: 장군이 가까이 있으면 부대가 버팁니다.
-        modifiers.general = Get_General_Aura();
-
-        // 7. 연쇄 붕괴: 옆의 아군이 무너지면 이쪽도 흔들립니다.
-        //    (GameEvents.OnArmyRouted 구독으로 누적된 값을 소비합니다)
-        modifiers.alliedRouting = -alliedRoutPenalty;
-
-        // 충격은 별도 필드로 관리되므로 표시용으로만 옮겨 담습니다.
-        modifiers.shock = -army_Data.morale_Shock;
-
-        army_Data.morale_Modifiers = modifiers;
-
-        // 충격을 뺀 나머지 항목의 합이 목표 사기입니다.
-        // (충격은 _Update_Morale에서 별도로 차감되므로 여기서 이중 적용하면 안 됩니다)
-        float target = Constant.morale_Max + modifiers.Sum() - modifiers.shock;
-
-        if (target > Constant.morale_Max) target = Constant.morale_Max;
-        if (target < 0.0f) target = 0.0f;
-
-        army_Data.morale_Target = target;
-
-        // 5. 패주 방향: 교전 상대의 반대편으로 달아납니다.
-        if (targetArmy != null)
-        {
-            Vector3 away = GetPosition() - targetArmy.GetPosition();
-            away.y = 0.0f;
-            if (away.sqrMagnitude > 0.0001f) army_Data.escapeDirection = away.normalized;
-        }
-
-        // 연쇄 붕괴 페널티는 사기 충격과 같은 속도로 사그라듭니다.
-        // 옆 부대가 무너진 충격이 영원히 남으면 재결집이 불가능해집니다.
-        if (alliedRoutPenalty > 0.0f)
-        {
-            alliedRoutPenalty -= Constant.morale_Shock_Recover * Constant.deltaTime;
-            if (alliedRoutPenalty < 0.0f) alliedRoutPenalty = 0.0f;
-        }
-
-        // 6. 붕괴/재결집 알림 (Job이 세운 1회성 플래그를 소비합니다)
-        if (army_Data.broutedThisTick)
-        {
-            army_Data.broutedThisTick = false;
-            On_Rout();
-        }
-
-        if (army_Data.bshatteredThisTick)
-        {
-            army_Data.bshatteredThisTick = false;
-            GameEvents.RaiseArmyShattered(this);
-        }
-
-        if (army_Data.bralliedThisTick)
-        {
-            army_Data.bralliedThisTick = false;
-            GameEvents.RaiseArmyRallied(this);
-        }
-    }
-
-    /// <summary>
-    /// 부대가 붕괴했을 때의 처리입니다. 교전을 끊고 모든 유닛의 목표를 해제합니다.
-    /// </summary>
-    private void On_Rout()
-    {
-        targetArmy = null;
-        army_Data.e_Army_Fight = E_Army_Fight.Non;
-
-        for (int i = 0; i < units.Count; i++)
-        {
-            if (units[i] == null) continue;
-            units[i].unit_Data.Lose_Target();
-        }
-
-        GameEvents.RaiseArmyRouted(this);
     }
 
     /// <summary>
@@ -1096,6 +860,27 @@ public partial class Army : MonoBehaviour
     }
 
     /// <summary>
+    /// 한 지점을 지면 높이로 내려놓습니다.
+    ///
+    /// 생성 시점에만 쓰는 단발 조회입니다. 매 틱 갱신은
+    /// Controller의 Unit_Ground_Sync가 일괄 레이캐스트로 처리합니다.
+    /// 지면을 찾지 못하면 원래 높이를 그대로 둡니다.
+    /// </summary>
+    private static Vector3 Snap_To_Ground(Vector3 position)
+    {
+        Vector3 origin = position;
+        origin.y += Unit_Ground_Sync.rayStartHeight;
+
+        if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit,
+                            Unit_Ground_Sync.rayDistance, Unit_Ground_Sync.Ground_Mask))
+        {
+            position.y = hit.point.y;
+        }
+
+        return position;
+    }
+
+    /// <summary>
     /// 모든 유닛을 생성하고 초기 위치를 설정합니다.
     /// </summary>
     void Spawn_Units()
@@ -1123,6 +908,14 @@ public partial class Army : MonoBehaviour
         {
             // 진형 계산이 실패한 경우를 대비한 안전장치입니다.
             Vector3 slot = i < slots.Count ? slots[i] : formation_Move_Transform.position;
+
+            // 생성 시점에 지면 높이로 내려놓습니다.
+            //
+            // 진형 좌표는 부대 기준점의 Y를 그대로 물려받으므로, 경사진 곳에서는
+            // 뒷열이 공중에 뜨거나 언덕에 파묻힌 채 시작합니다.
+            // 주기적 지면 동기화가 곧 맞춰 주지만, 첫 몇 틱 동안 유닛이
+            // 눈에 띄게 솟구쳤다 내려앉는 것을 막으려면 여기서 한 번 맞춰야 합니다.
+            slot = Snap_To_Ground(slot);
 
             GameObject unitObject = Instantiate(this.unit, slot, spawnRotation);
             Unit unitComponent = unitObject.GetComponent<Unit>();
@@ -1189,25 +982,13 @@ public partial class Army : MonoBehaviour
         // 밸런스 값이라 컴파일 타임 상수가 아닙니다. 루프 밖에서 한 번만 읽습니다.
         float maxDistance = Constant.distance_Front_Block_Ray;
 
-        // 일괄 처리 모드에서는 Transform 대신 unit_Data를 씁니다.
+        // Transform 대신 unit_Data를 읽습니다.
         // 위치는 이미 시뮬레이션이 들고 있고, 정면은 회전에서 유도할 수 있습니다.
         // Transform을 읽으면 인원수만큼 네이티브 왕복이 발생합니다.
-        bool bbatched = Unit.bbatchedTransform;
-
         for (int i = 0; i < units.Count; i++)
         {
-            Vector3 origin, direction;
-
-            if (bbatched)
-            {
-                origin = units[i].unit_Data.position;
-                direction = units[i].unit_Data.rotation * Vector3.forward;
-            }
-            else
-            {
-                origin = units[i].transform.position;
-                direction = units[i].transform.forward;
-            }
+            Vector3 origin = units[i].unit_Data.position;
+            Vector3 direction = units[i].unit_Data.rotation * Vector3.forward;
 
             commands[i] = new RaycastCommand(origin, direction, maxDistance, layerMask);
         }
@@ -1332,9 +1113,13 @@ public partial class Army : MonoBehaviour
         float radius = Constant.general_Aura_Radius;
         float radiusSqr = radius * radius;
 
-        for (int i = 0; i < allArmies.Count; i++)
+        // 격자로 후보를 줄입니다. 장군은 몇 안 되지만 이 함수는
+        // '모든 부대가 매 틱' 부르므로, 전수 순회하면 그것만으로 N^2입니다.
+        List<Army> candidates = Query_Nearby(myPosition, radius);
+
+        for (int i = 0; i < candidates.Count; i++)
         {
-            Army other = allArmies[i];
+            Army other = candidates[i];
             if (other == null) continue;
             if (!other.army_Data.bgeneral) continue;
             if (other.units.Count == 0) continue;
@@ -1357,261 +1142,6 @@ public partial class Army : MonoBehaviour
         }
 
         return best;
-    }
-
-    /// <summary>
-    /// 지형 상태(고지 우위, 경사)를 갱신합니다.
-    ///
-    /// 고지를 잡는 것은 토탈워 배치의 첫 번째 원칙입니다.
-    /// 위에서 내려치는 쪽은 더 잘 맞히고 사기가 오르며 화살이 멀리 날아가고,
-    /// 오르막을 오르는 쪽은 느려집니다.
-    /// </summary>
-    private void _Update_Terrain()
-    {
-        Vector3 myPosition = formation_Move_Transform.position;
-
-        // 1. 고지 우위: 교전 상대와의 높이 차로 계산합니다.
-        //    상대가 없으면 우위도 열세도 없습니다.
-        float rate = 0.0f;
-
-        if (targetArmy != null && targetArmy.units.Count > 0)
-        {
-            float heightDelta = myPosition.y - targetArmy.formation_Move_Transform.position.y;
-
-            rate = heightDelta / Constant.terrain_Height_Full;
-            if (rate < -1.0f) rate = -1.0f;
-            if (rate > 1.0f) rate = 1.0f;
-        }
-
-        army_Data.highGroundRate = rate;
-
-        // 2. 경사: 발밑 지면의 기울기를 재서 이동 속도에 반영합니다.
-        //    레이캐스트 한 번이면 충분하므로 부대 기준점에서만 봅니다.
-        //    (유닛마다 쏘면 부대 수 x 인원만큼 늘어나 낭비가 큽니다)
-        if (Physics.Raycast(myPosition + Vector3.up * 2.0f, Vector3.down,
-                            out RaycastHit hit, 10.0f, groundLayerMask))
-        {
-            army_Data.slopeAngle = Vector3.Angle(hit.normal, Vector3.up);
-        }
-        else
-        {
-            army_Data.slopeAngle = 0.0f;
-        }
-    }
-
-    /// <summary>"Ground" 레이어 마스크를 캐시한 값입니다.</summary>
-    private static int groundLayerMaskCache = -1;
-
-    /// <summary>지면 레이어 마스크입니다. 최초 접근 시 한 번만 조회합니다.</summary>
-    private static int groundLayerMask
-    {
-        get
-        {
-            if (groundLayerMaskCache == -1)
-            {
-                groundLayerMaskCache = LayerMask.GetMask("Ground");
-
-                // "Ground" 레이어가 없는 프로젝트에서는 모든 레이어를 봅니다.
-                // 그래야 경사 계산이 조용히 0으로 굳지 않습니다.
-                if (groundLayerMaskCache == 0) groundLayerMaskCache = ~0;
-            }
-
-            return groundLayerMaskCache;
-        }
-    }
-
-    /// <summary>
-    /// 사거리 안의 적 부대를 '접촉 없이' 탐지합니다.
-    ///
-    /// 왜 필요한가:
-    /// 기존 탐지(army_Detected)는 물리 충돌로만 채워졌습니다.
-    /// 즉 몸이 닿아야 적으로 인식하므로, 원거리 부대는 구조적으로
-    /// 사거리 밖의 적을 공격할 수 없었습니다. 이건 미구현이 아니라
-    /// 아키텍처 차원의 차단이었습니다.
-    ///
-    /// 여기서 시야 기반 탐지를 더해 그 벽을 걷어냅니다.
-    /// 충돌 기반 탐지(Add_Army_Detected)는 그대로 유지되며,
-    /// 이 함수는 '아직 닿지 않은' 적을 추가로 등록할 뿐입니다.
-    /// </summary>
-    private void _Update_Detection()
-    {
-        // 이 부대가 실제로 닿을 수 있는 최대 거리입니다.
-        float reach = army_Data.GetMeleeRange();
-
-        if (army_Data.GetE_Unit_AttackType() == E_Unit_AttackType.Range
-            || army_Data.IsRangeAttackAble())
-        {
-            float rangeRange = army_Data.GetEffectiveRangeRange();
-            if (rangeRange > reach) reach = rangeRange;
-        }
-
-        // 근접 전용 부대의 탐지 거리입니다.
-        //
-        // 예전에는 여기서 그냥 return했습니다. 근접 부대는 물리 충돌
-        // (OnCollisionEnter -> Add_Army_Detected)로만 적을 인식했기 때문입니다.
-        //
-        // 자체 충돌로 넘어오면 그 콜백이 사라지므로, 근접 부대도 스스로
-        // 주변을 봐야 합니다. 접촉 직전에 인식하도록 근접 사거리에 여유를 둡니다.
-        // (충돌로만 인식하던 시절과 사실상 같은 타이밍입니다)
-        if (reach <= army_Data.GetMeleeRange())
-        {
-            reach = army_Data.GetMeleeRange() + army_Data.GetRadius() * 4.0f;
-        }
-
-        float reachSqr = reach * reach;
-        Vector3 myPosition = GetPosition();
-
-        for (int i = 0; i < allArmies.Count; i++)
-        {
-            Army other = allArmies[i];
-            if (other == null) continue;
-            if (other == this) continue;
-            if (other.units.Count == 0) continue;
-            if (other.army_Data.bplayer == army_Data.bplayer) continue;
-
-            Vector3 to = other.GetPosition() - myPosition;
-            to.y = 0.0f;
-
-            if (to.sqrMagnitude > reachSqr)
-            {
-                // 사거리를 벗어났으면 시야 탐지분을 거둬들입니다.
-                Remove_Army_Sighted(other);
-                continue;
-            }
-
-            Add_Army_Sighted(other);
-        }
-    }
-
-    /// <summary>
-    /// 시야로 탐지한 부대를 등록합니다.
-    /// 충돌 탐지와 달리 카운트를 누적하지 않고 '있다/없다'만 표시합니다.
-    /// </summary>
-    private void Add_Army_Sighted(Army army)
-    {
-        for (int i = 0; i < army_Detected.Count; i++)
-        {
-            if (army_Detected[i].army == army)
-            {
-                army_Detected[i].bsighted = true;
-                return;
-            }
-        }
-
-        Army_Count count = new Army_Count(army, 0);
-        count.bsighted = true;
-        army_Detected.Add(count);
-    }
-
-    /// <summary>
-    /// 시야에서 벗어난 부대의 탐지 표시를 지웁니다.
-    /// 물리 접촉 카운트가 남아 있으면 항목 자체는 유지합니다.
-    /// </summary>
-    private void Remove_Army_Sighted(Army army)
-    {
-        for (int i = 0; i < army_Detected.Count; i++)
-        {
-            if (army_Detected[i].army != army) continue;
-
-            army_Detected[i].bsighted = false;
-
-            // 접촉 카운트도 없으면 더 이상 탐지 대상이 아닙니다.
-            if (army_Detected[i].num <= 0)
-            {
-                army_Detected.RemoveAt(i);
-            }
-            return;
-        }
-    }
-
-    /// <summary>
-    /// 이번 틱의 물리 접촉 카운트를 모두 비웁니다.
-    ///
-    /// 자체 충돌을 쓸 때 Controller가 매 틱 호출합니다.
-    /// 시야 탐지분(bsighted)은 건드리지 않습니다. 그쪽은 별도로 관리됩니다.
-    /// </summary>
-    public void Clear_Contact_Counts()
-    {
-        if (army_Detected == null) return;
-
-        for (int i = army_Detected.Count - 1; i >= 0; i--)
-        {
-            army_Detected[i].num = 0;
-
-            // 접촉도 시야도 없으면 더 이상 탐지 대상이 아닙니다.
-            if (!army_Detected[i].bsighted) army_Detected.RemoveAt(i);
-        }
-    }
-
-    /// <summary>
-    /// 상대 부대와의 접촉을 1 늘립니다.
-    /// OnCollisionEnter를 대신해 자체 충돌 결과로 호출됩니다.
-    /// </summary>
-    public void Add_Contact(Army army)
-    {
-        if (army == null) return;
-        if (this == army) return;
-        if (army.army_Data.bplayer == army_Data.bplayer) return;
-
-        for (int i = 0; i < army_Detected.Count; i++)
-        {
-            if (army_Detected[i].army == army)
-            {
-                army_Detected[i].num++;
-                return;
-            }
-        }
-
-        army_Detected.Add(new Army_Count(army, 1));
-    }
-
-    /// <summary>
-    /// 탐지된 부대 리스트에 새로운 부대를 추가합니다.
-    /// </summary>
-    /// <param name="army">탐지된 부대 인스턴스입니다.</param>
-    public void Add_Army_Detected(Army army)
-    {
-        if (this == army) return;
-        if (army.army_Data.bplayer == army_Data.bplayer) return;
-
-        bool badd = false;
-        for (int i = 0; i < army_Detected.Count; i++)
-        {
-            if (army_Detected[i].army == army)
-            {
-                army_Detected[i].num = army_Detected[i].num + 1;
-                badd = true;
-            }
-        }
-
-        if (!badd)
-        {
-            army_Detected.Add(new Army_Count(army, 1));
-        }
-    }
-
-    /// <summary>
-    /// 탐지된 부대 리스트에서 부대를 제거합니다.
-    /// </summary>
-    /// <param name="army">제거할 부대 인스턴스입니다.</param>
-    public void Remove_Army_Detected(Army army)
-    {
-        if (this == army) return;
-
-        for (int i = 0; i < army_Detected.Count; i++)
-        {
-            if (army_Detected[i].army == army)
-            {
-                army_Detected[i].num = army_Detected[i].num - 1;
-
-                // 아직 시야 안에 있으면 항목을 지우지 않습니다.
-                // 지워 버리면 원거리 부대가 '떨어지는 순간' 표적을 놓칩니다.
-                if (army_Detected[i].num <= 0 && !army_Detected[i].bsighted)
-                {
-                    army_Detected.RemoveAt(i);
-                }
-            }
-        }
     }
 
     /// <summary>

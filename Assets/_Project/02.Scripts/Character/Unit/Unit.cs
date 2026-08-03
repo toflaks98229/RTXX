@@ -32,23 +32,17 @@ public partial class Unit : MonoBehaviour
     /// <summary>유닛이 속한 군대입니다.</summary>
     private Army army;
 
-    /// <summary>
-    /// Transform을 Controller가 일괄로 쓰는 모드인지 여부입니다.
-    ///
-    /// true면 유닛은 Transform을 직접 만지지 않고 unit_Data.position에만
-    /// 결과를 남깁니다. Controller._Update_Collision이 틱 마지막에
-    /// TransformAccessArray Job으로 전 유닛을 한 번에 반영합니다.
-    ///
-    /// 유닛마다 Transform에 대입하면 네이티브 왕복이 인원수만큼 발생해
-    /// 9,600명 기준 약 6 ms가 낭비됩니다. (Job으로 옮기면 0.6 ms)
-    /// </summary>
-    public static bool bbatchedTransform;
-    /// <summary>유닛의 물리적 움직임을 제어하는 리지드바디입니다.</summary>
-    private Rigidbody rigidbody;
-    /// <summary>유닛의 충돌체입니다.</summary>
-    private CapsuleCollider capsuleCollider;
-    /// <summary>유닛의 내비게이션 경로를 제어하는 컴포넌트입니다.</summary>
-    private NavMeshAgent navMeshAgent;
+    // Rigidbody / CapsuleCollider / NavMeshAgent 참조는 제거되었습니다.
+    //
+    // 유닛은 물리 엔진도 경로탐색도 쓰지 않습니다.
+    //   겹침   : Collision_Resolve_Job (격자, 질량비 반영)
+    //   이동   : unit_Data.position을 시뮬레이션이 직접 계산
+    //   반영   : Write_Transform_Job이 틱 마지막에 일괄 쓰기
+    // 프리팹에서도 이 컴포넌트들은 이미 제거되어 있어 전부 null이었습니다.
+    //
+    // bbatchedTransform 스위치도 함께 사라졌습니다.
+    // 이제 '시뮬레이션이 위치의 유일한 주인'이라는 규칙에 예외가 없습니다.
+
     /// <summary>유닛 위에 표시되는 UI를 제어하는 컴포넌트입니다.</summary>
     private UI_Unit uI_Unit;
 
@@ -60,48 +54,11 @@ public partial class Unit : MonoBehaviour
 
         unit_Data = new Unit_Data(this, num, army.army_Data, armyIndex);
 
-        // NavMeshAgent는 이제 선택 사항입니다.
+        // 이 게임오브젝트의 ID를 전방 레이캐스트 조회 키로 씁니다.
         //
-        // 유닛은 스스로 길을 찾지 않습니다. 부대 기준점이 NavMesh를 따라 움직이고
-        // 유닛은 배정받은 진형 슬롯으로 갈 뿐입니다. 그런데도 매 틱
-        // SetDestination()/Move()를 부르고 있어서, 600명 기준 틱당 88ms
-        // (프레임 예산의 5배)를 경로탐색에 쓰고 있었습니다.
-        //
-        // 지금은 Transform을 직접 옮기므로 에이전트가 없어도 동작합니다.
-        // 프리팹에서 컴포넌트를 떼면 유닛당 메모리도 함께 줄어듭니다.
-        navMeshAgent = GetComponent<NavMeshAgent>();
-        if (navMeshAgent != null)
-        {
-            navMeshAgent.isStopped = true;
-            navMeshAgent.updateRotation = false;
-        }
-
-        // 물리 컴포넌트는 이제 선택 사항입니다.
-        //
-        // 유닛 겹침은 Controller._Update_Collision(격자 기반)이 처리하므로
-        // Rigidbody/Collider 없이도 대열이 유지됩니다.
-        // 프리팹에서 떼면 4800명 기준 틱당 11.5ms였던 물리 비용이 사라집니다.
-        capsuleCollider = GetComponent<CapsuleCollider>();
-        if (capsuleCollider != null)
-        {
-            colliderEntityId = capsuleCollider.GetEntityId();
-            capsuleCollider.radius = army.army_Data.GetRadius();
-            capsuleCollider.height = army.army_Data.GetHeight();
-        }
-        else
-        {
-            // 콜라이더가 없으면 이 게임오브젝트의 ID를 대신 씁니다.
-            // 전방 레이캐스트 조회(unitDataMap)의 키로만 쓰이므로
-            // 유닛마다 고유하기만 하면 됩니다.
-            colliderEntityId = gameObject.GetEntityId();
-        }
-
-        rigidbody = GetComponent<Rigidbody>();
-        if (rigidbody != null)
-        {
-            rigidbody.mass = army.army_Data.GetMass();
-            rigidbody.linearDamping = army.army_Data.GetDrag();
-        }
+        // unitDataMap(EntityId -> Unit_Data)의 키로만 쓰이므로 유닛마다
+        // 고유하기만 하면 되며, 콜라이더가 있을 필요는 없습니다.
+        colliderEntityId = gameObject.GetEntityId();
 
         uI_Unit = GetComponentInChildren<UI_Unit>();
         uI_Unit._Start(army.army_Data);
@@ -131,94 +88,23 @@ public partial class Unit : MonoBehaviour
         unit_Data.benemyContact = false;
     }
 
-    /// <summary>다른 콜라이더와 충돌하기 시작할 때 호출됩니다.</summary>
-    private void OnCollisionEnter(Collision collision)
-    {
-        if (bDead) return;
-        if (!collision.transform.CompareTag("Unit")) return;
-
-        Unit unit_collision = collision.transform.GetComponent<Unit>();
-        if (unit_collision == null) return;
-        if (unit_collision.IsDead()) return;
-
-        if (unit_Data.bPlayer != unit_collision.unit_Data.bPlayer)
-        {
-            Set_Enemy_Contact(unit_collision);
-        }
-
-        Move_Collision_Enter(unit_collision);
-
-        if (army != null) army.Add_Army_Detected(unit_collision.GetArmy());
-    }
-
-    /// <summary>다른 콜라이더와 충돌이 지속되는 동안 호출됩니다.</summary>
-    private void OnCollisionStay(Collision collision)
-    {
-        if (bDead) return;
-        if (!collision.transform.CompareTag("Unit")) return;
-
-        Unit unit_collision = collision.transform.GetComponent<Unit>();
-        if (unit_collision == null) return;
-        if (unit_collision.IsDead()) return;
-
-        // 적과 맞닿아 있는 동안에는 매 프레임 접촉을 기록해 전진을 막습니다.
-        // 이 처리가 없으면 OnCollisionEnter의 1회성 감속을 Accelerate가 즉시 되돌려
-        // 적 대열을 그대로 통과해 버립니다.
-        if (unit_Data.bPlayer != unit_collision.unit_Data.bPlayer)
-        {
-            Set_Enemy_Contact(unit_collision);
-            return;
-        }
-
-        Move_Collision_Stay(unit_collision);
-    }
-
-    /// <summary>
-    /// 적과 접촉했음을 기록합니다. 여러 적과 닿으면 방향을 누적해 평균을 냅니다.
-    /// </summary>
-    private void Set_Enemy_Contact(Unit enemy)
-    {
-        Vector3 toEnemy = enemy.transform.position - transform.position;
-        toEnemy.y = 0.0f;
-
-        if (toEnemy.sqrMagnitude < 0.000001f) return;
-
-        Vector3 normal = toEnemy.normalized;
-
-        if (unit_Data.benemyContact)
-        {
-            normal = (unit_Data.enemyContactNormal + normal);
-            if (normal.sqrMagnitude < 0.000001f) return;
-            normal = normal.normalized;
-        }
-
-        unit_Data.benemyContact = true;
-        unit_Data.enemyContactNormal = normal;
-    }
-
-    /// <summary>다른 콜라이더와의 충돌이 끝날 때 호출됩니다.</summary>
-    private void OnCollisionExit(Collision collision)
-    {
-        // 상대가 파괴되는 중이어도 내 탐지 카운트는 반드시 정리해야 합니다.
-        if (collision.transform == null) return;
-        if (!collision.transform.CompareTag("Unit")) return;
-
-        Unit unit_collision = collision.transform.GetComponent<Unit>();
-        if (unit_collision == null) return;
-
-        if (army != null) army.Remove_Army_Detected(unit_collision.GetArmy());
-    }
+    // 물리 충돌 콜백(OnCollisionEnter/Stay/Exit)은 제거되었습니다.
+    //
+    // 유닛 겹침과 적 접촉 판정은 Controller._Update_Collision의 격자 계산
+    // (Collision_Resolve_Job)이 전부 담당합니다. 그쪽이 benemyContact와
+    // enemyContactNormal, 그리고 접촉 부대(contactArmyIndex)까지 채웁니다.
+    //
+    // 프리팹에서 Rigidbody와 CapsuleCollider를 뗀 이상 이 콜백들은 애초에
+    // 호출되지도 않았습니다. 남겨 두면 '두 벌의 접촉 로직'이 되어
+    // 신규 기능마다 양쪽을 모두 손봐야 하므로 지웁니다.
 
     // Public methods
     /// <summary>
-    /// 유닛을 지정 위치에 '물리적으로도' 배치합니다.
+    /// 유닛을 지정 위치에 배치합니다.
     ///
-    /// transform.position만 대입하면 안 되는 이유:
-    /// 이 프리팹의 Rigidbody는 Interpolate가 켜진 비운동학 바디입니다.
-    /// 그 경우 transform 대입이 물리 바디의 내부 위치에 즉시 반영되지 않아,
-    /// 물리 엔진은 유닛들이 여전히 생성 지점에 겹쳐 있다고 판단하고
-    /// 첫 시뮬레이션 스텝에서 서로를 폭발적으로 밀어냅니다.
-    /// NavMeshAgent도 자체 위치를 들고 있어 Warp로 맞춰 주어야 합니다.
+    /// Transform과 시뮬레이션 위치를 함께 맞춰야 합니다.
+    /// Transform만 옮기면 다음 틱에 시뮬레이션이 옛 자리로 되돌리고,
+    /// unit_Data만 옮기면 첫 일괄 쓰기 전까지 화면에 반영되지 않습니다.
     /// </summary>
     public void Place_At(Vector3 position, Quaternion rotation)
     {
@@ -231,23 +117,6 @@ public partial class Unit : MonoBehaviour
         unit_Data.position = position;
         unit_Data.rotation = rotation;
 
-        // NavMeshAgent는 반드시 Warp로 옮겨야 내부 위치가 동기화됩니다.
-        NavMeshAgent agent = navMeshAgent != null ? navMeshAgent : GetComponent<NavMeshAgent>();
-        if (agent != null && agent.isActiveAndEnabled && agent.isOnNavMesh)
-        {
-            agent.Warp(position);
-        }
-
-        Rigidbody body = rigidbody != null ? rigidbody : GetComponent<Rigidbody>();
-        if (body != null)
-        {
-            body.position = position;
-            body.rotation = rotation;
-
-            // 생성 직후 남아 있는 속도를 지워 튕겨 나가지 않도록 합니다.
-            body.linearVelocity = Vector3.zero;
-            body.angularVelocity = Vector3.zero;
-        }
     }
 
     /// <summary>
@@ -278,22 +147,20 @@ public partial class Unit : MonoBehaviour
     /// <summary>
     /// 넉백을 적용합니다.
     ///
-    /// Rigidbody가 있으면 물리 임펄스로, 없으면 위치를 직접 밀어냅니다.
-    /// 어느 쪽이든 '무거울수록 덜 밀린다'는 규칙은 같습니다.
-    /// (ForceMode.Impulse가 내부적으로 질량으로 나누는 것과 같은 계산입니다)
+    /// 속도 변화(impulse / mass)를 한 틱 분 이동으로 환산합니다.
+    /// ForceMode.Impulse가 내부적으로 질량으로 나누는 것과 같은 계산이며,
+    /// '무거울수록 덜 밀린다'는 규칙이 그대로 성립합니다.
+    ///
+    /// Transform이 아니라 unit_Data.position을 옮깁니다.
+    /// 시뮬레이션이 위치의 유일한 주인이므로, 여기서 Transform을 건드리면
+    /// 다음 틱에 되읽어야만 그 변화를 알 수 있습니다.
+    /// (되읽기는 9,600유닛 기준 1.8 ms입니다)
     /// </summary>
     public void Apply_Knockback(Vector3 direction, float impulse)
     {
         if (impulse <= 0.0f) return;
         if (direction.sqrMagnitude < 0.000001f) return;
 
-        if (rigidbody != null && !rigidbody.isKinematic)
-        {
-            rigidbody.AddForce(direction.normalized * impulse, ForceMode.Impulse);
-            return;
-        }
-
-        // 물리 바디가 없을 때: 속도 변화(impulse / mass)를 한 틱 분 이동으로 환산합니다.
         float mass = army != null ? army.army_Data.GetMass() : 1.0f;
         if (mass <= 0.0f) mass = 1.0f;
 
@@ -303,22 +170,7 @@ public partial class Unit : MonoBehaviour
         if (step > Unit_Collision.maxSeparationPerTick)
             step = Unit_Collision.maxSeparationPerTick;
 
-        Vector3 delta = direction.normalized * step;
-
-        // 일괄 처리 모드에서는 데이터만 옮깁니다.
-        //
-        // 여기서 Transform을 직접 건드리면, Controller가 다음 틱에
-        // Transform을 되읽어야 그 변화를 알 수 있습니다.
-        // 그 되읽기(Read_Positions)가 9,600유닛 기준 1.8 ms입니다.
-        // 시뮬레이션이 위치의 유일한 주인이 되면 그 왕복이 통째로 사라집니다.
-        if (bbatchedTransform)
-        {
-            unit_Data.position += delta;
-            return;
-        }
-
-        transform.position += delta;
-        unit_Data.position = transform.position;
+        unit_Data.position += direction.normalized * step;
     }
 
     /// <summary>현재 유닛의 데이터를 반환합니다.</summary>
@@ -377,23 +229,12 @@ return bDead || unit_Data.bdead;
         // 선택 UI를 숨깁니다.
         if (uI_Unit != null) uI_Unit.Invisible();
 
-        // 다른 유닛의 탐지/충돌 계산에서 즉시 빠지도록 콜라이더를 끕니다.
-        if (capsuleCollider != null) capsuleCollider.enabled = false;
-
-        // 상대편 부대의 탐지 카운트는 이 오브젝트가 파괴될 때
-        // 상대 유닛의 OnCollisionExit이 호출되며 정리됩니다.
-
-        // 물리 반응을 멈춥니다.
-        if (rigidbody != null)
-        {
-            rigidbody.linearVelocity = Vector3.zero;
-            rigidbody.isKinematic = true;
-        }
-
-        if (navMeshAgent != null && navMeshAgent.enabled)
-        {
-            navMeshAgent.isStopped = true;
-        }
+        // 충돌/탐지에서 빠지는 것은 bdead 플래그 하나로 충분합니다.
+        //   Collision_Grid_Build_Job  : 죽은 유닛을 격자에 넣지 않음
+        //   Spatial_Grid_Build_Job    : 마찬가지
+        //   Collision_Resolve_Job     : bdead면 즉시 반환
+        // 접촉 카운트도 매 틱 Clear_Contact_Counts()로 다시 세워지므로
+        // 사망 시점에 따로 정리할 것이 없습니다.
     }
 
 }

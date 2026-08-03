@@ -73,8 +73,17 @@ public struct Unit_Fight_Job : IJobParallelFor
     /// <summary>적 부대의 유닛 데이터 배열입니다. 타겟 탐색과 피격 판정의 원본입니다. (읽기 전용)</summary>
     [ReadOnly]
     public NativeArray<Unit_Data> target_Unit_Datas;
-    /// <summary>Job 실행 시 사용되는 유닛 데이터입니다.</summary>
-    Unit_Data unit_Data;
+    /// <summary>
+    /// 이번에 처리 중인 '내 유닛'입니다. 피해를 받는 쪽이므로 방어자입니다.
+    ///
+    /// 이름 주의: 예전에는 이 필드도 unit_Data였고, 피해 계산 메서드의
+    /// 파라미터(공격자)도 unit_Data였습니다. 파라미터가 필드를 가려
+    /// 같은 이름이 문맥에 따라 방어자/공격자를 뜻했습니다.
+    /// 실제로 아래 한 줄이 두 의미를 동시에 씁니다.
+    ///   Quaternion.Angle(this.unit_Data.rotation, unit_Data.rotation)
+    /// 방어/공격을 뒤집어도 컴파일되므로, 이름으로 갈라 두는 편이 안전합니다.
+    /// </summary>
+    Unit_Data defender;
     /// <summary>내 부대의 스탯입니다. (방어 측 계산에 사용)</summary>
     [ReadOnly]
     public Army_Data armyData;
@@ -102,10 +111,10 @@ public struct Unit_Fight_Job : IJobParallelFor
     /// <summary>Job의 메인 실행 함수입니다. 각 유닛별로 병렬 실행됩니다.</summary>
     public void Execute(int index)
     {
-        unit_Data = unit_Datas[index];
+        defender = unit_Datas[index];
 
         // 사망한 유닛은 타겟을 잡지도, 피해를 받지도 않습니다.
-        if (unit_Data.bdead) return;
+        if (defender.bdead) return;
 
         // 후보를 '전부 훑어본 뒤' 가장 좋은 하나를 고릅니다.
         // 예전에는 사거리 안에서 처음 만난 적을 그냥 잡았는데,
@@ -113,13 +122,17 @@ public struct Unit_Fight_Job : IJobParallelFor
         // 그 결과 옆이나 뒤의 적을 붙잡고 자기 대열을 가로질러 이동했습니다.
         int bestIndex = -1;
         float bestScore = float.MaxValue;
+
+        /// 동점일 때 표적을 고르는 기준입니다. 자세한 이유는 아래 2번 주석을 보십시오.
+        int bestNum = int.MaxValue;
+
         bool btargetStillValid = false;
 
         // 이 유닛 전용 난수입니다. 명중 판정과 방어구 굴림이 유닛마다 달라야
         // 전투가 확률적으로 흐릅니다. (전원 공유 시드로는 성립하지 않습니다)
         Unity.Mathematics.Random random = Make_Random(index);
 
-        Spatial_Grid.ToCell(unit_Data.position, cellSize, out int cellX, out int cellZ);
+        Spatial_Grid.ToCell(defender.position, cellSize, out int cellX, out int cellZ);
 
         for (int dz = -1; dz <= 1; dz++)
         {
@@ -137,30 +150,61 @@ public struct Unit_Fight_Job : IJobParallelFor
                     if (enemy.bdead) continue;
 
                     // 1. 지금 잡고 있는 타겟이면 위치를 갱신합니다.
-                    if (unit_Data.btarget && enemy.num == unit_Data.unit_Target_Data.num)
+                    if (defender.btarget && enemy.num == defender.unit_Target_Data.num)
                     {
-                        if (unit_Data.Refresh_Target(enemy, armyData))
+                        if (defender.Refresh_Target(enemy, armyData))
                             btargetStillValid = true;
                     }
 
                     // 2. 더 좋은 표적인지 평가합니다. (정면 우선)
-                    float score = unit_Data.Get_Target_Score(enemy, armyData);
-                    if (score < bestScore)
+                    //
+                    // 동점 처리 주의:
+                    // 격자 순회 순서는 NativeParallelMultiHashMap의 버킷 순서이고,
+                    // 그 순서는 '어느 워커 스레드가 먼저 넣었는가'에 좌우됩니다.
+                    // 즉 실행할 때마다 달라집니다.
+                    //
+                    // 그래서 점수가 같을 때 '먼저 만난 쪽'을 고르면 표적이
+                    // 실행마다 갈리고, 그 차이가 전투 전체로 번집니다.
+                    // 유닛 고유 번호가 작은 쪽으로 고정하면 순회 순서와
+                    // 무관하게 언제나 같은 표적이 선택됩니다.
+                    float score = defender.Get_Target_Score(enemy, armyData);
+
+                    bool bbetter = score < bestScore
+                                || (score == bestScore && enemy.num < bestNum);
+
+                    if (bbetter)
                     {
                         bestScore = score;
                         bestIndex = enemyIndex;
+                        bestNum = enemy.num;
                     }
 
                     // 3. 저 적이 나를 노리고 이번 틱에 타격을 성립시켰다면 피해를 받습니다.
-                    if (enemy.bhitTarget && enemy.unit_Target_Data.num == unit_Data.num)
+                    //
+                    // 죽어도 여기서 빠져나가지 않습니다.
+                    //
+                    // 예전에는 사망 즉시 return했습니다. 그러면 같은 틱에 나를 친
+                    // 나머지 공격들이 '누가 먼저 순회되었는가'에 따라 버려집니다.
+                    // 격자 순회 순서는 실행마다 달라지므로 그 자체가 비결정론입니다.
+                    //
+                    // 이제는 모든 공격을 끝까지 받습니다. GetDamage는 bdead면
+                    // 즉시 반환하므로 HP가 더 깎이지는 않고, 킬 기여자도
+                    // 첫 치명타를 낸 쪽으로 이미 확정되어 바뀌지 않습니다.
+                    // 결과는 같으면서 순서 의존성만 사라집니다.
+                    if (enemy.bhitTarget && enemy.unit_Target_Data.num == defender.num)
                     {
-                        GetDamage(enemy, ref random);
-
-                        if (unit_Data.bdead)
-                        {
-                            unit_Datas[index] = unit_Data;
-                            return;
-                        }
+                        // 난수는 '이 공격 한 건'에 종속된 독립 스트림에서 뽑습니다.
+                        //
+                        // 왜 공용 random을 쓰면 안 되는가:
+                        // 하나의 스트림을 이어 쓰면 '몇 번째로 처리된 공격인가'가
+                        // 뽑히는 값을 바꿉니다. 순회 순서는 실행마다 달라지므로
+                        // 같은 공격이 어떤 실행에서는 명중하고 다른 실행에서는
+                        // 빗나갑니다.
+                        //
+                        // 공격자와 방어자의 고유 번호로 시드를 만들면, 그 공격의
+                        // 판정은 순서와 무관하게 언제나 같은 결과가 됩니다.
+                        var attackRandom = Make_Attack_Random(enemy.num);
+                        GetDamage(enemy, ref attackRandom);
                     }
                 }
                 while (targetGrid.TryGetNextValue(out enemyIndex, ref it));
@@ -172,16 +216,16 @@ public struct Unit_Fight_Job : IJobParallelFor
         {
             if (bestIndex >= 0)
             {
-                unit_Data.Set_Target(target_Unit_Datas[bestIndex], armyData);
+                defender.Set_Target(target_Unit_Datas[bestIndex], armyData);
             }
-            else if (unit_Data.btarget)
+            else if (defender.btarget)
             {
                 // 사거리 안에 아무도 없습니다.
-                unit_Data.Lose_Target();
+                defender.Lose_Target();
             }
         }
 
-        unit_Datas[index] = unit_Data;
+        unit_Datas[index] = defender;
     }
 
     /// <summary>
@@ -198,16 +242,44 @@ public struct Unit_Fight_Job : IJobParallelFor
         return new Unity.Mathematics.Random(seed);
     }
 
-    /// <summary>유닛이 피해를 입었을 때의 로직을 처리합니다.</summary>
-    private void GetDamage(Unit_Data unit_Data, ref Unity.Mathematics.Random random)
+    /// <summary>
+    /// 공격 한 건에 대한 독립 난수 생성기를 만듭니다.
+    ///
+    /// 시드가 (틱, 부대, 방어자, 공격자)의 함수이므로, 이 공격의 명중과
+    /// 방어구 굴림은 순회 순서와 무관하게 언제나 같은 결과를 냅니다.
+    /// 하나의 스트림을 이어 쓰면 '몇 번째로 처리되었는가'가 결과를 바꿉니다.
+    /// </summary>
+    /// <param name="attackerNum">공격자의 전역 고유 번호입니다.</param>
+    private Unity.Mathematics.Random Make_Attack_Random(int attackerNum)
     {
-        switch (unit_Data.e_Unit_AttackType)
+        unchecked
+        {
+            uint seed = randomSeed;
+
+            seed ^= (uint)(defender.num + 1) * 2654435761u;
+            seed ^= (uint)(attackerNum + 1) * 2246822519u;
+
+            seed ^= seed << 13;
+            seed ^= seed >> 17;
+            seed ^= seed << 5;
+
+            return new Unity.Mathematics.Random(seed != 0u ? seed : 1u);
+        }
+    }
+
+    /// <summary>
+    /// 나(defender)가 공격자에게 맞았을 때의 피해를 처리합니다.
+    /// 공격 타입은 '공격자가 무엇으로 쳤는가'이므로 attacker에서 읽습니다.
+    /// </summary>
+    private void GetDamage(in Unit_Data attacker, ref Unity.Mathematics.Random random)
+    {
+        switch (attacker.e_Unit_AttackType)
         {
             case E_Unit_AttackType.Melee:
-                GetDamage_Melee(unit_Data, ref random);
+                GetDamage_Melee(attacker, ref random);
                 break;
             case E_Unit_AttackType.Range:
-                GetDamage_Range(unit_Data, ref random);
+                GetDamage_Range(attacker, ref random);
                 break;
         }
     }
@@ -238,12 +310,12 @@ public struct Unit_Fight_Job : IJobParallelFor
     /// </summary>
     private bool Is_Front_Attack(in Unit_Data attacker)
     {
-        Vector3 toAttacker = attacker.position - unit_Data.position;
+        Vector3 toAttacker = attacker.position - defender.position;
         toAttacker.y = 0.0f;
 
         if (toAttacker.sqrMagnitude < 0.000001f) return true;
 
-        Vector3 forward = unit_Data.rotation * Vector3.forward;
+        Vector3 forward = defender.rotation * Vector3.forward;
 
         return Vector3.Dot(forward.normalized, toAttacker.normalized)
                >= Constant.stance_Front_Dot;
@@ -257,8 +329,14 @@ public struct Unit_Fight_Job : IJobParallelFor
         return hitChance;
     }
 
-    /// <summary>근접 공격에 의한 피해를 계산하고 적용합니다.</summary>
-    private void GetDamage_Melee(Unit_Data unit_Data, ref Unity.Mathematics.Random random)
+    /// <summary>
+    /// 근접 공격에 의한 피해를 계산하고 적용합니다.
+    ///
+    /// 방향 주의: armyData가 방어자(나)의 부대, targetArmyData가 공격자의 부대입니다.
+    /// 이 Job은 '내가 맞는 쪽'을 계산하므로 두 이름의 의미가 뒤집혀 보입니다.
+    /// </summary>
+    /// <param name="attacker">나를 친 적 유닛입니다.</param>
+    private void GetDamage_Melee(in Unit_Data attacker, ref Unity.Mathematics.Random random)
     {
         // 피로도: 지친 쪽은 덜 맞히고 덜 아프게 때립니다.
         // 공격 측은 적 부대(targetArmyData), 방어 측은 내 부대(armyData) 기준입니다.
@@ -267,7 +345,7 @@ public struct Unit_Fight_Job : IJobParallelFor
 
         // 돌격 보너스: 충돌 직후 최대이며 시간에 따라 사라집니다.
         // 지친 부대의 돌격은 위력이 떨어집니다.
-        float chargeBonus = unit_Data.chargeBonus
+        float chargeBonus = attacker.chargeBonus
                             * targetArmyData.GetMeleeChargeBonus()
                             * attackerFatigue;
 
@@ -280,7 +358,7 @@ public struct Unit_Fight_Job : IJobParallelFor
         {
             float resist = armyData.GetChargeResistance();
 
-            if (resist > 0.0f && Is_Front_Attack(unit_Data))
+            if (resist > 0.0f && Is_Front_Attack(attacker))
             {
                 chargeBonus *= (1.0f - resist);
                 if (chargeBonus < 0.0f) chargeBonus = 0.0f;
@@ -308,7 +386,7 @@ public struct Unit_Fight_Job : IJobParallelFor
 
         // 방어자와 공격자의 정면이 이루는 각도로 피격 방향을 판정합니다.
         // 두 유닛이 마주 볼수록(180도에 가까울수록) 정면 교전입니다.
-        float angle = Quaternion.Angle(this.unit_Data.rotation, unit_Data.rotation);
+        float angle = Quaternion.Angle(defender.rotation, attacker.rotation);
 
         if (angle > Constant.hit_Angle_Front)
         {
@@ -355,12 +433,16 @@ public struct Unit_Fight_Job : IJobParallelFor
         float damage = baseDamage + apDamage;
         if (damage < Constant.damage_Min) damage = Constant.damage_Min;
 
-        this.unit_Data.GetDamage(damage, unit_Data.rotation * Vector3.forward,
-                                 unit_Data.num, unit_Data.armyIndex);
+        defender.GetDamage(damage, attacker.rotation * Vector3.forward,
+                           attacker.num, attacker.armyIndex);
     }
 
-    /// <summary>원거리 공격에 의한 피해를 계산하고 적용합니다.</summary>
-    private void GetDamage_Range(Unit_Data unit_Data, ref Unity.Mathematics.Random random)
+    /// <summary>
+    /// 원거리 공격에 의한 피해를 계산하고 적용합니다.
+    /// armyData가 방어자(나), targetArmyData가 공격자의 부대입니다.
+    /// </summary>
+    /// <param name="attacker">나를 쏜 적 유닛입니다.</param>
+    private void GetDamage_Range(in Unit_Data attacker, ref Unity.Mathematics.Random random)
     {
         float attackerFatigue = targetArmyData.GetFatigueRate();
 
@@ -389,8 +471,8 @@ public struct Unit_Fight_Job : IJobParallelFor
         float damage = baseDamage + apDamage;
         if (damage < Constant.damage_Min) damage = Constant.damage_Min;
 
-        this.unit_Data.GetDamage(damage, unit_Data.rotation * Vector3.forward,
-                                 unit_Data.num, unit_Data.armyIndex);
+        defender.GetDamage(damage, attacker.rotation * Vector3.forward,
+                           attacker.num, attacker.armyIndex);
     }
 }
 
