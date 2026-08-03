@@ -849,9 +849,16 @@ partial class Unit
             case E_Unit_Move.Move:
                 if (unit_Data.btargetMoveTo && targetMoveTo != null)
                 {
-                    unit_Data.location = targetMoveTo.position;
-                    unit_Data.targetVector = targetMoveTo.position;
-                    unit_Data.steeringTarget = targetMoveTo.position;
+                    // Transform은 한 번만 읽습니다.
+                    //
+                    // 예전에는 같은 값을 세 번 읽었습니다. transform.position은
+                    // C# -> 네이티브 왕복이라 호출 횟수 자체가 비용입니다.
+                    // 이동 중인 유닛이 9,600명이면 틱당 28,800회가 됩니다.
+                    Vector3 slot = targetMoveTo.position;
+
+                    unit_Data.location = slot;
+                    unit_Data.targetVector = slot;
+                    unit_Data.steeringTarget = slot;
                 }
                 break;
             case E_Unit_Move.Idle:

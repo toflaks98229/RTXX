@@ -1,0 +1,168 @@
+using System.Runtime.InteropServices;
+using System.Text;
+using UnityEditor;
+using UnityEngine;
+
+/// <summary>
+/// 시뮬레이션 구조체의 실제 메모리 크기를 재는 도구입니다.
+///
+/// 왜 필요한가:
+/// "Unit_Data가 264바이트"라는 추정으로 최적화를 논해 왔는데,
+/// 그 값은 필드 목록을 눈으로 세어 계산한 것이라 정렬(padding)과
+/// bool 패킹을 정확히 반영하지 못합니다.
+///
+/// SoA 전환 같은 큰 구조 변경을 결정하려면 실제 크기와 '어느 필드가
+/// 얼마를 차지하는가'를 정확히 알아야 합니다. 예를 들어 Timer 3개가
+/// 절반을 차지한다면, 전면 전환보다 그 부분만 떼어내는 편이 낫습니다.
+/// </summary>
+public static class Struct_Size_Probe
+{
+    [MenuItem("RTXX/구조체 크기 조사")]
+    public static void Run()
+    {
+        Debug.Log(Build_Report());
+    }
+
+    public static void Run_From_CLI()
+    {
+        Debug.Log(Build_Report());
+        EditorApplication.Exit(0);
+    }
+
+    /// <summary>
+    /// 복사 자체의 비용과 '관리 객체를 거치는' 비용을 갈라 잽니다.
+    ///
+    /// 왜 이 구분이 중요한가:
+    /// A_UnitUpdate가 2.97ms인데, 그것이
+    ///   (a) 280바이트를 9,600번 복사해서인지
+    ///   (b) 관리 객체(Unit)를 9,600번 역참조해서인지
+    /// 에 따라 해법이 완전히 달라집니다.
+    ///
+    /// (a)라면 구조체를 줄여야 하고, (b)라면 SoA로 옮겨야 합니다.
+    /// 둘 다 큰 작업이므로 어느 쪽인지 먼저 확정해야 합니다.
+    /// </summary>
+    private static string Measure_Copy_Cost(int units, int unitDataSize)
+    {
+        StringBuilder sb = new StringBuilder(512);
+
+        var watch = new System.Diagnostics.Stopwatch();
+        const int rounds = 200;
+
+        // 1. 순수 배열 간 복사 (관리 객체 없음)
+        var src = new Unit_Data[units];
+        var dst = new Unit_Data[units];
+
+        watch.Restart();
+        for (int r = 0; r < rounds; r++)
+        {
+            for (int i = 0; i < units; i++) dst[i] = src[i];
+        }
+        watch.Stop();
+        double arrayMs = watch.Elapsed.TotalMilliseconds / rounds;
+
+        // 2. 관리 객체를 거친 복사 (현재 구조와 동일)
+        //
+        // 실제 Unit 컴포넌트를 만들 수는 없으므로, 같은 크기의 구조체를
+        // 필드로 가진 관리 클래스를 세워 역참조 비용만 재현합니다.
+        var holders = new Holder[units];
+        for (int i = 0; i < units; i++) holders[i] = new Holder();
+
+        watch.Restart();
+        for (int r = 0; r < rounds; r++)
+        {
+            for (int i = 0; i < units; i++) holders[i].data = src[i];
+        }
+        watch.Stop();
+        double holderMs = watch.Elapsed.TotalMilliseconds / rounds;
+
+        // 3. 필요한 필드만 옮기는 경우 (SoA 상한 추정)
+        var poses = new Unit_Pose[units];
+
+        watch.Restart();
+        for (int r = 0; r < rounds; r++)
+        {
+            for (int i = 0; i < units; i++)
+            {
+                poses[i] = new Unit_Pose
+                {
+                    position = src[i].position,
+                    rotation = src[i].rotation
+                };
+            }
+        }
+        watch.Stop();
+        double poseMs = watch.Elapsed.TotalMilliseconds / rounds;
+
+        sb.AppendLine("--- 복사 비용 실측 (9,600개 x 200회 평균) ---");
+        sb.AppendLine($"배열 -> 배열        : {arrayMs,6:F3} ms  (순수 복사)");
+        sb.AppendLine($"배열 -> 관리객체    : {holderMs,6:F3} ms  (현재 구조)");
+        sb.AppendLine($"배열 -> Pose(28B)   : {poseMs,6:F3} ms  (필요분만)");
+        sb.AppendLine();
+        sb.AppendLine($"역참조 추가 비용    : {(holderMs - arrayMs),6:F3} ms");
+        sb.AppendLine($"구조체 크기 영향    : {(arrayMs - poseMs),6:F3} ms");
+
+        return sb.ToString();
+    }
+
+    /// <summary>역참조 비용 재현용 관리 객체입니다.</summary>
+    private class Holder
+    {
+        public Unit_Data data;
+    }
+
+    private static string Build_Report()
+    {
+        StringBuilder sb = new StringBuilder(1024);
+
+        sb.AppendLine("========== 구조체 크기 조사 ==========");
+
+        int unitDataSize = Marshal.SizeOf<Unit_Data>();
+        int armyDataSize = Marshal.SizeOf<Army_Data>();
+        int poseSize = Marshal.SizeOf<Unit_Pose>();
+        int bodySize = Marshal.SizeOf<Collision_Body>();
+        int animSize = Marshal.SizeOf<Unit_Animation_Data>();
+        int timerSize = Marshal.SizeOf<Timer>();
+        int targetSize = Marshal.SizeOf<Unit_target_Data>();
+        int statSize = Marshal.SizeOf<Unit_Stat>();
+
+        sb.AppendLine($"Unit_Data            : {unitDataSize,6} B");
+        sb.AppendLine($"  Unit_target_Data   : {targetSize,6} B");
+        sb.AppendLine($"  Timer (x3)         : {timerSize,6} B x 3 = {timerSize * 3} B");
+        sb.AppendLine($"Army_Data            : {armyDataSize,6} B");
+        sb.AppendLine($"  Unit_Stat          : {statSize,6} B");
+        sb.AppendLine($"Unit_Pose            : {poseSize,6} B");
+        sb.AppendLine($"Collision_Body       : {bodySize,6} B");
+        sb.AppendLine($"Unit_Animation_Data  : {animSize,6} B");
+
+        sb.AppendLine();
+        sb.AppendLine("--- 9,600 유닛 기준 틱당 복사량 ---");
+
+        const int units = 9600;
+
+        // Apply 단계: unit_Datas -> Unit.unit_Data 전량 복사
+        double applyMB = units * (double)unitDataSize / (1024.0 * 1024.0);
+
+        // Prepare 단계: Unit.unit_Data -> unit_Datas 전량 복사
+        double prepareMB = applyMB;
+
+        // Snapshot: 해시맵에 전량 등록
+        double snapshotMB = applyMB;
+
+        sb.AppendLine($"Prepare  (읽어 담기) : {prepareMB,6:F2} MB");
+        sb.AppendLine($"Apply    (되돌려쓰기): {applyMB,6:F2} MB");
+        sb.AppendLine($"Snapshot (해시맵)    : {snapshotMB,6:F2} MB");
+        sb.AppendLine($"합계                 : {(prepareMB + applyMB + snapshotMB),6:F2} MB / 틱");
+        sb.AppendLine($"60틱 기준            : {(prepareMB + applyMB + snapshotMB) * 60 / 1024.0,6:F2} GB/s");
+
+        sb.AppendLine();
+        sb.AppendLine("--- 비교: 필요한 만큼만 옮긴다면 ---");
+        sb.AppendLine($"Unit_Pose만 (28B 가정): {units * (double)poseSize / (1024.0 * 1024.0),6:F2} MB");
+        sb.AppendLine($"절감 비율             : {(1.0 - (double)poseSize / unitDataSize) * 100.0,6:F1} %");
+
+        sb.AppendLine();
+        sb.AppendLine(Measure_Copy_Cost(units, unitDataSize));
+        sb.AppendLine("======================================");
+
+        return sb.ToString();
+    }
+}

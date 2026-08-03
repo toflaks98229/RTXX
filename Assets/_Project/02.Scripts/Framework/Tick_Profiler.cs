@@ -69,6 +69,11 @@ public static class Tick_Profiler
         /// </summary>
         AI_Decision,
 
+        /// <summary>Unit._Update_Move (진형 슬롯 Transform 읽기 포함)</summary>
+        U_Move,
+        /// <summary>Unit._Update_Fight (사건 없으면 즉시 반환)</summary>
+        U_Fight,
+
         Count
     }
 

@@ -714,18 +714,33 @@ public partial class Army : MonoBehaviour
         _Update_Formation();
         Tick_Profiler.End_Sub();
 
-        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.A_UnitUpdate);
-
         int applyCount = units.Count;
+
+        // 복사와 후처리를 갈라 잽니다.
+        //
+        // A_UnitUpdate가 2.97ms인데 복사 자체는 실측 0.62ms입니다.
+        // 나머지 2.3ms가 어디인지 확인하려면 두 단계를 나눠 봐야 합니다.
+        // 유닛마다 Begin/End를 부르면 계측 호출이 19,200회가 되어
+        // 측정값 자체를 왜곡하므로, 루프를 둘로 나눠 바깥에서 잽니다.
+        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.U_Move);
 
         for (int i = 0; i < applyCount; i++)
         {
             Unit u = units[i];
             if (u == null) continue;
 
-            // 264바이트 구조체를 한 번만 씁니다.
-            // units[i]를 두 번 인덱싱하지 않는 것도 함께 아낍니다.
             u.unit_Data = unit_Datas[i];
+        }
+
+        Tick_Profiler.End_Sub();
+
+        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.U_Fight);
+
+        for (int i = 0; i < applyCount; i++)
+        {
+            Unit u = units[i];
+            if (u == null) continue;
+
             u._Update();
         }
 
