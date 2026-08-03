@@ -224,6 +224,13 @@ public partial class Unit : MonoBehaviour
     {
         transform.SetPositionAndRotation(position, rotation);
 
+        // 시뮬레이션 쪽 위치도 함께 맞춥니다.
+        //
+        // 일괄 처리 모드에서는 unit_Data.position이 위치의 유일한 주인입니다.
+        // 여기서 Transform만 옮기면 다음 틱에 시뮬레이션이 옛 자리로 되돌립니다.
+        unit_Data.position = position;
+        unit_Data.rotation = rotation;
+
         // NavMeshAgent는 반드시 Warp로 옮겨야 내부 위치가 동기화됩니다.
         NavMeshAgent agent = navMeshAgent != null ? navMeshAgent : GetComponent<NavMeshAgent>();
         if (agent != null && agent.isActiveAndEnabled && agent.isOnNavMesh)
@@ -296,7 +303,21 @@ public partial class Unit : MonoBehaviour
         if (step > Unit_Collision.maxSeparationPerTick)
             step = Unit_Collision.maxSeparationPerTick;
 
-        transform.position += direction.normalized * step;
+        Vector3 delta = direction.normalized * step;
+
+        // 일괄 처리 모드에서는 데이터만 옮깁니다.
+        //
+        // 여기서 Transform을 직접 건드리면, Controller가 다음 틱에
+        // Transform을 되읽어야 그 변화를 알 수 있습니다.
+        // 그 되읽기(Read_Positions)가 9,600유닛 기준 1.8 ms입니다.
+        // 시뮬레이션이 위치의 유일한 주인이 되면 그 왕복이 통째로 사라집니다.
+        if (bbatchedTransform)
+        {
+            unit_Data.position += delta;
+            return;
+        }
+
+        transform.position += delta;
         unit_Data.position = transform.position;
     }
 
