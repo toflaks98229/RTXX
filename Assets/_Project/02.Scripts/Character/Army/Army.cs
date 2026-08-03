@@ -172,6 +172,17 @@ public partial class Army : MonoBehaviour
     private NativeArray<Unit_Pose> unitPoses;
 
     /// <summary>
+    /// 애니메이션 입력 배열을 현재 유닛 상태로 다시 맞춰야 하는지 여부입니다.
+    ///
+    /// 버퍼가 새로 할당되면 내용이 비어 있으므로 한 번 채워야 합니다.
+    /// 그 뒤로는 Job이 스스로 갱신하므로 매 틱 복사할 필요가 없습니다.
+    /// </summary>
+    private bool banimationInputDirty = true;
+
+    /// <summary>애니메이션 입력을 마지막으로 맞춘 시점의 인원입니다.</summary>
+    private int lastAnimationCount = -1;
+
+    /// <summary>
     /// 이번 틱에 건 유닛 Job 체인의 핸들입니다.
     /// 스케줄 단계와 완료 대기 단계가 분리되어 있어 사이에 들고 있어야 합니다.
     /// </summary>
@@ -1077,14 +1088,35 @@ public partial class Army : MonoBehaviour
         // 순서 주의: Job을 건 뒤에 이 배열에 쓰면, 아직 도는 Job이 같은 메모리를
         // 읽고 있어 Unity의 Job 안전 시스템이 예외를 던집니다.
         // 메인 스레드 쓰기는 반드시 스케줄보다 앞서야 합니다.
+        // 버퍼가 다시 할당되면 내용이 비므로 한 번 채워야 합니다.
+        bool breallocated = !unitAnimationDatas.IsCreated
+                         || unitAnimationDatas.Length < units.Count;
+        if (breallocated) banimationInputDirty = true;
+
         Ensure_Capacity(ref unitAnimationDatas, units.Count);
         var unit_Animation_Datas = unitAnimationDatas.GetSubArray(0, units.Count);
 
         Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.S_AnimInput);
 
-        for (int i = 0; i < units.Count; i++)
+        // 애니메이션 입력을 매 틱 복사하지 않습니다.
+        //
+        // 이 배열은 Persistent라 지난 틱의 값이 그대로 남아 있습니다.
+        // 그리고 Unit_Animation_Job은 5개 필드 중 4개(position, rotation,
+        // cam_Position, cam_Rotation)를 무조건 덮어씁니다. 유지되어야 하는
+        // 것은 bflip 하나뿐이고, 그 값은 Job이 스스로 갱신합니다.
+        //
+        // 즉 60바이트 구조체를 유닛마다 읽어 담을 이유가 없었습니다.
+        // 인원이 바뀌었을 때만 현재 상태로 맞춰 주면 충분합니다.
+        // (버퍼가 새로 할당되었거나 유닛이 죽어 인덱스가 밀린 경우)
+        if (banimationInputDirty || lastAnimationCount != units.Count)
         {
-            unit_Animation_Datas[i] = units[i].unit_Animation.unit_Animation_Data;
+            for (int i = 0; i < units.Count; i++)
+            {
+                unit_Animation_Datas[i] = units[i].unit_Animation.unit_Animation_Data;
+            }
+
+            banimationInputDirty = false;
+            lastAnimationCount = units.Count;
         }
 
         Tick_Profiler.End_Sub();
