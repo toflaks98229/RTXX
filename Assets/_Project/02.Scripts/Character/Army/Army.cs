@@ -1429,9 +1429,18 @@ public partial class Army : MonoBehaviour
             if (rangeRange > reach) reach = rangeRange;
         }
 
-        // 근접 전용 부대는 시야 탐지가 필요 없습니다.
-        // 어차피 닿아야 싸우므로 충돌 기반 탐지로 충분합니다.
-        if (reach <= army_Data.GetMeleeRange()) return;
+        // 근접 전용 부대의 탐지 거리입니다.
+        //
+        // 예전에는 여기서 그냥 return했습니다. 근접 부대는 물리 충돌
+        // (OnCollisionEnter -> Add_Army_Detected)로만 적을 인식했기 때문입니다.
+        //
+        // 자체 충돌로 넘어오면 그 콜백이 사라지므로, 근접 부대도 스스로
+        // 주변을 봐야 합니다. 접촉 직전에 인식하도록 근접 사거리에 여유를 둡니다.
+        // (충돌로만 인식하던 시절과 사실상 같은 타이밍입니다)
+        if (reach <= army_Data.GetMeleeRange())
+        {
+            reach = army_Data.GetMeleeRange() + army_Data.GetRadius() * 4.0f;
+        }
 
         float reachSqr = reach * reach;
         Vector3 myPosition = GetPosition();
@@ -1497,6 +1506,47 @@ public partial class Army : MonoBehaviour
             }
             return;
         }
+    }
+
+    /// <summary>
+    /// 이번 틱의 물리 접촉 카운트를 모두 비웁니다.
+    ///
+    /// 자체 충돌을 쓸 때 Controller가 매 틱 호출합니다.
+    /// 시야 탐지분(bsighted)은 건드리지 않습니다. 그쪽은 별도로 관리됩니다.
+    /// </summary>
+    public void Clear_Contact_Counts()
+    {
+        if (army_Detected == null) return;
+
+        for (int i = army_Detected.Count - 1; i >= 0; i--)
+        {
+            army_Detected[i].num = 0;
+
+            // 접촉도 시야도 없으면 더 이상 탐지 대상이 아닙니다.
+            if (!army_Detected[i].bsighted) army_Detected.RemoveAt(i);
+        }
+    }
+
+    /// <summary>
+    /// 상대 부대와의 접촉을 1 늘립니다.
+    /// OnCollisionEnter를 대신해 자체 충돌 결과로 호출됩니다.
+    /// </summary>
+    public void Add_Contact(Army army)
+    {
+        if (army == null) return;
+        if (this == army) return;
+        if (army.army_Data.bplayer == army_Data.bplayer) return;
+
+        for (int i = 0; i < army_Detected.Count; i++)
+        {
+            if (army_Detected[i].army == army)
+            {
+                army_Detected[i].num++;
+                return;
+            }
+        }
+
+        army_Detected.Add(new Army_Count(army, 1));
     }
 
     /// <summary>

@@ -121,6 +121,16 @@ public partial class Controller : MonoBehaviour
     public Balance_Config balance_Config;
 
     /// <summary>
+    /// 유닛 겹침을 물리 엔진 대신 격자로 직접 해소합니다.
+    ///
+    /// 켜면 Unit 프리팹의 Rigidbody/Collider 없이도 대열이 유지되고,
+    /// 4800명 기준 틱당 11.5ms였던 물리 비용이 사라집니다.
+    /// 문제가 생기면 꺼서 기존 물리 동작으로 되돌릴 수 있습니다.
+    /// </summary>
+    [Tooltip("유닛 겹침을 물리 엔진 대신 격자로 해소합니다. 끄면 기존 Rigidbody 동작을 씁니다.")]
+    public bool benableUnitCollision = true;
+
+    /// <summary>
     /// 드래그 선택 영역을 저장하는 Rect 구조체입니다.
     /// </summary>
     private Rect select_Box;
@@ -207,6 +217,7 @@ public partial class Controller : MonoBehaviour
     {
         if (unitDataMap.IsCreated) unitDataMap.Dispose();
         if (army_Datas.IsCreated) army_Datas.Dispose();
+        if (collisionBodies.IsCreated) collisionBodies.Dispose();
     }
 
     /// <summary>
@@ -365,6 +376,13 @@ public partial class Controller : MonoBehaviour
             armies[i]._Update_Apply();
         }
 
+        // 3-5. 유닛 겹침 해소 (자체 충돌)
+        //
+        //     이동이 모두 끝난 뒤 전 유닛을 한 번에 처리합니다.
+        //     충돌은 부대 경계를 넘나들므로(적군끼리 부딪힘) 부대 단위로
+        //     나눠 풀 수 없고, 전역에서 한 번에 봐야 합니다.
+        _Update_Collision();
+
         // 4. 부대 간 상호작용(사기 충격, 연쇄 붕괴, 피격 점멸)을 일괄 정산합니다.
         //
         //    3번 단계에서 부대들은 서로에게 충격을 '예약'하기만 합니다.
@@ -378,6 +396,183 @@ public partial class Controller : MonoBehaviour
         for (int i = 0; i < armies.Count; i++)
         {
             armies[i].Commit_Pending_Morale_Shock();
+        }
+    }
+
+    // =====================================================================
+    // 자체 충돌 (Rigidbody 대체)
+    // =====================================================================
+
+    /// <summary>충돌 계산용 전역 유닛 버퍼입니다. 매 틱 재사용합니다.</summary>
+    private NativeArray<Collision_Body> collisionBodies;
+
+    /// <summary>부대별 충돌 반지름 캐시입니다. 유닛마다 부대 스탯을 다시 읽지 않기 위함입니다.</summary>
+    private float[] armyRadius;
+    /// <summary>부대별 질량 캐시입니다.</summary>
+    private float[] armyMass;
+
+    /// <summary>
+    /// 전 유닛의 겹침을 격자로 해소합니다.
+    ///
+    /// 왜 물리 엔진을 쓰지 않는가:
+    /// PhysX에 맡기면 4800명 기준 틱당 11.5ms(전체의 40%)가 물리에 들어갑니다.
+    /// 그런데 이 게임이 물리에서 실제로 필요로 하는 것은 '겹치지 않게 밀어내기'
+    /// 하나뿐입니다. 관절도 마찰도 회전 관성도 쓰지 않습니다.
+    /// 그 하나만 직접 계산하면 훨씬 쌉니다.
+    /// </summary>
+    private void _Update_Collision()
+    {
+        if (!benableUnitCollision) return;
+
+        int count = units.Count;
+        if (count == 0) return;
+
+        // 버퍼 확보 (재사용)
+        if (!collisionBodies.IsCreated || collisionBodies.Length < count)
+        {
+            if (collisionBodies.IsCreated) collisionBodies.Dispose();
+            collisionBodies = new NativeArray<Collision_Body>(
+                Mathf.Max(count, 64), Allocator.Persistent);
+        }
+
+        var bodies = collisionBodies.GetSubArray(0, count);
+
+        // 1. 현재 상태를 모읍니다.
+        //
+        //    반지름과 질량은 '부대' 스탯이라 유닛마다 같습니다.
+        //    유닛마다 GetArmy_Data()를 부르면 구조체 복사가 인원수만큼 일어나므로,
+        //    부대별로 한 번만 읽어 두고 인덱스로 꺼내 씁니다.
+        float maxRadius = 0.0f;
+
+        int armyCount = armies.Count;
+        if (armyRadius == null || armyRadius.Length < armyCount)
+        {
+            armyRadius = new float[Mathf.Max(armyCount, 16)];
+            armyMass = new float[Mathf.Max(armyCount, 16)];
+        }
+
+        for (int a = 0; a < armyCount; a++)
+        {
+            if (armies[a] == null) { armyRadius[a] = 0.0f; armyMass[a] = 1.0f; continue; }
+
+            armyRadius[a] = armies[a].army_Data.GetRadius();
+            armyMass[a] = armies[a].army_Data.GetMass();
+
+            if (armyRadius[a] > maxRadius) maxRadius = armyRadius[a];
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            Unit u = units[i];
+            if (u == null)
+            {
+                bodies[i] = new Collision_Body { bdead = true, contactArmyIndex = -1 };
+                continue;
+            }
+
+            int ai = u.unit_Data.armyIndex;
+            bool bvalid = ai >= 0 && ai < armyCount;
+
+            bodies[i] = new Collision_Body
+            {
+                position = u.transform.position,
+                radius = bvalid ? armyRadius[ai] : 0.3f,
+                mass = bvalid ? armyMass[ai] : 1.0f,
+                bdead = u.IsDead(),
+                bplayer = u.unit_Data.bPlayer,
+                armyIndex = ai,
+                contactArmyIndex = -1
+            };
+        }
+
+        // 셀 크기는 '가장 큰 두 유닛이 닿을 수 있는 거리' 이상이어야
+        // 3x3 이웃 탐색이 겹친 쌍을 빠짐없이 잡습니다.
+        float cellSize = Mathf.Max(maxRadius * 2.0f, Spatial_Grid.minCellSize);
+
+        // 2. 격자 구축 -> 겹침 해소
+        var grid = new NativeParallelMultiHashMap<int, int>(count, Allocator.TempJob);
+
+        var build = new Collision_Grid_Build_Job
+        {
+            bodies = bodies,
+            cellSize = cellSize,
+            grid = grid.AsParallelWriter()
+        };
+        JobHandle buildHandle = build.Schedule(count, Constant.jobBatchCount);
+
+        var resolve = new Collision_Resolve_Job
+        {
+            bodies = bodies,
+            grid = grid,
+            cellSize = cellSize
+        };
+        resolve.Schedule(count, Constant.jobBatchCount, buildHandle).Complete();
+
+        grid.Dispose();
+
+        // 3. 결과를 유닛에 반영합니다.
+        for (int i = 0; i < count; i++)
+        {
+            Unit u = units[i];
+            if (u == null) continue;
+
+            Collision_Body b = bodies[i];
+            if (b.bdead) continue;
+
+            if (b.separation.sqrMagnitude > 0.0000001f)
+            {
+                u.transform.position += b.separation;
+                u.unit_Data.position = u.transform.position;
+            }
+
+            // 적 접촉 정보는 물리 콜백 대신 여기서 채웁니다.
+            // (OnCollisionStay와 같은 역할이지만 콜백 없이 계산으로 얻습니다)
+            u.unit_Data.benemyContact = b.benemyContact;
+            u.unit_Data.enemyContactNormal = b.enemyContactNormal;
+        }
+
+        _Update_Army_Contact();
+    }
+
+    /// <summary>
+    /// 부대 간 '물리적 접촉' 수를 갱신합니다.
+    ///
+    /// 왜 필요한가:
+    /// 표적 부대 선정(Army._Update_Target_Army)은 접촉 수(num)가 0보다 커야
+    /// 근접 교전(Melee)으로 판정합니다. 예전에는 그 값이 OnCollisionEnter로
+    /// 쌓였는데, 자체 충돌로 넘어오면 그 콜백이 없습니다.
+    /// 이 값을 채워 주지 않으면 근접 부대가 영원히 Range 상태로 굳어
+    /// 서로 맞붙어도 난전이 시작되지 않습니다.
+    /// </summary>
+    private void _Update_Army_Contact()
+    {
+        // 1. 이번 틱의 접촉 카운트를 초기화합니다.
+        for (int i = 0; i < armies.Count; i++)
+        {
+            if (armies[i] == null) continue;
+            armies[i].Clear_Contact_Counts();
+        }
+
+        // 2. 접촉 쌍의 카운트를 올립니다.
+        //    상대 부대는 Job이 이미 기록해 두었으므로(contactArmyIndex) 바로 씁니다.
+        //    예전에는 접촉 유닛마다 전 부대를 순회해 가장 가까운 적을 찾았는데,
+        //    그 비용이 O(접촉 유닛 수 x 부대 수)라 난전에서 급격히 커졌습니다.
+        int count = units.Count;
+        var bodies = collisionBodies;
+
+        for (int i = 0; i < count; i++)
+        {
+            Unit u = units[i];
+            if (u == null) continue;
+
+            int foeIndex = bodies[i].contactArmyIndex;
+            if (foeIndex < 0 || foeIndex >= armies.Count) continue;
+
+            Army mine = u.GetArmy();
+            if (mine == null) continue;
+
+            Army foe = armies[foeIndex];
+            if (foe != null) mine.Add_Contact(foe);
         }
     }
 }

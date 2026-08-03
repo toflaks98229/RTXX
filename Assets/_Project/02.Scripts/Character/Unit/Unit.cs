@@ -64,12 +64,32 @@ public partial class Unit : MonoBehaviour
             navMeshAgent.updateRotation = false;
         }
 
+        // 물리 컴포넌트는 이제 선택 사항입니다.
+        //
+        // 유닛 겹침은 Controller._Update_Collision(격자 기반)이 처리하므로
+        // Rigidbody/Collider 없이도 대열이 유지됩니다.
+        // 프리팹에서 떼면 4800명 기준 틱당 11.5ms였던 물리 비용이 사라집니다.
         capsuleCollider = GetComponent<CapsuleCollider>();
-        colliderEntityId = capsuleCollider.GetEntityId();
+        if (capsuleCollider != null)
+        {
+            colliderEntityId = capsuleCollider.GetEntityId();
+            capsuleCollider.radius = army.army_Data.GetRadius();
+            capsuleCollider.height = army.army_Data.GetHeight();
+        }
+        else
+        {
+            // 콜라이더가 없으면 이 게임오브젝트의 ID를 대신 씁니다.
+            // 전방 레이캐스트 조회(unitDataMap)의 키로만 쓰이므로
+            // 유닛마다 고유하기만 하면 됩니다.
+            colliderEntityId = gameObject.GetEntityId();
+        }
 
         rigidbody = GetComponent<Rigidbody>();
-        rigidbody.mass = army.army_Data.GetMass();
-        rigidbody.linearDamping = army.army_Data.GetDrag();
+        if (rigidbody != null)
+        {
+            rigidbody.mass = army.army_Data.GetMass();
+            rigidbody.linearDamping = army.army_Data.GetDrag();
+        }
 
         uI_Unit = GetComponentInChildren<UI_Unit>();
         uI_Unit._Start(army.army_Data);
@@ -83,9 +103,6 @@ public partial class Unit : MonoBehaviour
             sprite_Weapon.sprite = army.images_Weapon[Random.Range(0, army.images_Weapon.Count)];
         if (army.images_Shield.Count > 0)
             sprite_Shield.sprite = army.images_Shield[Random.Range(0, army.images_Shield.Count)];
-
-        capsuleCollider.radius = army.army_Data.GetRadius();
-        capsuleCollider.height = army.army_Data.GetHeight();
     }
 
     /// <summary>매 프레임마다 호출되어 유닛의 상태를 업데이트합니다.</summary>
@@ -95,7 +112,10 @@ public partial class Unit : MonoBehaviour
         _Update_Fight();
 
         // 이번 틱의 접촉 정보를 소비했으므로 해제합니다.
-        // 아직 닿아 있다면 다음 물리 프레임의 OnCollisionStay가 다시 세웁니다.
+        //
+        // 물리 기반일 때: 아직 닿아 있다면 다음 물리 프레임의 OnCollisionStay가 다시 세웁니다.
+        // 자체 충돌일 때: 이 직후 Controller._Update_Collision이 계산값으로 채웁니다.
+        // 어느 쪽이든 여기서 한 번 비우는 것이 맞습니다.
         unit_Data.benemyContact = false;
     }
 
@@ -230,13 +250,42 @@ public partial class Unit : MonoBehaviour
 
         unit_Data.GetDamage(damage, direction, attackerNum, attackerArmyIndex);
 
-        if (rigidbody != null && !rigidbody.isKinematic)
-        {
-            rigidbody.AddForce(direction.normalized * impulse, ForceMode.Impulse);
-        }
+        Apply_Knockback(direction, impulse);
 
         // 치인 쪽도 크게 번쩍여 무슨 일이 일어났는지 보이게 합니다.
         if (unit_Animation != null) unit_Animation.Flash_Charge_Impact(1.0f);
+    }
+
+    /// <summary>
+    /// 넉백을 적용합니다.
+    ///
+    /// Rigidbody가 있으면 물리 임펄스로, 없으면 위치를 직접 밀어냅니다.
+    /// 어느 쪽이든 '무거울수록 덜 밀린다'는 규칙은 같습니다.
+    /// (ForceMode.Impulse가 내부적으로 질량으로 나누는 것과 같은 계산입니다)
+    /// </summary>
+    public void Apply_Knockback(Vector3 direction, float impulse)
+    {
+        if (impulse <= 0.0f) return;
+        if (direction.sqrMagnitude < 0.000001f) return;
+
+        if (rigidbody != null && !rigidbody.isKinematic)
+        {
+            rigidbody.AddForce(direction.normalized * impulse, ForceMode.Impulse);
+            return;
+        }
+
+        // 물리 바디가 없을 때: 속도 변화(impulse / mass)를 한 틱 분 이동으로 환산합니다.
+        float mass = army != null ? army.army_Data.GetMass() : 1.0f;
+        if (mass <= 0.0f) mass = 1.0f;
+
+        float step = impulse / mass * Constant.deltaTime;
+
+        // 한 방에 날아가지 않도록 상한을 둡니다.
+        if (step > Unit_Collision.maxSeparationPerTick)
+            step = Unit_Collision.maxSeparationPerTick;
+
+        transform.position += direction.normalized * step;
+        unit_Data.position = transform.position;
     }
 
     /// <summary>현재 유닛의 데이터를 반환합니다.</summary>

@@ -460,7 +460,8 @@ partial class Unit
             if (impulse > Constant.knockback_Impulse_Max)
                 impulse = Constant.knockback_Impulse_Max;
 
-            rigidbody.AddForce(damageVector.normalized * impulse, ForceMode.Impulse);
+            // Rigidbody가 없으면 위치를 직접 밀어냅니다. (질량 규칙은 동일)
+            Apply_Knockback(damageVector, impulse);
         }
 
         // 피격 이펙트/사운드는 이 이벤트를 구독해서 처리합니다.

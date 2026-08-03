@@ -1,0 +1,214 @@
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Jobs;
+using UnityEngine;
+
+/// <summary>
+/// 전 유닛의 겹침을 격자로 해소하는 자체 충돌 시스템입니다.
+///
+/// 왜 물리 엔진을 대신하는가:
+/// 유닛마다 Rigidbody + CapsuleCollider를 달고 PhysX에 맡기면
+/// 4800명 기준 틱당 11.5ms가 물리에만 들어갑니다. (전체의 40%)
+/// 그런데 이 게임이 물리에서 실제로 필요로 하는 것은
+/// '두 병사가 같은 자리에 겹치지 않게 밀어내기' 하나뿐입니다.
+/// 관절도, 마찰도, 회전 관성도 쓰지 않습니다.
+///
+/// 그 하나만 직접 계산하면 훨씬 쌉니다. 이미 있는 Spatial_Grid로
+/// 인접 유닛만 추려 반지름 합보다 가까운 쌍을 밀어내면 끝입니다.
+///
+/// 물리 엔진과 다른 점:
+/// - 질량비를 반영해 무거운 쪽이 덜 밀립니다. (기병이 보병을 밀어냄)
+/// - 속도/관성이 없어 튕겨 나가거나 진동하지 않습니다.
+///   대열이 흔들리지 않아 오히려 진형이 안정적입니다.
+/// - 넉백은 별도 임펄스로 처리합니다. (Unit_Data.knockback)
+/// </summary>
+public static class Unit_Collision
+{
+    /// <summary>
+    /// 한 틱에 허용하는 최대 분리 이동량입니다.
+    /// 깊게 겹친 유닛이 한 번에 튕겨 나가지 않도록 상한을 둡니다.
+    /// </summary>
+    public const float maxSeparationPerTick = 0.35f;
+
+    /// <summary>
+    /// 겹침을 한 번에 얼마나 해소할지의 비율입니다.
+    /// 1.0이면 즉시 완전 분리라 딱딱하고, 낮으면 부드럽지만 겹침이 남습니다.
+    /// </summary>
+    public const float separationRate = 0.5f;
+}
+
+/// <summary>
+/// 전역 유닛 배열을 격자에 색인하는 잡입니다.
+/// Spatial_Grid_Build_Job과 달리 '모든 부대'의 유닛을 한 배열로 다룹니다.
+/// </summary>
+[BurstCompile]
+public struct Collision_Grid_Build_Job : IJobParallelFor
+{
+    [ReadOnly] public NativeArray<Collision_Body> bodies;
+    public float cellSize;
+    public NativeParallelMultiHashMap<int, int>.ParallelWriter grid;
+
+    public void Execute(int index)
+    {
+        Collision_Body body = bodies[index];
+        if (body.bdead) return;
+
+        grid.Add(Spatial_Grid.Hash(body.position, cellSize), index);
+    }
+}
+
+/// <summary>
+/// 충돌 계산에 필요한 최소 정보입니다.
+/// Unit_Data 전체를 넘기면 캐시 효율이 떨어지므로 필요한 것만 추립니다.
+/// </summary>
+public struct Collision_Body
+{
+    /// <summary>현재 위치입니다.</summary>
+    public Vector3 position;
+    /// <summary>충돌 반지름입니다.</summary>
+    public float radius;
+    /// <summary>질량입니다. 무거울수록 덜 밀립니다.</summary>
+    public float mass;
+    /// <summary>사망 여부입니다. 죽은 유닛은 충돌하지 않습니다.</summary>
+    public bool bdead;
+    /// <summary>플레이어 소속 여부입니다. 적/아군 구분에 씁니다.</summary>
+    public bool bplayer;
+    /// <summary>소속 부대 인덱스입니다. 접촉 집계에 씁니다.</summary>
+    public int armyIndex;
+
+    /// <summary>이번 틱에 계산된 분리 이동량입니다. (출력)</summary>
+    public Vector3 separation;
+    /// <summary>이번 틱에 적과 접촉했는지 여부입니다. (출력)</summary>
+    public bool benemyContact;
+    /// <summary>나를 막고 있는 적 방향입니다. (출력, 정규화)</summary>
+    public Vector3 enemyContactNormal;
+
+    /// <summary>
+    /// 접촉한 적이 속한 부대 인덱스입니다. 없으면 -1입니다. (출력)
+    ///
+    /// Job이 직접 기록합니다. 예전에는 메인 스레드가 접촉 유닛마다
+    /// 전 부대를 순회하며 가장 가까운 적 부대를 찾았는데,
+    /// 그 비용이 O(접촉 유닛 수 x 부대 수)로 커졌습니다.
+    /// 어차피 충돌 판정에서 상대를 알고 있으므로 그때 적어 두면 O(1)입니다.
+    /// </summary>
+    public int contactArmyIndex;
+}
+
+/// <summary>
+/// 격자를 이용해 겹친 유닛 쌍을 찾아 밀어냅니다.
+///
+/// 각 유닛이 자기 주변 3x3 셀만 보고 '자기가 받을 밀림'을 스스로 계산합니다.
+/// 상대를 건드리지 않으므로 병렬 쓰기 충돌이 없습니다.
+/// (양쪽이 서로를 밀어내는 것은 각자가 자기 몫을 계산해 자연히 성립합니다)
+/// </summary>
+[BurstCompile]
+public struct Collision_Resolve_Job : IJobParallelFor
+{
+    [NativeDisableParallelForRestriction]
+    public NativeArray<Collision_Body> bodies;
+
+    [ReadOnly] public NativeParallelMultiHashMap<int, int> grid;
+    public float cellSize;
+
+    public void Execute(int index)
+    {
+        Collision_Body me = bodies[index];
+
+        me.separation = Vector3.zero;
+        me.benemyContact = false;
+        me.enemyContactNormal = Vector3.zero;
+        me.contactArmyIndex = -1;
+
+        if (me.bdead) { bodies[index] = me; return; }
+
+        Spatial_Grid.ToCell(me.position, cellSize, out int cx, out int cz);
+
+        Vector3 push = Vector3.zero;
+        Vector3 contactSum = Vector3.zero;
+        int contactCount = 0;
+
+        // 가장 가까운(가장 깊게 겹친) 적의 부대를 접촉 상대로 봅니다.
+        int nearestFoeArmy = -1;
+        float nearestFoeSqr = float.MaxValue;
+
+        for (int dz = -1; dz <= 1; dz++)
+        {
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                int hash = Spatial_Grid.Hash(cx + dx, cz + dz);
+
+                if (!grid.TryGetFirstValue(hash, out int other, out var it)) continue;
+
+                do
+                {
+                    if (other == index) continue;
+
+                    Collision_Body you = bodies[other];
+                    if (you.bdead) continue;
+
+                    Vector3 to = me.position - you.position;
+                    to.y = 0.0f;
+
+                    float sum = me.radius + you.radius;
+                    float distSqr = to.sqrMagnitude;
+
+                    if (distSqr >= sum * sum) continue;
+                    if (distSqr < 0.000001f)
+                    {
+                        // 정확히 겹쳤습니다. 인덱스로 방향을 갈라 서로 반대로 밀어냅니다.
+                        // (그대로 두면 영원히 겹친 채 멈춥니다)
+                        float sign = index < other ? 1.0f : -1.0f;
+                        push += new Vector3(sign * 0.01f, 0.0f, 0.0f);
+                        continue;
+                    }
+
+                    float dist = Mathf.Sqrt(distSqr);
+                    Vector3 dir = to / dist;
+                    float overlap = sum - dist;
+
+                    // 질량비: 무거운 쪽이 덜 밀립니다.
+                    // 상대가 무거울수록 내가 많이 밀려납니다.
+                    float total = me.mass + you.mass;
+                    float share = total > 0.0001f ? you.mass / total : 0.5f;
+
+                    push += dir * (overlap * share * Unit_Collision.separationRate);
+
+                    // 적과 닿았는지 기록합니다. (전진 차단 판정에 씁니다)
+                    if (you.bplayer != me.bplayer)
+                    {
+                        contactSum += -dir;   // 적이 있는 방향
+                        contactCount++;
+
+                        // 가장 가까운 적의 부대를 기억해 둡니다.
+                        // 메인 스레드가 다시 찾지 않아도 되도록 여기서 정합니다.
+                        if (distSqr < nearestFoeSqr)
+                        {
+                            nearestFoeSqr = distSqr;
+                            nearestFoeArmy = you.armyIndex;
+                        }
+                    }
+                }
+                while (grid.TryGetNextValue(out other, ref it));
+            }
+        }
+
+        // 한 틱에 너무 많이 밀리지 않도록 상한을 겁니다.
+        float pushLen = push.magnitude;
+        if (pushLen > Unit_Collision.maxSeparationPerTick)
+        {
+            push = push / pushLen * Unit_Collision.maxSeparationPerTick;
+        }
+
+        me.separation = push;
+
+        if (contactCount > 0)
+        {
+            me.benemyContact = true;
+            Vector3 n = contactSum / contactCount;
+            me.enemyContactNormal = n.sqrMagnitude > 0.000001f ? n.normalized : Vector3.zero;
+            me.contactArmyIndex = nearestFoeArmy;
+        }
+
+        bodies[index] = me;
+    }
+}
