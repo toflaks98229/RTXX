@@ -74,3 +74,10 @@ crashlytics-build.properties
 # Temporary auto-generated Android Assets
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# 외부 참조 저장소 (crawl 타일 원본 등)
+# Assets/ 바깥에 두어 Unity가 임포트하지 않게 합니다.
+/External/
+
+# 프로파일러 캡처는 수 GB가 될 수 있습니다.
+/ProfilerCaptures/
