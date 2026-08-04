@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -21,19 +21,27 @@ using UnityEngine;
 /// </summary>
 public class Battle_AI : MonoBehaviour
 {
+    /// <summary>지휘할 부대 목록을 읽어 올 컨트롤러입니다. 비워 두면 전역 목록을 씁니다.</summary>
     [Header("연결")]
     public Controller controller;
 
+    /// <summary>전투 단계를 볼 배틀 매니저입니다. 비워 두면 항상 동작합니다.</summary>
     [Tooltip("전투 단계를 볼 배틀 매니저입니다. 비워 두면 항상 동작합니다.")]
     public Battle_Manager battle_Manager;
 
+    /// <summary>이 AI가 지휘할 진영입니다. 보통 적군(false)입니다.</summary>
     [Header("동작")]
     [Tooltip("AI가 지휘할 진영입니다. 보통 적군(false)입니다.")]
     public bool bcontrolPlayerSide = false;
 
+    /// <summary>
+    /// 명령을 다시 내리는 간격(초)입니다.
+    /// 짧으면 부대가 갈팡질팡하고, 길면 상황 변화에 늦게 반응합니다.
+    /// </summary>
     [Tooltip("명령을 다시 내리는 간격(초)입니다. 짧으면 부대가 갈팡질팡합니다.")]
     public float decisionInterval = 2.0f;
 
+    /// <summary>이 거리 안에 들어오면 교전으로 보고 더 이상 재배치하지 않습니다.</summary>
     [Tooltip("이 거리 안에 들어오면 교전으로 보고 더 이상 재배치하지 않습니다.")]
     public float engageDistance = 6.0f;
 
@@ -85,6 +93,8 @@ public class Battle_AI : MonoBehaviour
         Tick_Profiler.End_Sub();
     }
 
+    /// <summary>지휘 대상 후보 부대 목록을 반환합니다.</summary>
+    /// <returns>컨트롤러가 있으면 그 목록, 없으면 전역 목록입니다.</returns>
     private List<Army> Get_Armies()
     {
         return controller != null ? controller.armies : Army.allArmies;
@@ -152,12 +162,16 @@ public class Battle_AI : MonoBehaviour
     {
         army.Set_Stance(E_Army_Stance.Skirmish);
 
+        // 고지 보정이 반영된 사거리입니다. 높은 곳에서는 더 멀리 쏩니다.
         float range = army.army_Data.GetEffectiveRangeRange();
 
         // 사거리 안이면 제자리에서 사격합니다. 자동 후퇴는 태세가 처리합니다.
         if (distance <= range) return;
 
         // 사거리 밖이면 쏠 수 있는 위치까지만 다가갑니다.
+        //
+        // 0.8을 곱해 사거리 경계보다 안쪽에 섭니다. 경계에 딱 맞춰 서면
+        // 적이 조금만 물러나도 다시 사거리 밖이 되어 전진과 정지를 반복합니다.
         Advance_To(army, enemy, range * 0.8f);
     }
 
@@ -169,6 +183,8 @@ public class Battle_AI : MonoBehaviour
     {
         bool bcavalryNear = Is_Cavalry_Near(army);
 
+        // 기병이 근처에 있으면 창벽을 세우고 그 자리에서 버팁니다.
+        // 창벽은 정지 상태에서만 돌격을 반사하므로 전진하면 의미가 없습니다.
         if (bcavalryNear)
         {
             // 창벽은 정지 상태에서만 돌격을 반사합니다. 그러니 멈춰 섭니다.
@@ -261,13 +277,18 @@ public class Battle_AI : MonoBehaviour
 
         forward = forward.normalized;
 
-        // 상대의 좌우 중 내가 더 가까운 쪽으로 돌아갑니다.
+        // 적을 향한 방향에 수직인 축입니다. 이 축을 따라 옆으로 돕니다.
         Vector3 side = Vector3.Cross(Vector3.up, forward);
 
         Vector3 enemyForward = enemy.formation_Move_Transform.forward;
         enemyForward.y = 0.0f;
 
         // 상대 정면의 반대쪽(측후방)을 노립니다.
+        //
+        // side와 적의 정면이 같은 쪽을 가리키면(내적 > 0) 그 방향은
+        // 적의 앞쪽입니다. 부호를 뒤집어야 뒤로 돌아가게 됩니다.
+        // 이 게임에서 측후방 공격은 방어력과 방패를 무력화하므로
+        // 기병이 정면을 피하는 것 자체가 큰 이득입니다.
         float sign = Vector3.Dot(side, enemyForward) > 0.0f ? 1.0f : -1.0f;
 
         float flankDistance = engageDistance * 2.0f;
@@ -324,15 +345,20 @@ public class Battle_AI : MonoBehaviour
     /// </summary>
     private void Issue_Line_Order(Army army, Vector3 center, Vector3 forward)
     {
+        // 전열축은 진행 방향에 수직입니다.
+        // 그래야 대열이 옆으로 펼쳐진 채 적과 부딪힙니다.
+        // 진행 방향과 같게 두면 부대가 한 줄로 늘어서 각개격파당합니다.
         Vector3 lineDirection = Vector3.Cross(Vector3.up, forward);
         if (lineDirection.sqrMagnitude < 0.0001f) return;
 
         lineDirection = lineDirection.normalized;
 
+        // 진형 좌표 규약은 '대열의 한가운데'입니다. (Army_Formation.cs 참조)
+        // 예전에는 여기서 왼쪽 끝(center - 절반폭)으로 밀어 넘겼는데,
+        // 규약이 중심으로 통일된 뒤에는 그 보정이 곧 오차가 됩니다.
         float length = army.GetFormation_Length();
-        Vector3 start = center - lineDirection * (length * 0.5f);
 
-        army.Move_Start(length, lineDirection, start);
+        army.Move_Start(length, lineDirection, center);
     }
 
     /// <summary>가까이에 적 기병이 있는지 봅니다. 창벽을 세울지 결정하는 근거입니다.</summary>
@@ -341,6 +367,9 @@ public class Battle_AI : MonoBehaviour
         Vector3 myPosition = army.GetPosition();
 
         // 기병은 빠르므로 넉넉히 봅니다. 붙고 나서 세우면 늦습니다.
+        //
+        // 창벽으로 바꾸는 데도 대열이 정비될 시간이 필요하므로,
+        // 교전 거리의 네 배쯤에서 미리 감지해야 제때 세울 수 있습니다.
         float radius = engageDistance * 4.0f;
         float radiusSqr = radius * radius;
 

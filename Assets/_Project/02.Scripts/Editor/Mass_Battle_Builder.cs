@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -60,6 +60,7 @@ public static class Mass_Battle_Builder
     /// <summary>참고할 원본 씬입니다. 카메라/조명/지면 설정을 물려받습니다.</summary>
     private const string templateScenePath = "Assets/_Project/01.Scenes/Scene1.unity";
 
+    /// <summary>기본 규격으로 대규모 전투 씬을 생성합니다.</summary>
     [MenuItem("RTXX/대규모 전투 씬 생성")]
     public static void Build()
     {
@@ -90,6 +91,9 @@ public static class Mass_Battle_Builder
                   $"총 인원 {perSide * 2 * perArmy}명");
     }
 
+    /// <summary>대규모 전투 씬을 실제로 만들고 저장합니다.</summary>
+    /// <param name="perSide">한쪽 진영의 부대 수입니다.</param>
+    /// <param name="perArmy">부대 하나의 인원입니다.</param>
     private static void Build_Internal(int perSide, int perArmy)
     {
         GameObject armyPrefab =
@@ -282,8 +286,11 @@ public static class Mass_Battle_Builder
     /// <summary>부대가 쓰는 스프라이트 묶음입니다.</summary>
     private struct Sprite_Set
     {
+        /// <summary>유닛 몸통 스프라이트 목록입니다.</summary>
         public List<Sprite> unit;
+        /// <summary>무기 스프라이트 목록입니다.</summary>
         public List<Sprite> weapon;
+        /// <summary>방패 스프라이트 목록입니다.</summary>
         public List<Sprite> shield;
     }
 
@@ -294,45 +301,148 @@ public static class Mass_Battle_Builder
     /// Army.prefab의 이미지 목록은 비어 있고, 실제 값은 씬의 프리팹
     /// 오버라이드로 들어가 있습니다. 그래서 프리팹만 보면 빈 목록을 얻습니다.
     /// </summary>
+    /// <summary>DCSS 타일 폴더입니다. 여기 있는 것만 씁니다.</summary>
+    private const string tileFolder = "Assets/_Project/04.Art/01.Images/DCSS_Tiles";
+
+    /// <summary>DCSS 타일 폴더에서 용도별 스프라이트를 모읍니다.</summary>
+    /// <returns>몸통/무기/방패로 갈라진 스프라이트 집합입니다.</returns>
     private static Sprite_Set Collect_Sprites()
     {
+        // 새 DCSS 타일만 씁니다.
+        //
+        // 왜 씬에서 걷어 오지 않는가:
+        // 예전에는 원본 씬의 부대가 들고 있던 스프라이트를 그대로 물려받았습니다.
+        // 그런데 그 스프라이트들은 합쳐진 시트(main.png 등)를 잘라 낸 것이고,
+        // 전부 **중앙 피벗**입니다. 새 타일은 하단 중앙 피벗이므로 둘을 섞으면
+        // 절반은 공중에 뜨고 절반은 지면에 잠깁니다.
+        //
+        // 피벗 규약이 다른 두 자산을 한 씬에서 섞지 않는 것이 핵심입니다.
         Sprite_Set set = new Sprite_Set
         {
-            unit = new List<Sprite>(),
-            weapon = new List<Sprite>(),
-            shield = new List<Sprite>()
+            unit = Load_Tiles("human_", "orc_", "base_"),
+            weapon = Load_Tiles("weapon_"),
+            shield = Load_Tiles("shield_")
         };
 
-        Army[] existing = Object.FindObjectsByType<Army>(FindObjectsSortMode.None);
-
-        for (int i = 0; i < existing.Length; i++)
-        {
-            Army a = existing[i];
-            if (a == null) continue;
-
-            Add_Unique(set.unit, a.images_Unit);
-            Add_Unique(set.weapon, a.images_Weapon);
-            Add_Unique(set.shield, a.images_Shield);
-        }
-
-        // 씬에서 아무것도 못 찾았으면 프로젝트 전체에서 찾아봅니다.
-        // (원본 씬이 비어 있는 경우를 대비한 안전장치입니다)
         if (set.unit.Count == 0)
         {
-            string[] guids = AssetDatabase.FindAssets("t:Sprite", new[] { "Assets/_Project" });
-
-            for (int i = 0; i < guids.Length && set.unit.Count < 3; i++)
-            {
-                string path = AssetDatabase.GUIDToAssetPath(guids[i]);
-                Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
-                if (sprite != null) set.unit.Add(sprite);
-            }
-
-            Debug.LogWarning($"[MassBattle] 씬에서 스프라이트를 찾지 못해 " +
-                             $"프로젝트에서 {set.unit.Count}개를 대신 씁니다.");
+            Debug.LogError(
+                $"[MassBattle] {tileFolder}에 유닛 타일이 없습니다.\n" +
+                "먼저 'RTXX > DCSS 타일 가져오기'를 실행하십시오.");
         }
 
         return set;
+    }
+
+    /// <summary>
+    /// 타일 폴더에서 접두사로 스프라이트를 골라 옵니다.
+    ///
+    /// 임포터가 파일명에 계열 접두사를 붙여 두므로(human_/orc_/weapon_/shield_)
+    /// 폴더 하나만 훑어도 용도별로 갈라집니다.
+    /// </summary>
+    private static List<Sprite> Load_Tiles(params string[] prefixes)
+    {
+        List<Sprite> result = new List<Sprite>();
+
+        if (!AssetDatabase.IsValidFolder(tileFolder)) return result;
+
+        string[] guids = AssetDatabase.FindAssets("t:Sprite", new[] { tileFolder });
+
+        for (int i = 0; i < guids.Length; i++)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+            string file = System.IO.Path.GetFileName(path);
+
+            bool bmatch = false;
+            for (int p = 0; p < prefixes.Length; p++)
+            {
+                if (file.StartsWith(prefixes[p])) { bmatch = true; break; }
+            }
+
+            if (!bmatch) continue;
+
+            Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            if (sprite != null) result.Add(sprite);
+        }
+
+        // 정렬해 두어야 씬을 다시 만들 때 같은 순서가 나옵니다.
+        // 순서가 흔들리면 '같은 시드에 같은 배치'가 성립하지 않습니다.
+        result.Sort((a, b) => string.CompareOrdinal(a.name, b.name));
+
+        return result;
+    }
+
+    /// <summary>
+    /// 진영에 맞는 몸통 타일을 고릅니다.
+    ///
+    /// 아군은 인간, 적군은 오크로 갈라 난전에서 피아 식별이 되게 합니다.
+    /// 9,600명이 뒤엉키면 색만으로는 구분되지 않습니다.
+    /// </summary>
+    private static List<Sprite> Filter_Bodies(List<Sprite> all, bool bplayer)
+    {
+        string prefix = bplayer ? "human" : "orc";
+
+        List<Sprite> result = new List<Sprite>();
+
+        for (int i = 0; i < all.Count; i++)
+        {
+            if (all[i] == null) continue;
+            if (all[i].name.StartsWith(prefix)) result.Add(all[i]);
+        }
+
+        // 못 고르면 전체를 그대로 줍니다. (빈 목록은 예외를 냅니다)
+        return result.Count > 0 ? result : new List<Sprite>(all);
+    }
+
+    /// <summary>
+    /// 병종에 맞는 무기 타일만 골라 냅니다.
+    ///
+    /// 왜 필요한가:
+    /// 무기를 무작위로 배정하면 창병이 활을 들고 궁병이 도끼를 듭니다.
+    /// 스탯은 병종을 따르는데 그림만 다르면 플레이어가 전장을 오독합니다.
+    /// 무엇이 창병인지 한눈에 보여야 상성 판단이 성립합니다.
+    /// </summary>
+    private static List<Sprite> Filter_Weapons(List<Sprite> all, E_Unit_Class unitClass)
+    {
+        // 병종별로 쓸 무기 이름 조각입니다. (파일명에 포함되면 채택)
+        string[] keys;
+
+        switch (unitClass)
+        {
+            case E_Unit_Class.Spear:
+                keys = new[] { "spear" };
+                break;
+
+            case E_Unit_Class.Archer:
+                keys = new[] { "bow" };
+                break;
+
+            case E_Unit_Class.Cavalry:
+                // 기병은 말 위에서 휘두를 긴 무기를 씁니다.
+                keys = new[] { "long_sword", "spear" };
+                break;
+
+            default:
+                // 보병은 근접 무기 전반을 씁니다.
+                keys = new[] { "short_sword", "long_sword", "hand_axe", "mace", "dagger" };
+                break;
+        }
+
+        List<Sprite> result = new List<Sprite>();
+
+        for (int i = 0; i < all.Count; i++)
+        {
+            if (all[i] == null) continue;
+
+            for (int k = 0; k < keys.Length; k++)
+            {
+                if (all[i].name.Contains(keys[k])) { result.Add(all[i]); break; }
+            }
+        }
+
+        // 하나도 못 고르면 전체를 그대로 줍니다.
+        // 빈 목록을 넘기면 유닛 생성 중에 예외가 납니다.
+        return result.Count > 0 ? result : all;
     }
 
     /// <summary>중복 없이 스프라이트를 추가합니다.</summary>
@@ -381,13 +491,6 @@ public static class Mass_Battle_Builder
         Army army = go.GetComponent<Army>();
         if (army == null) return null;
 
-        // 스프라이트를 반드시 채웁니다.
-        // 비어 있으면 유닛 생성 중에 예외가 나고, 그 예외가
-        // Controller.Start의 초기화 루프를 통째로 끊습니다.
-        army.images_Unit = new List<Sprite>(sprites.unit);
-        army.images_Weapon = new List<Sprite>(sprites.weapon);
-        army.images_Shield = new List<Sprite>(sprites.shield);
-
         army.army_Data.bplayer = bplayer;
         army.army_Data.unit_Num = unitNum;
         army.army_Data.unit_Num_Max = unitNum;
@@ -403,6 +506,25 @@ public static class Mass_Battle_Builder
         else unitClass = E_Unit_Class.Cavalry;
 
         Apply_Class_Stats(ref army.army_Data, unitClass);
+
+        // 스프라이트는 병종이 정해진 '뒤에' 채웁니다.
+        //
+        // 무기가 병종을 따라야 하기 때문입니다. 무작위로 주면 창병이 활을 들고
+        // 궁병이 도끼를 듭니다. 스탯은 병종을 따르는데 그림만 다르면
+        // 플레이어가 전장을 오독합니다.
+        //
+        // 비어 있으면 유닛 생성 중에 예외가 나고, 그 예외가
+        // Controller.Start의 초기화 루프를 통째로 끊습니다.
+        //
+        // 몸통은 진영으로 가릅니다. 아군은 인간, 적군은 오크로 두면
+        // 난전에서 피아 식별이 됩니다.
+        army.images_Unit = Filter_Bodies(sprites.unit, bplayer);
+        army.images_Weapon = Filter_Weapons(sprites.weapon, unitClass);
+
+        // 궁병은 방패를 들지 않습니다. 활을 두 손으로 잡기 때문입니다.
+        army.images_Shield = unitClass == E_Unit_Class.Archer
+            ? new List<Sprite>()
+            : new List<Sprite>(sprites.shield);
 
         // 각 진영의 첫 부대를 장군으로 세웁니다.
         // 장군 오라와 전사 시 전군 충격을 검증하기 위한 것입니다.

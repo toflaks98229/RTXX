@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
@@ -24,13 +24,16 @@ using UnityEngine;
 /// </summary>
 public class Mass_Battle_Probe : MonoBehaviour
 {
+    /// <summary>측정할 틱 수입니다. 이만큼 지나면 결과를 남기고 끝냅니다.</summary>
     [Header("측정")]
     [Tooltip("이 틱 수만큼 측정한 뒤 결과를 남깁니다. 0이면 계속 측정합니다.")]
     public int measureTicks = 600;
 
+    /// <summary>이 시간을 넘긴 틱을 스파이크로 셉니다. 60fps 예산은 16.67ms입니다.</summary>
     [Tooltip("이 시간(ms)을 넘으면 스파이크로 셉니다. 60fps 예산은 16.6ms입니다.")]
     public float spikeThresholdMs = 20.0f;
 
+    /// <summary>측정이 끝나면 애플리케이션을 종료할지 여부입니다. -out 인자를 주면 켜집니다.</summary>
     [Tooltip("측정이 끝나면 자동으로 플레이를 종료합니다. 배치모드 검증용입니다.")]
     public bool bquitWhenDone;
 
@@ -44,31 +47,52 @@ public class Mass_Battle_Probe : MonoBehaviour
     [System.NonSerialized]
     public string resultPath;
 
+    /// <summary>화면에 실시간 지표를 그릴지 여부입니다.</summary>
     [Header("표시")]
     [Tooltip("화면에 실시간 지표를 그립니다.")]
     public bool bdrawGUI = true;
 
+    [Tooltip("단계별 비용과 스파이크 귀속을 함께 계측합니다.\n" +
+             "배치모드에서는 -profile 인자로도 켤 수 있습니다.\n" +
+             "계측 자체에 약간의 비용이 있으므로 평소에는 꺼 두십시오.")]
+    /// <summary>단계별 비용과 스파이크 귀속을 함께 계측할지 여부입니다.</summary>
+    public bool bprofile = true;
+
+    /// <summary>검사 대상 컨트롤러입니다. Start에서 씬에서 찾습니다.</summary>
     private Controller controller;
 
     // --- 틱 시간 통계 ---
+    /// <summary>지금까지 지난 틱 수입니다.</summary>
     private int tickCount;
+    /// <summary>틱 시간의 누적 합(밀리초)입니다. 평균 계산에 씁니다.</summary>
     private double totalMs;
+    /// <summary>관측된 가장 느린 틱(밀리초)입니다.</summary>
     private float worstMs;
+    /// <summary>임계를 넘긴 틱 수입니다.</summary>
     private int spikeCount;
+    /// <summary>틱 간격을 재는 스톱워치입니다.</summary>
     private System.Diagnostics.Stopwatch watch = new System.Diagnostics.Stopwatch();
 
     // --- 전투 진행 통계 ---
+    /// <summary>이번 실행에서 발생한 총 사망 수입니다.</summary>
     private int deaths;
+    /// <summary>이번 실행에서 발생한 사기 붕괴 횟수입니다.</summary>
     private int routs;
+    /// <summary>이번 실행에서 발생한 와해 횟수입니다.</summary>
     private int shatters;
+    /// <summary>이번 실행에서 발생한 돌격 횟수입니다.</summary>
     private int charges;
 
     // --- 검증 결과 ---
+    /// <summary>검출된 문제 목록입니다. 같은 종류는 한 번만 쌓입니다.</summary>
     private readonly List<string> problems = new List<string>();
+    /// <summary>결과를 이미 보고했는지 여부입니다. 중복 보고를 막습니다.</summary>
     private bool breported;
 
+    /// <summary>실시간 지표를 그리는 데 쓰는 스타일입니다.</summary>
     private GUIStyle style;
 
+    /// <summary>배치모드 인자를 읽고 이벤트를 구독해 측정을 준비합니다.</summary>
     private void Start()
     {
         controller = FindAnyObjectByType<Controller>();
@@ -84,10 +108,24 @@ public class Mass_Battle_Probe : MonoBehaviour
         }
 
         // 단계별 계측은 명시적으로 요청했을 때만 켭니다.
+        //
+        // 에디터에서 그냥 플레이하면 CLI 인자가 없으므로, 인스펙터 토글로도
+        // 켤 수 있어야 합니다. 이것이 없어 에디터 실행에서는 단계별 표와
+        // 스파이크 귀속이 통째로 비어 있었습니다.
+        if (bprofile) Tick_Profiler.benabled = true;
+
         for (int i = 0; i < args.Length; i++)
         {
             if (args[i] == "-profile") Tick_Profiler.benabled = true;
             if (args[i] == "-forceRout") bforceRout = true;
+
+            // 줌 스윕 측정 중에는 이 프로브가 애플리케이션을 끝내면 안 됩니다.
+            //
+            // 스윕은 줌 단계마다 수십~수백 프레임을 써야 하므로 600틱보다
+            // 오래 걸립니다. 이쪽이 먼저 Quit하면 스윕이 중간에 잘려
+            // 뒤쪽 줌 단계(넓게 보이는 구간)가 통째로 측정되지 않습니다.
+            // 그 구간이 정확히 알고 싶은 부분이므로 치명적입니다.
+            if (args[i] == "-zoomSweep") bzoomSweepMode = true;
         }
 
         Tick_Profiler.Reset();
@@ -212,6 +250,18 @@ public class Mass_Battle_Probe : MonoBehaviour
         // 없으면 유닛이 생성 높이 그대로 언덕을 통과합니다.
         Check_Ground_Alignment(units);
 
+        // 진형 데이터와 마커 Transform도 검사합니다.
+        //
+        // 왜 추가했는가:
+        // 이 검사가 없던 시절, 프로브는 "좌표/인덱스 이상 없음"을 보고하는데
+        // Unity는 같은 실행에서 'Invalid localAABB. Object transform is corrupt.'와
+        // 'IsFinite(distanceForSort)' 어서션을 쏟아냈습니다.
+        //
+        // 원인은 프로브가 '살아 있는 유닛의 unit_Data.position'만 봤기 때문입니다.
+        // 손상된 것은 유닛이 아니라 진형 마커(UI_Unit)의 회전이었고,
+        // 그 근원은 영벡터가 된 진형 방향이었습니다.
+        Validate_Formation();
+
         Record(nanCount > 0, $"틱 {tickCount}: 좌표가 NaN인 유닛 {nanCount}명");
         Record(outOfRange > 0, $"틱 {tickCount}: 좌표가 전장을 벗어난 유닛 {outOfRange}명");
         Record(simIndexMismatch > 0,
@@ -220,6 +270,147 @@ public class Mass_Battle_Probe : MonoBehaviour
         Record(armyIndexMismatch > 0,
                $"틱 {tickCount}: armyIndex 불일치 {armyIndexMismatch}건 " +
                "(킬 귀속이 엉뚱한 부대로 기록됩니다)");
+    }
+
+    /// <summary>
+    /// 진형 방향과 마커 Transform이 손상되지 않았는지 검사합니다.
+    ///
+    /// 여기서 걸리는 값들이 Unity 렌더러의 'Invalid localAABB' /
+    /// 'IsFinite(distanceForSort)' 어서션의 직접적인 원인입니다.
+    /// 그 어서션은 렌더 스레드에서 나므로 스택이 게임 코드를 가리키지 않아,
+    /// 이렇게 시뮬레이션 쪽에서 짚어 주지 않으면 원인 추적이 매우 어렵습니다.
+    /// </summary>
+    private void Validate_Formation()
+    {
+        List<Army> armies = controller != null ? controller.armies : Army.allArmies;
+        if (armies == null) return;
+
+        int zeroDirection = 0;
+        int nanDirection = 0;
+        int badPivot = 0;
+        int badMarker = 0;
+
+        for (int i = 0; i < armies.Count; i++)
+        {
+            Army army = armies[i];
+            if (army == null) continue;
+
+            // 1. 진형 방향 (모든 회전 계산의 근원)
+            Formation_Data fd = army.GetFormation_Data();
+            if (fd != null)
+            {
+                Vector3 d = fd.direction;
+
+                if (Is_Bad(d)) nanDirection++;
+                else if (d.sqrMagnitude < 0.0000001f) zeroDirection++;
+            }
+
+            // 2. 부대 기준점 Transform
+            if (army.formation_Move_Transform != null)
+            {
+                if (Is_Bad(army.formation_Move_Transform.position)) badPivot++;
+            }
+
+            // 3. 진형 마커 (실제로 렌더링되는 대상)
+            //    전량을 매번 보면 비싸므로 부대당 몇 개만 표본으로 확인합니다.
+            //    손상은 부대 단위로 한꺼번에 생기므로 표본으로 충분합니다.
+            List<UI_Unit> markers = army.uI_Units;
+            if (markers == null) continue;
+
+            int step = Mathf.Max(1, markers.Count / 4);
+
+            for (int m = 0; m < markers.Count; m += step)
+            {
+                if (markers[m] == null) continue;
+
+                Transform t = markers[m].transform;
+
+                if (Is_Bad(t.position) || Is_Bad_Rotation(t.rotation))
+                {
+                    badMarker++;
+                    break;
+                }
+            }
+        }
+
+        Record(nanDirection > 0,
+               $"틱 {tickCount}: 진형 방향이 NaN/무한대인 부대 {nanDirection}개 " +
+               "(마커 회전이 손상되어 렌더러 어서션이 납니다)");
+
+        Record(zeroDirection > 0,
+               $"틱 {tickCount}: 진형 방향이 영벡터인 부대 {zeroDirection}개 " +
+               "(interval이 0이거나 direction이 영벡터로 들어왔습니다)");
+
+        Record(badPivot > 0,
+               $"틱 {tickCount}: 기준점 좌표가 손상된 부대 {badPivot}개");
+
+        Record(badMarker > 0,
+               $"틱 {tickCount}: 진형 마커 Transform이 손상된 부대 {badMarker}개 " +
+               "(Invalid localAABB의 직접 원인입니다)");
+
+        Validate_Targets();
+    }
+
+    /// <summary>
+    /// 표적 좌표가 무한대인 채로 사용되고 있지 않은지 검사합니다.
+    ///
+    /// 왜 필요한가:
+    /// Unit_target_Data.RemoveTarget()은 표적 좌표를 Vector3.positiveInfinity로
+    /// 둡니다. 그 값이 투사체 궤적(Projectile_Renderer)이나 조향 목표로
+    /// 흘러가면 NaN이 되어 렌더러가 'IsFinite(distanceForSort)' 어서션을 냅니다.
+    ///
+    /// 이 검사가 없어서, 프로브가 "좌표/인덱스 이상 없음"을 보고하는 동안
+    /// Unity는 같은 실행에서 어서션을 쏟아내고 있었습니다.
+    /// 유닛의 position만 봤을 뿐 '표적' 좌표는 보지 않았기 때문입니다.
+    /// </summary>
+    private void Validate_Targets()
+    {
+        List<Unit> units = controller != null ? controller.units : null;
+        if (units == null) return;
+
+        int badTarget = 0;
+        int badSteering = 0;
+
+        for (int i = 0; i < units.Count; i++)
+        {
+            Unit u = units[i];
+            if (u == null) continue;
+            if (u.IsDead()) continue;
+
+            // 표적이 있다고 표시된 유닛의 표적 좌표는 반드시 유한해야 합니다.
+            if (u.unit_Data.btarget && Is_Bad(u.unit_Data.unit_Target_Data.position))
+            {
+                badTarget++;
+            }
+
+            if (Is_Bad(u.unit_Data.steeringTarget)) badSteering++;
+        }
+
+        Record(badTarget > 0,
+               $"틱 {tickCount}: 표적 좌표가 무한대/NaN인 유닛 {badTarget}명 " +
+               "(투사체 궤적이 손상되어 렌더러 어서션이 납니다)");
+
+        Record(badSteering > 0,
+               $"틱 {tickCount}: 조향 목표가 무한대/NaN인 유닛 {badSteering}명");
+    }
+
+    /// <summary>좌표가 NaN이거나 무한대인지 확인합니다.</summary>
+    private static bool Is_Bad(Vector3 v)
+    {
+        return float.IsNaN(v.x) || float.IsNaN(v.y) || float.IsNaN(v.z)
+            || float.IsInfinity(v.x) || float.IsInfinity(v.y) || float.IsInfinity(v.z);
+    }
+
+    /// <summary>회전이 손상되었는지 확인합니다. 정규화된 쿼터니언은 크기가 1입니다.</summary>
+    private static bool Is_Bad_Rotation(Quaternion q)
+    {
+        if (float.IsNaN(q.x) || float.IsNaN(q.y) || float.IsNaN(q.z) || float.IsNaN(q.w))
+            return true;
+
+        float lengthSqr = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
+
+        // 영쿼터니언(LookRotation이 영벡터를 받았을 때)이나 비정규 값을 잡습니다.
+        return lengthSqr < 0.5f || lengthSqr > 2.0f;
     }
 
     /// <summary>
@@ -379,6 +570,9 @@ public class Mass_Battle_Probe : MonoBehaviour
         int offCount = 0;
         float worst = 0.0f;
 
+        // 이번 표본의 값입니다. 누적하면 한 번 어긋난 뒤로 영원히 보고합니다.
+        transformOffCount = 0;
+
         for (int i = 0; i < units.Count; i += stride)
         {
             Unit u = units[i];
@@ -400,6 +594,22 @@ public class Mass_Battle_Probe : MonoBehaviour
             float gap = Mathf.Abs(p.y - hit.point.y);
             if (gap > worst) worst = gap;
             if (gap > tolerance) offCount++;
+
+            // 실제 Transform도 함께 봅니다.
+            //
+            // 왜 필요한가:
+            // 위 검사는 unit_Data.position을 지면과 비교합니다. 그런데 화면에
+            // 보이는 것은 Transform이고, 둘은 매 틱 Write_Transform_Job이
+            // 맞춰 줍니다. 그 동기화가 어긋나면 시뮬레이션은 지면에 붙어 있는데
+            // 눈에는 파묻혀 보입니다.
+            //
+            // 실제로 프로브가 "지면 이격 0.00m"를 보고하는 동안 화면에서는
+            // 유닛이 반쯤 잠겨 이동하는 현상이 보고되었습니다.
+            // 시뮬레이션만 검사해서는 그 어긋남을 볼 수 없습니다.
+            float drift = (u.transform.position - p).magnitude;
+
+            if (drift > worstTransformDrift) worstTransformDrift = drift;
+            if (drift > tolerance) transformOffCount++;
         }
 
         if (checkedCount == 0) return;
@@ -411,7 +621,21 @@ public class Mass_Battle_Probe : MonoBehaviour
                $"틱 {tickCount}: 표본의 {offCount}/{checkedCount}이 지면에서 " +
                $"{tolerance}m 넘게 벗어났습니다 (최대 {worst:F1}m). " +
                "지형 높이가 반영되지 않고 있습니다.");
+
+        // Transform 어긋남은 소수만 있어도 보고합니다.
+        // 화면에 직접 드러나는 문제이므로 절반 기준을 쓰면 놓칩니다.
+        Record(transformOffCount > 0,
+               $"틱 {tickCount}: 표본 {transformOffCount}/{checkedCount}의 Transform이 " +
+               $"시뮬레이션 위치와 {tolerance}m 넘게 어긋났습니다 " +
+               $"(최대 {worstTransformDrift:F2}m). " +
+               "화면에 보이는 위치가 실제 위치와 다릅니다.");
     }
+
+    /// <summary>Transform과 시뮬레이션 위치의 최대 어긋남입니다.</summary>
+    private float worstTransformDrift;
+
+    /// <summary>이번 표본에서 Transform이 어긋난 유닛 수입니다.</summary>
+    private int transformOffCount;
 
     /// <summary>같은 문제를 반복해서 쌓지 않도록 한 번만 기록합니다.</summary>
     private void Record(bool bcondition, string message)
@@ -492,6 +716,7 @@ public class Mass_Battle_Probe : MonoBehaviour
         sb.AppendLine($"이탈 비율   : {groundOffRate * 100.0f:F0}% (표본 기준)");
         sb.AppendLine($"패주 이격   : {worstRoutGap:F2} m (표본 {routSamples}회)");
         sb.AppendLine($"패주 기준점 : {worstRoutPivotGap:F2} m");
+        sb.AppendLine($"Transform차 : {worstTransformDrift:F2} m (시뮬 위치와의 어긋남)");
         sb.AppendLine("--- 검증 ---");
 
         // 전투가 실제로 진행되었는지 확인합니다.
@@ -521,7 +746,8 @@ public class Mass_Battle_Probe : MonoBehaviour
 
         Write_Result_File();
 
-        if (bquitWhenDone)
+        // 줌 스윕 중에는 종료를 그쪽에 맡깁니다. (위 -zoomSweep 주석 참고)
+        if (bquitWhenDone && !bzoomSweepMode)
         {
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.Exit(0);
@@ -530,6 +756,9 @@ public class Mass_Battle_Probe : MonoBehaviour
 #endif
         }
     }
+
+    /// <summary>줌 스윕 측정 중인지 여부입니다. 참이면 이 프로브가 종료하지 않습니다.</summary>
+    private bool bzoomSweepMode;
 
     /// <summary>
     /// 시뮬레이션 상태의 지문을 파일로 남깁니다.
@@ -585,6 +814,29 @@ public class Mass_Battle_Probe : MonoBehaviour
         sb.AppendLine($"moraleSum={moraleSum}");
         sb.AppendLine($"stateHash={hash:X16}");
 
+        // 프레임 타이밍을 함께 남깁니다.
+        //
+        // 왜 필요한가:
+        // 이 값들이 없으면 빌드 실행 결과를 에디터 실행과 비교할 수 없습니다.
+        // 지금 풀어야 할 질문이 정확히 그것입니다.
+        //   "스파이크의 95%가 시뮬레이션 바깥인데, 에디터 탓인가 렌더링인가"
+        // 빌드에는 Scene view도 Inspector도 없으므로, 두 실행의 차이가
+        // 곧 에디터 오버헤드의 크기입니다.
+        int measured = Mathf.Max(1, tickCount - 1);
+
+        sb.AppendLine($"avgTickMs={totalMs / measured:F3}");
+        sb.AppendLine($"worstTickMs={worstMs:F3}");
+        sb.AppendLine($"spikes={spikeCount}");
+        sb.AppendLine($"spikeRate={(double)spikeCount / measured * 100.0:F2}");
+        sb.AppendLine($"measuredTicks={measured}");
+
+        // 시뮬레이션 내부 비용도 함께 남겨야 '바깥'을 뺄셈으로 구할 수 있습니다.
+        if (Tick_Profiler.benabled)
+        {
+            sb.AppendLine($"simTotalMs={Tick_Profiler.Average_Total_Ms():F3}");
+            sb.AppendLine($"simSpikes={Tick_Profiler.SpikeSamples}");
+        }
+
         try
         {
             System.IO.File.WriteAllText(resultPath, sb.ToString());
@@ -613,6 +865,7 @@ public class Mass_Battle_Probe : MonoBehaviour
         }
     }
 
+    /// <summary>측정 중인 지표를 화면에 실시간으로 그립니다.</summary>
     private void OnGUI()
     {
         if (!bdrawGUI) return;

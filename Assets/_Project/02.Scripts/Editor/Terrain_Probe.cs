@@ -1,4 +1,4 @@
-using UnityEditor;
+﻿using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
@@ -15,6 +15,7 @@ using UnityEngine;
 /// </summary>
 public static class Terrain_Probe
 {
+    /// <summary>배치모드에서 지형 검사를 실행하고 종료합니다.</summary>
     public static void Run_From_CLI()
     {
         EditorSceneManager.OpenScene(

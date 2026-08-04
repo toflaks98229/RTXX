@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// 밸런스 수치를 인스펙터에서 편집하기 위한 에셋입니다.
@@ -18,6 +18,7 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "Balance_Config", menuName = "RTXX/Balance Config")]
 public class Balance_Config : ScriptableObject
 {
+    /// <summary>이 에셋이 들고 있는 밸런스 수치입니다. 인스펙터에서 편집합니다.</summary>
     [Tooltip("게임 밸런스 수치 전체입니다. 항목별 설명은 Balance_Data.cs를 참고하십시오.")]
     public Balance_Data balance = Balance_Data.Default();
 

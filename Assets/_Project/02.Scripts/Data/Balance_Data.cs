@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 /// <summary>
 /// 게임 밸런스 수치 전체를 담는 순수 값 구조체입니다.
@@ -168,6 +168,131 @@ public struct Balance_Data
     public float stance_Skirmish_Flee_Rate;
 
     // ---------------------------------------------------------------------
+    // 태세별 밀집도 (병사 간격 배율)
+    //
+    // 왜 필요한가:
+    // 이 게임은 이미 태세에 따라 원거리 방어·돌격 저항·이동 속도를
+    // 다르게 계산하고 있었습니다. 그런데 **화면에서는 늘 같은 간격**으로
+    // 서 있었습니다. 방패벽을 세워도 그림이 그대로라 플레이어는 무엇이
+    // 달라졌는지 볼 수 없었습니다.
+    //
+    // 토탈워(삼국지 포함)의 설계를 조사해 보면 밀집도가 그 거래의
+    // 몸통입니다.
+    //
+    //   밀집  : 화살에 잘 맞음 / 돌격에 잘 버팀 / 느림
+    //   산개  : 화살을 잘 피함 / 돌격에 무너짐 / 빠름
+    //
+    // Three Kingdoms의 Loose는 '유닛의 물리적 점유 면적을 넓혀' 원거리
+    // 회피를 얻는 대신 돌격 저항을 크게 잃습니다. 방패벽(Turtle)은
+    // 반대로 방패를 겹쳐 틈을 없앱니다.
+    //
+    // 아래 값은 그 관계를 간격에 반영합니다. 수치 효과는 이미 있으므로
+    // 여기서는 '보이는 것'만 맞춥니다.
+    // ---------------------------------------------------------------------
+    /// <summary>전열(Line) 태세의 간격 배율입니다. 기준값이므로 1.0입니다.</summary>
+    public float density_Line;
+    /// <summary>느슨한 대열(Loose)의 간격 배율입니다. 넓게 벌어집니다.</summary>
+    public float density_Loose;
+    /// <summary>방패벽의 간격 배율입니다. 가장 조밀합니다.</summary>
+    public float density_ShieldWall;
+    /// <summary>창벽의 간격 배율입니다. 방패벽보다는 덜 조입니다.</summary>
+    public float density_SpearWall;
+    /// <summary>산개(Skirmish)의 간격 배율입니다. 가장 넓게 흩어집니다.</summary>
+    public float density_Skirmish;
+
+    /// <summary>
+    /// 간격 하한을 정하는 반지름 배수입니다.
+    ///
+    /// 간격이 유닛 지름보다 좁아지면 병사들이 겹쳐 서고, 충돌 해소가
+    /// 매 틱 밀어내 대열이 진동합니다. 그래서 아무리 조밀한 태세라도
+    /// 이 하한 아래로는 내려가지 않습니다.
+    ///   하한 = 반지름 * 2 * 이 값
+    /// </summary>
+    public float density_Min_Radius_Rate;
+
+    // ---------------------------------------------------------------------
+    // 적진 관통 방지
+    //
+    // 문제:
+    // 지금 충돌 해소는 아군과 적군을 **똑같이** 처리합니다. 적/아군
+    // 구분은 접촉 기록(benemyContact)에만 쓰이고 밀어내는 힘은 같습니다.
+    // 그래서 전진 명령이 한 틱 분리량(maxSeparationPerTick)을 넘어서면
+    // 병사가 적 사이를 비집고 들어갑니다.
+    //
+    // 토탈워도 같은 문제를 겪었습니다. Total War: Arena는 패치 10 이전에
+    // 클릭 연타로 적진을 '뚫고 지나가' 교전에서 이탈할 수 있었고, CA는
+    // **소프트 충돌(soft collision)** 을 넣어 막았습니다.
+    //
+    // 다만 완전 금지는 아닙니다. 질량이 큰 유닛은 대열을 뚫고 들어가
+    // 후방에서 날뛸 수 있어야 합니다. 그것이 돌격의 의미입니다.
+    // 그래서 아래 값들은 '막되, 질량 우위에는 길을 열어 주는' 구조입니다.
+    //
+    // 콜라이더 레이어를 적/아군으로 나누지 않는 이유:
+    // 그러면 공간 그리드를 두 번 순회해야 합니다. 9,600 유닛에서 비용이
+    // 두 배가 됩니다. 같은 순회 안에서 계수만 다르게 두면 비용이
+    // 늘지 않으면서 같은 효과를 냅니다.
+    // ---------------------------------------------------------------------
+    /// <summary>
+    /// 적을 밀어낼 때 분리 강도에 곱하는 배수입니다.
+    /// 1.0이면 아군과 같고, 크면 적을 더 세게 튕겨냅니다.
+    /// </summary>
+    public float collide_Enemy_Separation_Rate;
+
+    /// <summary>
+    /// 적과의 접촉 판정에 쓰는 반지름 배수입니다.
+    ///
+    /// 1.0보다 크면 실제로 닿기 전에 먼저 밀리기 시작합니다.
+    /// '적과 아군이 걸리는 충돌체를 다르게' 만드는 실질적인 수단입니다.
+    /// </summary>
+    public float collide_Enemy_Radius_Rate;
+
+    // ---------------------------------------------------------------------
+    // 발밑 마커가 지면 위로 뜨는 높이
+    //
+    // 왜 거리에 비례해야 하는가 — 지형 LOD 때문입니다:
+    // 마커 높이는 지형에 레이캐스트해서 정합니다. 즉 **실제 높이맵**
+    // 기준입니다. 그런데 유니티 터레인은 멀어질수록 메시를 단순화하고
+    // (Scene1의 heightmapPixelError = 5), 그 단순화된 면은 원래 높이맵과
+    // 어긋납니다. 볼록한 곳에서는 면이 위로 솟아 마커를 덮습니다.
+    // 멀리 있는 마커만 지형에 잘려 보이던 것이 이것입니다.
+    //
+    // 그래서 기본 높이에 카메라 거리를 곱한 값을 더합니다. 가까이서는
+    // 지면에 딱 붙어 보이고, 멀리서는 LOD 오차를 넘길 만큼 떠오릅니다.
+    //
+    // 깊이 정밀도 문제가 아닙니다. 이 게임의 카메라는 직교 투영이라
+    // 깊이가 선형이고, 거리에 따라 정밀도가 나빠지지 않습니다.
+    //
+    // 깊이 테스트를 끄는 방법(ZTest Always)은 쓰지 않습니다. 그러면
+    // 언덕 뒤에 있는 마커까지 비쳐 보여 지형을 읽을 수 없게 됩니다.
+    //
+    // 근본 해결은 heightmapPixelError를 낮추는 것이지만, 그만큼 지형
+    // 삼각형이 늘어 9,600 유닛과 예산을 다투게 됩니다. 마커만 띄우는
+    // 편이 훨씬 쌉니다.
+    // ---------------------------------------------------------------------
+    /// <summary>발밑 마커를 지면 위로 띄우는 기본 높이(m)입니다.</summary>
+    public float marker_Ground_Lift;
+
+    /// <summary>
+    /// 카메라 거리 1m당 추가로 띄우는 높이입니다.
+    /// 깊이 정밀도 손실을 상쇄하는 값이므로 아주 작아야 합니다.
+    /// </summary>
+    public float marker_Ground_Lift_Rate;
+
+    /// <summary>
+    /// 이 질량비를 넘으면 적진을 파고들 수 있습니다.
+    ///
+    /// (내 질량 / 상대 질량)이 이 값 이상이면 차단이 약해집니다.
+    /// 기병이 보병 대열을 헤집는 것이 이 예외로 표현됩니다.
+    /// </summary>
+    public float collide_Push_Through_Mass_Rate;
+
+    /// <summary>
+    /// 질량 우위일 때 남기는 차단 비율입니다.
+    /// 0이면 완전히 뚫고, 1이면 질량과 무관하게 막힙니다.
+    /// </summary>
+    public float collide_Push_Through_Block_Rate;
+
+    // ---------------------------------------------------------------------
     // 근접 피격 방향 판정
     //
     // 이 게임의 핵심 전술 규칙(측면을 치면 유리하다)의 실체입니다.
@@ -235,10 +360,19 @@ public struct Balance_Data
     public float fatigue_Morale_Penalty;
 
     // 피로 단계 판정 기준
+    //
+    // 누적 피로도가 이 값들을 넘을 때마다 단계가 한 칸씩 올라갑니다.
+    // 단계 자체는 성능에 직접 쓰이지 않고(그건 fatigue_Min_Rate가 합니다),
+    // UI 표시와 가독성을 위한 구간 나눔입니다.
+    /// <summary>이 피로도를 넘으면 '활발' 단계가 됩니다.</summary>
     public float fatigue_Active;
+    /// <summary>이 피로도를 넘으면 '숨참' 단계가 됩니다.</summary>
     public float fatigue_Winded;
+    /// <summary>이 피로도를 넘으면 '지침' 단계가 됩니다.</summary>
     public float fatigue_Tired;
+    /// <summary>이 피로도를 넘으면 '매우 지침' 단계가 됩니다.</summary>
     public float fatigue_VeryTired;
+    /// <summary>이 피로도를 넘으면 '탈진' 단계가 됩니다.</summary>
     public float fatigue_Exhausted;
 
     // ---------------------------------------------------------------------
@@ -280,20 +414,55 @@ public struct Balance_Data
     // ---------------------------------------------------------------------
     // 이동 / 진형 일반
     // ---------------------------------------------------------------------
+    /// <summary>걷기 속도 배율입니다. 밀집 태세처럼 뛸 수 없는 상태에서 곱해집니다.</summary>
     public float speed_Walk;
+    /// <summary>목적지에 이만큼 가까워지면 도착으로 보고 멈춥니다.</summary>
     public float distance_Stop;
+    /// <summary>진형 슬롯에서 이만큼 벗어난 유닛을 '대열 이탈'로 셉니다.</summary>
     public float distance_ReFormation;
+    /// <summary>전방 판정에 쓰는 기준 거리입니다.</summary>
     public float distance_Move_FowardVector;
+    /// <summary>접촉 없이 적을 시야로 탐지하는 거리입니다.</summary>
     public float distance_Detect;
+    /// <summary>우클릭 드래그가 이 거리를 넘어야 진형선으로 인정합니다.</summary>
     public float distance_Formation;
+    /// <summary>교전 중 표적을 향해 다가갈 수 있는 최대 거리입니다.</summary>
     public float distance_Attack_Move;
+    /// <summary>대기 상태가 이 시간을 넘기면 자동 재정비를 발동합니다.</summary>
     public float time_Reformation;
+    /// <summary>표적 부대를 다시 고르는 간격(초)입니다. 짧으면 표적이 산만해집니다.</summary>
     public float time_ReTarget;
+    /// <summary>
+    /// 표적을 향해 멀리 이동할 때의 최고 속도 배율입니다.
+    ///
+    /// 가속도는 건드리지 않습니다. 상한만 올리므로, 유닛은 평소와 같은
+    /// 비율로 붙다가 더 높은 속도까지 계속 붙습니다.
+    /// </summary>
     public float move_Speed_Target;
+
+    /// <summary>
+    /// 위 배율이 완전히 적용되는 거리(미터)입니다.
+    ///
+    /// 목표까지의 거리를 이 값으로 나눠 배율을 보간합니다.
+    /// 즉 가까우면 1배, 이 거리 이상이면 move_Speed_Target 배입니다.
+    ///
+    /// 왜 이 값이 필요한가:
+    /// 예전에는 거리(미터)를 Lerp의 t에 그대로 넘겼습니다. Lerp는 t를
+    /// 0~1로 자르므로, **1m만 떨어져도 곧바로 최대 배율**이 걸렸습니다.
+    /// 완만한 가속처럼 보이던 것이 사실은 계단 함수였고, 부대를 옮기라는
+    /// 명령을 내리는 순간 전원이 두 배 속도로 튀어 나갔습니다.
+    /// 이 값으로 나누어야 의도했던 '멀수록 빨리'가 실제로 동작합니다.
+    /// </summary>
+    public float distance_Speed_Target_Full;
+    /// <summary>정지 판정에 쓰는 속도 임계입니다. 이보다 느리면 멈춘 것으로 봅니다.</summary>
     public float move_Speed_Stop;
+    /// <summary>피격 후 반응이 이어지는 시간(초)입니다.</summary>
     public float time_beingAttackedDelay;
+    /// <summary>부대 기준점의 기본 이동 속도 배율입니다.</summary>
     public float Army_Move_Rate;
+    /// <summary>대열이 흐트러졌을 때 부대가 느려지는 배율입니다.</summary>
     public float Army_Move_Slow_Rate;
+    /// <summary>재정비 중 이동에 곱해지는 속도 배율입니다.</summary>
     public float Army_ReFormation_Rate;
 
     /// <summary>
@@ -376,6 +545,30 @@ public struct Balance_Data
         b.stance_Skirmish_Flee_Distance = 8.0f;
         b.stance_Skirmish_Flee_Rate = 1.1f;
 
+        // 태세별 밀집도
+        //
+        // 배율로 두는 이유: 병종마다 interval이 다릅니다(기병이 보병보다
+        // 넓습니다). 절대값을 쓰면 그 차이가 사라집니다.
+        b.density_Line = 1.0f;
+        b.density_Loose = 1.35f;       // 토탈워 Loose: 면적을 넓혀 화살 회피
+        b.density_ShieldWall = 0.75f;  // 방패를 겹치는 가장 조밀한 대열
+        b.density_SpearWall = 0.85f;   // 창을 겨누되 방패벽만큼 붙지는 않음
+        b.density_Skirmish = 1.5f;     // 궁병용. 가장 넓게 흩어짐
+        b.density_Min_Radius_Rate = 1.05f;
+
+        // 적진 관통 방지
+        b.collide_Enemy_Separation_Rate = 2.0f;
+        b.collide_Enemy_Radius_Rate = 1.25f;
+        b.collide_Push_Through_Mass_Rate = 2.0f;
+        b.collide_Push_Through_Block_Rate = 0.5f;
+
+        // 발밑 마커 띄우기
+        //
+        // 0.002는 100m에서 0.2m가 더해지는 값입니다. 지형 굴곡에 비하면
+        // 무시할 만하면서 깊이 정밀도 손실을 덮기에는 충분합니다.
+        b.marker_Ground_Lift = 0.05f;
+        b.marker_Ground_Lift_Rate = 0.002f;
+
         // 근접 피격 방향 (기존 Unit_Job.cs 하드코딩 값)
         b.hit_Angle_Front = 135.0f;
         b.hit_Angle_Back = 45.0f;
@@ -441,7 +634,14 @@ public struct Balance_Data
         b.distance_Attack_Move = 1.0f;
         b.time_Reformation = 3.0f;
         b.time_ReTarget = 1.0f;
-        b.move_Speed_Target = 2.0f;
+        // 최고 속도는 오히려 올립니다. 대신 아래 거리로 완만하게 붙습니다.
+        //
+        // 예전 값 2.0은 1m만 벗어나도 즉시 걸렸습니다(Lerp의 t 클램프).
+        // 그래서 '빠르다'가 아니라 '튄다'로 느껴졌습니다.
+        // 이제는 25m를 가야 2.4배에 도달하므로, 먼 거리를 옮길 때는
+        // 예전보다 빠르고 짧은 거리에서는 오히려 얌전합니다.
+        b.move_Speed_Target = 2.4f;
+        b.distance_Speed_Target_Full = 25.0f;
         b.move_Speed_Stop = 0.3f;
         b.time_beingAttackedDelay = 1.5f;
         b.Army_Move_Rate = 0.3f;

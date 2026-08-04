@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -54,6 +54,10 @@ public static class Formation_Matcher
     private static int[] Match_Hierarchical(List<Vector3> currents, List<Vector3> targets, int n)
     {
         // 1. 목표 슬롯들이 늘어선 주축을 구합니다. (XZ 평면 주성분)
+        //
+        //    진형이 어떤 각도로 놓여 있든 '대열이 뻗은 방향'을 찾아냅니다.
+        //    이 축을 기준으로 정렬해야 분대가 대열을 가로지르지 않고
+        //    좌우로 나란히 잘립니다.
         Vector3 axis = Get_Principal_Axis(targets, n);
 
         // 2. 축 위 좌표로 양쪽을 정렬합니다.
@@ -62,6 +66,10 @@ public static class Formation_Matcher
 
         // 3. 전체 중심 간 offset을 미리 구해 둡니다.
         //    기존 Hungarian 생성자와 동일하게, 이동량이 아닌 '상대 배치'로 비교하기 위함입니다.
+        //
+        //    분대별로 중심을 다시 구하지 않고 전체 중심을 쓰는 이유:
+        //    분대마다 기준이 다르면 인접한 분대의 배정이 서로 어긋나
+        //    경계에서 병사들이 엇갈립니다.
         Vector3 currentCenter = Get_Center(currents, n);
         Vector3 targetCenter = Get_Center(targets, n);
         Vector3 offset = targetCenter - currentCenter;

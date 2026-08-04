@@ -143,9 +143,23 @@ public partial struct Unit_Data
     public bool bfiredThisTick;
 
     // Public methods
-    /// <summary>Unit_Data 구조체의 생성자입니다.</summary>
+    /// <summary>
+    /// 유닛 데이터를 초기 상태로 만듭니다.
+    ///
+    /// 구조체이므로 모든 필드를 빠짐없이 대입해야 합니다.
+    /// 하나라도 빠뜨리면 컴파일 오류가 나므로, 아래 목록이 곧
+    /// 이 구조체가 들고 있는 상태의 전부입니다.
+    ///
+    /// 부대 스탯(armyData)에서 가져오는 값과 고정 초기값을 구분해서 보십시오.
+    /// 전자는 병종마다 다르고, 후자는 모든 유닛이 같습니다.
+    /// </summary>
+    /// <param name="unit">이 데이터를 소유할 유닛입니다. 초기 위치와 회전을 읽습니다.</param>
+    /// <param name="num">유닛의 전역 고유 번호입니다.</param>
+    /// <param name="armyData">소속 부대의 스탯입니다. HP와 공격 속도 등을 가져옵니다.</param>
+    /// <param name="armyIndex">소속 부대의 인덱스입니다.</param>
     public Unit_Data(Unit unit, int num, in Army_Data armyData, int armyIndex)
     {
+        // --- 신원 ---
         this.num = num;
         this.armyIndex = armyIndex;
 
@@ -155,17 +169,24 @@ public partial struct Unit_Data
 
         bPlayer = armyData.bplayer;
 
+        // --- 자세 ---
+        // 생성 시점의 Transform을 한 번만 읽습니다.
+        // 이후로는 시뮬레이션이 위치의 유일한 주인이며, Transform은
+        // 틱 마지막에 Write_Transform_Job이 일괄로 따라옵니다.
         position = unit.transform.position;
         rotation = unit.transform.rotation;
 
         HP = armyData.GetHP();
 
+        // --- 이동 ---
+        // 생성 직후에는 제자리에 서 있습니다. 명령을 받아야 움직입니다.
         e_Unit_Move = E_Unit_Move.Idle;
 
         btargetMoveTo = false;
 
         movementVector = new Vector3();
 
+        // 목표 지점은 현재 자리입니다. 아직 갈 곳이 없다는 뜻입니다.
         location = position;
         targetVector = new Vector3();
         steeringTarget = new Vector3();
@@ -178,6 +199,10 @@ public partial struct Unit_Data
 
         rotateFloat = 0.0f;
 
+        // --- 표적 ---
+        // RemoveTarget()이 좌표를 양의 무한대로 둡니다.
+        // '표적 없음'을 그 값으로 표시하므로, 이 좌표를 그대로 쓰는 경로가
+        // 있으면 NaN이 됩니다. btarget을 먼저 확인해야 합니다.
         unit_Target_Data = new Unit_target_Data();
         unit_Target_Data.RemoveTarget();
 
@@ -185,17 +210,22 @@ public partial struct Unit_Data
 
         bhitTarget = false;
 
+        // --- 사망 / 킬 귀속 ---
+        // killerNum과 killerArmyIndex는 '아직 아무도 이 유닛을 죽이지 않았음'을
+        // 뜻하는 초기값입니다. 공격이 성립할 때 GetDamage가 채웁니다.
         bdead = false;
         bdeadHandled = false;
         killerNum = int.MaxValue;
         killerArmyIndex = -1;
 
+        // --- 피격 ---
         bgetDamage = false;
         damageVector = new Vector3();
 
         benemyContact = false;
         enemyContactNormal = new Vector3();
 
+        // --- 돌격 ---
         bcharging = false;
         bchargeImpact = false;
         chargeBonus = 0.0f;
@@ -203,17 +233,30 @@ public partial struct Unit_Data
         bcollisionAttack = false;
         timer_Charge = new Timer(Constant.time_Charge_Bonus);
 
+        // --- 전투 ---
+        // 공격 속도와 딜레이는 병종마다 다르므로 부대 스탯에서 가져옵니다.
         timer_AttackSpeed = new Timer(armyData.GetMeleeAttackSpeed());
         timer_AttackDelay = new Timer(armyData.GetAttackDelay());
 
+        // 생성 직후에는 언제든 공격할 수 있는 상태입니다.
         e_Unit_Fight = E_Unit_Fight.Attack_Able;
+
+        // 공격 타입은 근접으로 시작하고, 원거리 부대는 교전 상황에 따라
+        // Unit_Fight가 매 틱 다시 정합니다. (사거리 안이면 쏘고, 붙으면 칩니다)
         e_Unit_AttackType = E_Unit_AttackType.Melee;
 
+        // 탄약이 0 이하이면 무한으로 취급됩니다.
         ammunition = armyData.GetAmmunition();
         bfiredThisTick = false;
     }
 
-    /// <summary>유닛 데이터를 업데이트합니다.</summary>
+    /// <summary>
+    /// 이동과 전투 상태를 한 틱 진행합니다.
+    ///
+    /// Burst Job(Unit_Job) 안에서 호출되므로 관리 객체를 건드리면 안 됩니다.
+    /// 부대 스탯은 참조가 아니라 in 파라미터로 받습니다.
+    /// </summary>
+    /// <param name="armyData">소속 부대의 스탯입니다.</param>
     public void _Update(in Army_Data armyData)
     {
         _Update_Move(armyData);

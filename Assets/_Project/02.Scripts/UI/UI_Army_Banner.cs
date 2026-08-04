@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
@@ -18,20 +18,30 @@ using UnityEngine;
 /// </summary>
 public class UI_Army_Banner : MonoBehaviour
 {
+    /// <summary>부대 목록을 읽어 올 컨트롤러입니다. 비워 두면 씬에서 찾습니다.</summary>
     [Header("표시 대상")]
     [Tooltip("비워 두면 씬의 모든 부대를 표시합니다.")]
     public Controller controller;
 
+    /// <summary>적 부대 위에도 배너를 띄울지 여부입니다.</summary>
     [Tooltip("적 부대의 배너도 표시할지 여부입니다.")]
     public bool bshowEnemy = true;
 
+    /// <summary>부대 위쪽으로 배너를 띄우는 높이(월드 단위)입니다.</summary>
     [Header("배치")]
     [Tooltip("부대 머리 위로 띄울 높이입니다.")]
     public float heightOffset = 6.0f;
 
+    /// <summary>배너 하나의 너비(픽셀)입니다.</summary>
     [Tooltip("배너의 픽셀 너비입니다.")]
     public float bannerWidth = 132.0f;
 
+    /// <summary>
+    /// 사기 모디파이어 내역을 항목별로 펼쳐 보일지 여부입니다.
+    ///
+    /// 이 게임은 사기로 승부가 갈리므로, "왜 떨어지는가"를 보여 주는 것이
+    /// 플레이어의 판단에 직접 쓰입니다.
+    /// </summary>
     [Header("상세")]
     [Tooltip("선택된 부대에 사기 모디파이어 내역을 함께 표시합니다.")]
     public bool bshowModifierBreakdown = true;
@@ -39,13 +49,21 @@ public class UI_Army_Banner : MonoBehaviour
     [Tooltip("선택된 부대의 배너만 표시합니다.\n" +
              "하단 카드 바(UI_Command_Bar)가 전 부대 상태를 이미 보여주므로,\n" +
              "전장 위에는 지금 지휘 중인 부대만 띄우는 편이 덜 어수선합니다.")]
+    /// <summary>선택된 부대에만 배너를 띄울지 여부입니다. 화면이 복잡할 때 씁니다.</summary>
     public bool bselectedOnly = false;
 
     // 매 프레임 문자열을 새로 만들면 GC가 계속 돌므로 재사용합니다.
+    /// <summary>
+    /// 문자열을 조립할 때 재사용하는 버퍼입니다.
+    /// OnGUI는 매 프레임 불리므로 문자열 결합을 그대로 두면 GC가 늡니다.
+    /// </summary>
     private readonly StringBuilder builder = new StringBuilder(256);
 
+    /// <summary>배너 본문에 쓰는 스타일입니다.</summary>
     private GUIStyle labelStyle;
+    /// <summary>사기 내역 줄에 쓰는 작은 스타일입니다.</summary>
     private GUIStyle breakdownStyle;
+    /// <summary>게이지를 채우는 데 쓰는 1x1 흰색 텍스처입니다.</summary>
     private Texture2D barTexture;
 
     /// <summary>단색 텍스처 하나를 색만 바꿔 가며 재사용합니다.</summary>
@@ -56,6 +74,7 @@ public class UI_Army_Banner : MonoBehaviour
         barTexture.Apply();
     }
 
+    /// <summary>동적으로 만든 텍스처를 반납합니다. 두지 않으면 누수됩니다.</summary>
     private void OnDestroy()
     {
         if (barTexture != null) Destroy(barTexture);
@@ -77,6 +96,11 @@ public class UI_Army_Banner : MonoBehaviour
         breakdownStyle.normal.textColor = Color.white;
     }
 
+    /// <summary>
+    /// 각 부대 위에 이름, 인원, 사기 게이지, 상태를 배너로 그립니다.
+    ///
+    /// 화면 밖이나 카메라 뒤에 있는 부대는 건너뜁니다.
+    /// </summary>
     private void OnGUI()
     {
         Camera camera = Main_Camera.Get();
@@ -260,6 +284,9 @@ public class UI_Army_Banner : MonoBehaviour
         return null;
     }
 
+    /// <summary>사기 상태에 대응하는 표시색을 반환합니다.</summary>
+    /// <param name="morale">사기 상태입니다.</param>
+    /// <returns>그 상태를 나타내는 색입니다.</returns>
     private static Color Get_Morale_Color(E_Army_Morale morale)
     {
         switch (morale)
@@ -271,6 +298,9 @@ public class UI_Army_Banner : MonoBehaviour
         }
     }
 
+    /// <summary>진영에 대응하는 표시색을 반환합니다.</summary>
+    /// <param name="bplayer">플레이어 소속이면 true입니다.</param>
+    /// <returns>아군은 푸른 계열, 적군은 붉은 계열 색입니다.</returns>
     private static Color Get_Team_Color(bool bplayer)
     {
         return bplayer
@@ -278,6 +308,9 @@ public class UI_Army_Banner : MonoBehaviour
             : new Color(1.00f, 0.75f, 0.70f, 1.0f);
     }
 
+    /// <summary>병종의 한글 표시 이름을 반환합니다.</summary>
+    /// <param name="unitClass">이름을 구할 병종입니다.</param>
+    /// <returns>표시용 병종 이름입니다.</returns>
     private static string Get_Class_Name(E_Unit_Class unitClass)
     {
         switch (unitClass)
@@ -290,6 +323,9 @@ public class UI_Army_Banner : MonoBehaviour
         }
     }
 
+    /// <summary>태세의 한글 표시 이름을 반환합니다.</summary>
+    /// <param name="stance">이름을 구할 태세입니다.</param>
+    /// <returns>표시용 태세 이름입니다.</returns>
     private static string Get_Stance_Name(E_Army_Stance stance)
     {
         switch (stance)
@@ -302,6 +338,9 @@ public class UI_Army_Banner : MonoBehaviour
         }
     }
 
+    /// <summary>피로 단계의 한글 표시 이름을 반환합니다.</summary>
+    /// <param name="fatigue">이름을 구할 피로 단계입니다.</param>
+    /// <returns>표시용 피로 단계 이름입니다.</returns>
     private static string Get_Fatigue_Name(E_Army_Fatigue fatigue)
     {
         switch (fatigue)

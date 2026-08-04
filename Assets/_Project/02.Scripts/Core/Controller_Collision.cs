@@ -36,6 +36,15 @@ partial class Controller
     /// <summary>충돌 안쪽 루프용 조밀 반지름 배열입니다.</summary>
     private NativeArray<float> collisionRadii;
 
+    /// <summary>
+    /// 진영만 담은 조밀 배열입니다. 적/아군 판정 반지름을 다르게 하는 데 씁니다.
+    ///
+    /// 위치·반지름과 같은 이유로 따로 둡니다. 겹침 판정 전에 진영을
+    /// 알아야 하는데, 그때 Collision_Body(60바이트+)를 읽으면 조밀 배열을
+    /// 도입한 이유가 사라집니다.
+    /// </summary>
+    private NativeArray<bool> collisionSides;
+
     /// <summary>부대별 충돌 반지름 캐시입니다. 유닛마다 부대 스탯을 다시 읽지 않기 위함입니다.</summary>
     private float[] armyRadius;
     /// <summary>부대별 질량 캐시입니다.</summary>
@@ -289,19 +298,22 @@ partial class Controller
             collisionGrid.Clear();
         }
 
-        // 안쪽 루프가 쓸 조밀 배열입니다. (위치/반지름만)
+        // 안쪽 루프가 쓸 조밀 배열입니다. (위치/반지름/진영만)
         if (!collisionPositions.IsCreated || collisionPositions.Length < count)
         {
             if (collisionPositions.IsCreated) collisionPositions.Dispose();
             if (collisionRadii.IsCreated) collisionRadii.Dispose();
+            if (collisionSides.IsCreated) collisionSides.Dispose();
 
             int cap = Mathf.Max(count, 64);
             collisionPositions = new NativeArray<Vector3>(cap, Allocator.Persistent);
             collisionRadii = new NativeArray<float>(cap, Allocator.Persistent);
+            collisionSides = new NativeArray<bool>(cap, Allocator.Persistent);
         }
 
         var densePos = collisionPositions.GetSubArray(0, count);
         var denseRad = collisionRadii.GetSubArray(0, count);
+        var denseSide = collisionSides.GetSubArray(0, count);
 
         var build = new Collision_Grid_Build_Job
         {
@@ -309,7 +321,8 @@ partial class Controller
             cellSize = cellSize,
             grid = collisionGrid.AsParallelWriter(),
             positions = densePos,
-            radii = denseRad
+            radii = denseRad,
+            sides = denseSide
         };
         JobHandle buildHandle = build.Schedule(count, Constant.jobBatchCount);
 
@@ -318,6 +331,7 @@ partial class Controller
             bodies = bodies,
             positions = densePos,
             radii = denseRad,
+            sides = denseSide,
             grid = collisionGrid,
             cellSize = cellSize
         };
@@ -471,6 +485,20 @@ partial class Controller
 
         int interval = Mathf.Max(1, groundSyncInterval);
 
+        // 빠르게 움직이는 부대가 있으면 갱신 주기를 좁힙니다.
+        //
+        // 왜 필요한가:
+        // 지면 높이는 여러 틱에 나눠 갱신합니다(기본 4틱). 그 사이 유닛은
+        // 옛 높이를 유지하므로, 이동이 빠를수록 지형과 어긋난 채로 그려집니다.
+        //
+        //   일반 이동 3.0 m/s -> 4틱에 20 cm
+        //   패주      4.8 m/s -> 4틱에 32 cm   (rout_Speed_Rate 1.6배)
+        //
+        // 경사가 급한 곳에서 이 32cm가 '반쯤 잠긴 채 달리는' 모습으로 보입니다.
+        // 패주는 드물게 일어나므로, 그때만 매 틱 갱신해도 평균 비용은
+        // 거의 늘지 않습니다.
+        if (_Has_Fast_Moving_Army()) interval = 1;
+
         // 이번 틱에 처리할 구간을 정합니다.
         // 틱마다 다른 구간을 맡아 전체를 순환합니다.
         int slice = Mathf.CeilToInt(count / (float)interval);
@@ -482,6 +510,32 @@ partial class Controller
         if (groundSyncCount <= 0) return;
 
         groundSync.Schedule(units, groundSyncOffset, groundSyncCount);
+    }
+
+    /// <summary>
+    /// 지면 갱신을 서둘러야 할 만큼 빠른 부대가 있는지 봅니다.
+    ///
+    /// 패주(MoveEscape)와 돌격(MoveCharge)이 대상입니다. 둘 다 평소보다
+    /// 빠르게 움직이므로 지면 갱신이 늦으면 눈에 띄게 어긋납니다.
+    /// 부대 수는 많아야 수십 개라 이 순회는 비용이 없습니다.
+    /// </summary>
+    private bool _Has_Fast_Moving_Army()
+    {
+        for (int i = 0; i < armies.Count; i++)
+        {
+            Army a = armies[i];
+            if (a == null) continue;
+            if (a.units.Count == 0) continue;
+
+            E_Army_Move move = a.army_Data.e_Army_Move;
+
+            if (move == E_Army_Move.MoveEscape || move == E_Army_Move.MoveCharge)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>지면 높이 조회 결과를 반영합니다.</summary>

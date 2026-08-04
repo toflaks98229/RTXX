@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -23,6 +23,7 @@ partial class Controller
             }
 
             // Ctrl 키를 누르지 않았을 경우, 선택된 부대를 모두 해제합니다.
+            // 누르고 있으면 기존 선택에 더합니다. (RTS의 관례입니다)
             if (!Input.GetKey(keyCode_disable_clear))
             {
                 for (int i = 0; i < armies_Selected.Count; i++)

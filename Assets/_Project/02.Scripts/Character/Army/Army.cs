@@ -108,10 +108,17 @@ public partial class Army : MonoBehaviour
     /// 부대 이동의 기준이 되는 Transform입니다.
     /// </summary>
     public Transform formation_Move_Transform;
-    /// <summary>
-    /// 각 유닛의 포메이션 목표 위치를 나타내는 Transform 리스트입니다.
-    /// </summary>
-    public List<Transform> formation_Moves;
+    // formation_Moves(진형 슬롯 Transform 리스트)는 제거되었습니다.
+    //
+    // 유닛마다 빈 GameObject를 하나씩 두어 부대 기준점의 자식으로 붙이던
+    // 구조였습니다. 기준점이 움직이면 Unity가 슬롯을 자동으로 따라 옮겨
+    // 주는 것이 유일한 장점이었지만, 대가로 '읽을 때마다' 네이티브 왕복이
+    // 발생했습니다. 갱신은 명령 시에만, 소비는 매 틱이므로 정확히 반대로
+    // 최적화된 구조였습니다.
+    //
+    // 이제 슬롯은 Formation_Slots(지역 좌표 배열)가 소유하고,
+    // 월드 좌표는 틱당 한 번만 지연 계산됩니다. (Army_Formation.cs)
+    // 9,600명 기준 GameObject 9,600개가 씬에서 사라졌습니다.
     /// <summary>
     /// 현재 부대가 선택되었는지 여부를 나타내는 플래그입니다.
     /// </summary>
@@ -159,9 +166,13 @@ public partial class Army : MonoBehaviour
     //       .Length가 아니라 반드시 '현재 인원'을 넘겨야 합니다.
     //       (남는 뒤쪽 칸에는 지난 틱의 값이 그대로 남아 있습니다)
     // -------------------------------------------------------------------------
+    /// <summary>전방 차단 검사용 레이캐스트 명령 버퍼입니다. 매 틱 재사용합니다.</summary>
     private NativeArray<RaycastCommand> raycastCommands;
+    /// <summary>레이캐스트 결과 버퍼입니다. 매 틱 재사용합니다.</summary>
     private NativeArray<RaycastHit> raycastResults;
+    /// <summary>애니메이션 Job에 넘길 입력 버퍼입니다. 인원이 바뀔 때만 다시 채웁니다.</summary>
     private NativeArray<Unit_Animation_Data> unitAnimationDatas;
+
 
     /// <summary>
     /// 애니메이션이 볼 유닛 자세만 추려 담는 버퍼입니다.
@@ -590,6 +601,10 @@ public partial class Army : MonoBehaviour
             army_Data.unit_Stat = unit_Stat_Asset.stat;
         }
 
+        // 슬롯 소유자를 먼저 만듭니다.
+        // Spawn_Units가 생성 직후 슬롯 초기값을 넣으므로 그보다 앞서야 합니다.
+        Init_Slots();
+
         Spawn_Units(); // 유닛들을 생성합니다.
 
         army_Data.unit_Num_Max = army_Data.unit_Num;
@@ -617,13 +632,15 @@ public partial class Army : MonoBehaviour
     /// 유닛 데이터, 이동, 타겟 탐지, 통계, 진형 상태 등을 갱신합니다.
     /// </summary>
     /// <param name="unitDataMap">모든 유닛의 데이터를 담고 있는 해시맵입니다.</param>
-    public void _Update(NativeHashMap<EntityId, Unit_Data> unitDataMap)
+    /// <param name="armyDatas">armyIndex로 색인된 전 부대의 스탯입니다.</param>
+    public void _Update(NativeHashMap<EntityId, Unit_Data> unitDataMap,
+                        NativeArray<Army_Data> armyDatas)
     {
         // 단일 호출 경로입니다. 4단계를 순서대로 실행합니다.
         // Controller는 부대 간 병렬성을 얻기 위해 단계별로 나눠 호출하지만,
         // 테스트나 단독 사용을 위해 이 형태도 유지합니다.
         _Update_Prepare();
-        _Update_Schedule(unitDataMap);
+        _Update_Schedule(unitDataMap, armyDatas);
         _Update_Complete();
         _Update_Apply();
     }
@@ -678,6 +695,12 @@ public partial class Army : MonoBehaviour
     /// <summary>1단계: 메인 스레드 전처리입니다. Job을 걸기 전에 끝나야 합니다.</summary>
     private void _Update_Begin()
     {
+        // 기준점이 움직였을 수 있으므로 슬롯 월드 캐시를 무효화합니다.
+        //
+        // 계산은 하지 않습니다. 실제 좌표는 '처음 읽을 때' 만들어지므로,
+        // 이동 중이 아닌 부대는 이 호출만으로 끝납니다.
+        Invalidate_Slot_World();
+
         _Upadate_Data();     // 부대 데이터 + 평균 위치 캐시
         _Update_Terrain();   // 고지 우위와 경사
         _Update_Detection(); // 사거리 안의 적을 접촉 없이 탐지
@@ -694,10 +717,24 @@ public partial class Army : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 이번 틱에 Controller가 넘긴 전 부대 스탯 배열입니다.
+    ///
+    /// 전투 Job이 공격자의 부대 스탯을 armyIndex로 찾을 때 씁니다.
+    /// 스케줄 단계에서만 유효하며, 소유권은 Controller에 있습니다.
+    /// (여기서 해제하면 안 됩니다)
+    /// </summary>
+    private NativeArray<Army_Data> scheduleArmyDatas;
+
     /// <summary>2단계: Job을 스케줄만 하고 즉시 반환합니다. 여기서 기다리지 않습니다.</summary>
-    public void _Update_Schedule(NativeHashMap<EntityId, Unit_Data> unitDataMap)
+    /// <param name="unitDataMap">모든 유닛의 데이터를 담고 있는 해시맵입니다.</param>
+    /// <param name="armyDatas">armyIndex로 색인된 전 부대의 스탯입니다.</param>
+    public void _Update_Schedule(NativeHashMap<EntityId, Unit_Data> unitDataMap,
+                                 NativeArray<Army_Data> armyDatas)
     {
         if (units.Count == 0) return;
+
+        scheduleArmyDatas = armyDatas;
 
         _Schedule_Unit(unitDataMap); // 레이캐스트 -> 유닛 -> 애니메이션 체인
         _Schedule_Target();          // 표적 선정 + 전투 정산
@@ -754,12 +791,35 @@ public partial class Army : MonoBehaviour
 
         int applyCount = units.Count;
 
-        // 복사와 후처리를 갈라 잽니다.
+        // =====================================================================
+        // 이동 후처리는 메인 스레드에 남습니다. (Job 전환 반증됨)
         //
-        // A_UnitUpdate가 2.97ms인데 복사 자체는 실측 0.62ms입니다.
-        // 나머지 2.3ms가 어디인지 확인하려면 두 단계를 나눠 봐야 합니다.
-        // 유닛마다 Begin/End를 부르면 계측 호출이 19,200회가 되어
-        // 측정값 자체를 왜곡하므로, 루프를 둘로 나눠 바깥에서 잽니다.
+        // 문서(Formation_Slot_Data_Migration.md)의 4단계 가설은
+        // "과거 Job 전환이 실패한 원인은 입력 수집(슬롯 Transform 읽기)이므로,
+        //  슬롯을 배열로 바꾸면 Job이 비로소 이득이 된다"였습니다.
+        //
+        // 슬롯 데이터화를 마친 뒤 실제로 전환해 측정한 결과입니다.
+        //
+        //   기준선  Transform + 메인스레드        4.03 ms
+        //   3단계   배열      + 메인스레드        2.59 ms  <- 채택
+        //   4단계a  배열      + Job(즉시 Complete) 3.51 ms
+        //   4단계b  배열      + Job(지연 Complete) 3.25 ms
+        //
+        // 입력 수집을 없앤 뒤에도 Job이 메인 스레드보다 느립니다.
+        // 지연 Complete로 스케줄 왕복을 줄여도 0.26 ms만 회복될 뿐입니다.
+        //
+        // 원인: 유닛당 작업량이 너무 작습니다. 이 후처리는 벡터 몇 번 더하고
+        // 분기 두 개를 타는 것이 전부라, 워커에 일감을 나눠 주고 거둬들이는
+        // 비용이 계산 자체보다 큽니다. 반면 unit_Datas는 이미 조밀한 배열이라
+        // 메인 스레드 순회도 캐시 친화적입니다.
+        //
+        // 이득이 난 것은 슬롯 데이터화(3단계)까지였습니다. Job 전환은
+        // 이 규모(9,600명)에서 성립하지 않습니다.
+        //
+        // Unit_Post_Move_Job 구조체는 Unit_Job.cs에 남겨 두었습니다.
+        // 유닛당 작업량이 크게 늘어나면 다시 검토할 가치가 있습니다.
+        // =====================================================================
+
         Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.U_Move);
 
         for (int i = 0; i < applyCount; i++)
@@ -809,7 +869,216 @@ public partial class Army : MonoBehaviour
     /// </summary>
     public void Set_Stance(E_Army_Stance stance)
     {
+        // 같은 태세를 다시 지시한 것이면 아무 일도 하지 않습니다.
+        //
+        // 이 검사가 없으면 버튼을 누르고 있는 동안(또는 AI가 매 판단마다
+        // 같은 태세를 지시할 때) 재정비가 계속 재발동해 대열이 자리를
+        // 잡지 못하고 끊임없이 들썩입니다.
+        if (army_Data.e_Army_Stance == stance) return;
+
         army_Data.e_Army_Stance = stance;
+
+        // 태세를 바꿨으면 즉시 대열을 다시 잡습니다.
+        //
+        // 왜 필요한가:
+        // 예전에는 이 함수가 열거형만 바꾸고 끝났습니다. 그런데 실제
+        // 재정비는 Army_Data._Update의 Idle 분기에서 timer_Reformation이
+        // 만료될 때만(기본 3초) 발동합니다. 그래서 버튼을 눌러도
+        // **최대 3초 동안 아무 반응이 없었고**, 그 사이 다른 명령을 내리면
+        // 타이머가 초기화되어 영영 정비하지 않는 것처럼 보였습니다.
+        //
+        // 태세는 '대열을 어떻게 세울 것인가'를 지시하는 것이므로,
+        // 지시한 순간에 대열이 움직여야 지시한 것으로 읽힙니다.
+        //
+        // 진형 슬롯을 먼저 다시 만드는 이유:
+        // 태세마다 병사 간격이 다릅니다(방패벽은 좁고 산개는 넓습니다).
+        // 그런데 재정비(Move_Reformation)는 **이미 만들어진 슬롯**으로
+        // 자리를 배정할 뿐이라, 슬롯 자체를 다시 만들지 않으면 간격이
+        // 예전 그대로입니다. 즉 태세만 바뀌고 대열 모양은 그대로였습니다.
+        //
+        // Rebuild_Formation_For_Stance는 현재 전열 길이를 새 간격으로
+        // 나눠 열 수를 다시 계산하므로, 폭은 유지한 채 밀집도만 바뀝니다.
+        Rebuild_Formation_For_Stance();
+
+        // 배치 단계에서는 걸어갈 수 없으므로 즉시 옮깁니다.
+        //
+        // 배치 중에는 Controller가 시뮬레이션 틱을 통째로 멈춥니다.
+        // 그래서 재정비를 예약해도 유닛을 움직여 줄 주체가 없어,
+        // 태세를 바꿔도 화면에서 아무 일도 일어나지 않습니다.
+        //
+        // 교전 중에는 반대로 순간이동하면 안 됩니다. 대열이 순간적으로
+        // 재배치되면 적과의 접촉이 끊기고 돌격 판정이 무너집니다.
+        if (Battle_Manager.bdeploying)
+        {
+            Snap_Units_To_Slots();
+            return;
+        }
+
+        // 교전 중에는 걸어서 새 자리로 갑니다.
+        //
+        // 예약(breformation)만 걸지 않고 여기서 바로 명령하는 이유:
+        // 재정비 예약은 대기(Idle) 상태에서만 소비됩니다. 그런데 전투
+        // 중에는 부대가 이동·돌격·패주 상태일 수 있고, 그 경우
+        // Army_Data._Update가 예약을 도로 내려 버립니다.
+        // 그래서 태세를 바꿔도 대열이 그대로였습니다.
+        //
+        // 방금 슬롯을 새로 만들었으므로, 그 슬롯으로 가라고 직접
+        // 지시하는 편이 확실합니다.
+        Reform_To_Current_Formation();
+    }
+
+    /// <summary>
+    /// 지금의 진형 슬롯으로 유닛들을 이동시킵니다. 걸어서 갑니다.
+    ///
+    /// 순간이동(<see cref="Snap_Units_To_Slots"/>)과 달리 교전 중에도
+    /// 안전합니다. 적과의 접촉을 끊지 않고 자리만 다시 잡습니다.
+    /// </summary>
+    public void Reform_To_Current_Formation()
+    {
+        if (units.Count == 0) return;
+        if (formation_Data == null || formation_Data.formation.Count == 0) return;
+
+        int[] match = Match_Units_To_Slots(formation_Data.formation);
+        if (match == null) return;
+
+        for (int i = 0; i < units.Count && i < match.Length; i++)
+        {
+            if (units[i] == null) continue;
+
+            units[i].Move_Reformation(formation_Data.formation[match[i]]);
+        }
+    }
+
+    /// <summary>
+    /// 유닛들을 진형 슬롯으로 즉시 옮깁니다. 이동 과정 없이 순간이동합니다.
+    ///
+    /// 배치 단계 전용입니다. 교전 중에 쓰면 접촉이 끊기고 돌격 판정이
+    /// 무너지므로 호출하지 마십시오.
+    ///
+    /// 슬롯 배정은 이동과 같은 방식(헝가리안 매칭)을 씁니다. 그래야
+    /// 병사들이 서로 자리를 바꿔 가며 꼬이지 않고, 배치 중에 본 대열과
+    /// 전투가 시작된 뒤의 대열이 같습니다.
+    /// </summary>
+    public void Snap_Units_To_Slots()
+    {
+        if (units.Count == 0) return;
+        if (formation_Data == null || formation_Data.formation.Count == 0) return;
+
+        int[] match = Match_Units_To_Slots(formation_Data.formation);
+        if (match == null) return;
+
+        // 전열이 바라보는 방향입니다. 병사도 같은 쪽을 봐야 합니다.
+        Quaternion rotation = Formation_Util.Rotation_From_Line(GetFormation_Direction());
+
+        for (int i = 0; i < units.Count && i < match.Length; i++)
+        {
+            if (units[i] == null) continue;
+
+            Vector3 slot = formation_Data.formation[match[i]];
+
+            // 지면에 맞춥니다. 슬롯은 부대 기준점의 높이를 물려받으므로
+            // 경사지에서는 공중에 뜨거나 파묻힙니다.
+            units[i].Place_At(Snap_To_Ground(slot), rotation);
+        }
+
+        // 부대 평균 위치 캐시를 무효화합니다. **이 줄이 없으면 되돌아갑니다.**
+        //
+        // 평균 위치는 매 틱 한 번만 계산하고 캐시합니다. 그런데 배치
+        // 단계에서는 시뮬레이션 틱이 통째로 멈추므로, 여기서 병사를
+        // 옮겨도 **캐시를 갱신해 줄 주체가 없습니다.**
+        //
+        // 그러면 GetPosition()이 옮기기 전의 옛 좌표를 계속 돌려주고,
+        // 그것을 중심으로 삼는 다음 명령들이 전부 옛 자리를 기준으로
+        // 계산됩니다. 드래그로 옮긴 뒤 태세를 바꾸면 부대가 원래
+        // 자리로 돌아가던 것이 이것입니다.
+        Invalidate_Center_Position();
+    }
+
+    /// <summary>
+    /// 현재 태세의 간격으로 진형 슬롯을 다시 만듭니다.
+    ///
+    /// 전열의 방향과 **가로 인원 수**는 그대로 두고 간격만 바꿉니다.
+    /// 그러면 밀집할수록 대열이 좁아지고 흩어질수록 넓어집니다.
+    /// 토탈워의 Loose가 '유닛의 점유 면적을 넓히는' 것과 같은 동작입니다.
+    ///
+    /// 대열은 **부대의 현재 위치를 한가운데로** 삼아 다시 만듭니다.
+    ///
+    /// ---------------------------------------------------------------------
+    /// 기준점(formation_Move_Transform)을 통해 다시 만드는 이유
+    /// ---------------------------------------------------------------------
+    /// 슬롯의 실제 주인은 formation_Data가 아니라 **기준점**입니다.
+    /// Set_Formation_Move가 기준점의 위치와 회전으로 슬롯을 계산해
+    /// 저장하고, Get_Slot_World와 마커가 그 저장값을 읽습니다.
+    ///
+    /// 그래서 formation_Data만 바꾸면 **슬롯과 마커는 옛 자리에 남습니다.**
+    /// 진형을 바꿔도 UI가 따라오지 않던 것이 이것입니다.
+    ///
+    /// 기준점을 옮기고 Set_Formation_Move를 다시 부르면 슬롯·마커·유닛
+    /// 목표가 한꺼번에 갱신됩니다.
+    ///
+    /// 기준점을 부대 위치에 두는 이유:
+    /// 진형 좌표 규약은 '입력 position'과 '저장된 position'의 뜻이 달라
+    /// 헷갈립니다. 그 값을 되먹이다 대열이 옆으로 밀려나는 문제가
+    /// 있었습니다. 부대 위치라는 하나의 기준으로 고정하면 몇 번을
+    /// 다시 만들어도 같은 자리에 모입니다.
+    ///
+    /// (Formation_Job이 기준점을 중심으로 좌우 번갈아 슬롯을 펼치므로,
+    ///  기준점 위치가 곧 대열의 한가운데입니다)
+    /// </summary>
+    private void Rebuild_Formation_For_Stance()
+    {
+        // 아직 진형이 만들어지지 않았으면 할 일이 없습니다.
+        // (배치 전이거나 유닛이 없는 경우입니다)
+        if (formation_Data == null || formation_Data.formation.Count == 0) return;
+
+        // 기준점을 부대 한가운데에 놓고 전열 방향으로 세웁니다.
+        //
+        // 회전이 중요합니다. Set_Formation_Move는 기준점의 right를
+        // 전열축으로, forward를 열이 쌓이는 방향으로 씁니다.
+        formation_Move_Transform.position = Snap_To_Ground(GetPosition());
+        formation_Move_Transform.rotation =
+            Formation_Util.Rotation_From_Line(GetFormation_Direction());
+
+        // 새 간격으로 슬롯을 다시 계산해 저장합니다.
+        Set_Formation_Move();
+
+        // 마커도 새 자리로 옮깁니다. Set_Formation_Move는 슬롯만 갱신하고
+        // 마커는 건드리지 않으므로 여기서 따로 불러야 합니다.
+        List<Vector3> slots = Get_Formation_Move_Positions();
+
+        Update_Markers(slots, slots.Count,
+                       Formation_Util.Facing_From_Line(GetFormation_Direction()));
+
+        // 유닛이 목표로 삼을 좌표도 새 슬롯으로 바꿉니다.
+        //
+        // position은 '대열의 한가운데'입니다. 방금 기준점을 부대 중심에
+        // 놓고 슬롯을 다시 만들었으므로 그 기준점이 곧 중심입니다.
+        // (예전에는 slots[0]을 넣어 규약이 어긋났습니다)
+        Set_Formation_Data(new Formation_Data(
+            formation_Data.num,
+            formation_Data.direction,
+            formation_Move_Transform.position,
+            slots));
+    }
+
+    /// <summary>
+    /// 다음 틱에 대열을 다시 잡도록 요청합니다.
+    ///
+    /// 대기 상태일 때만 실제로 정비합니다. 이동·돌격·패주 중에는
+    /// Army_Data._Update가 breformation을 도로 내리므로, 이동이 끝나
+    /// 대기로 돌아온 시점에 정비가 이어집니다. 이동 중에 대열을 다시
+    /// 잡으면 목적지로 가던 유닛이 제자리에서 맴돌게 됩니다.
+    /// </summary>
+    public void Request_Reformation()
+    {
+        army_Data.breformation = true;
+
+        // 타이머도 함께 초기화합니다.
+        //
+        // 그러지 않으면 이번 정비 직후에 만료가 겹쳐 두 번 연속으로
+        // 정비가 걸립니다. 사용자에게는 대열이 한 번 덜컥이는 것으로
+        // 보입니다.
+        army_Data.timer_Reformation.ReSetTimer();
     }
 
     /// <summary>현재 재정비 태세를 반환합니다.</summary>
@@ -898,7 +1167,17 @@ public partial class Army : MonoBehaviour
                 // 나를 죽인 유닛이 속한 부대에 킬을 부여합니다.
                 // 공격 시점에 기록해 둔 인덱스로 즉시 찾습니다. (O(1))
                 Army killerArmy = Get_Army_By_Index(unit.unit_Data.killerArmyIndex);
-                if (killerArmy != null) killerArmy.AddKillCount();
+
+                // 아군 오사(같은 편)는 전과로 세지 않습니다.
+                // 돌격 충돌은 편을 가리지 않으므로 실제로 일어날 수 있습니다.
+                if (killerArmy != null && killerArmy != this
+                    && killerArmy.army_Data.bplayer != army_Data.bplayer)
+                {
+                    killerArmy.AddKillCount();
+                }
+
+                // 손실은 가해자가 누구든(혹은 없든) 언제나 셉니다.
+                AddLossCount();
 
                 // 사운드/이펙트/통계는 이 이벤트를 구독해서 처리합니다.
                 GameEvents.RaiseUnitKilled(unit, this, killerArmy);
@@ -998,12 +1277,15 @@ public partial class Army : MonoBehaviour
         //    예전에는 전원을 formation_Move_Transform.position 한 점에 생성한 뒤
         //    나중에 옮겼습니다. 그러면 물리 엔진이 '전원이 겹쳐 있다'고 판단해
         //    첫 스텝에서 서로를 폭발적으로 밀어냈습니다.
-        Vector3 origin = formation_Move_Transform.position
-                         - formation_Move_Transform.right
-                           * formationLength_Max * army_Data.GetInterval() * 0.5f;
-
+        //
+        //    기준점이 곧 대열의 한가운데입니다.
+        //    예전에는 여기서 왼쪽 끝을 직접 계산해 넘겼는데, 그 식이
+        //    formationLength_Max(미터)에 간격을 한 번 더 곱하고 있어
+        //    차원조차 맞지 않았습니다. 규약이 '중심'으로 통일되면서
+        //    그 보정 자체가 필요 없어졌습니다.
         formation_Data = new Formation_Data(
-            Set_Formation(formationLength_Max, transform.right, origin));
+            Set_Formation(formationLength_Max, transform.right,
+                          formation_Move_Transform.position));
 
         List<Vector3> slots = formation_Data.formation;
         Quaternion spawnRotation = formation_Move_Transform.rotation;
@@ -1031,24 +1313,30 @@ public partial class Army : MonoBehaviour
 
             units.Add(unitComponent);
 
-            // 진형 목표 지점은 빈 GameObject 하나면 충분합니다.
-            GameObject formation_Move = new GameObject("Formation_Move");
-            formation_Move.transform.SetParent(formation_Move_Transform, false);
-            formation_Move.transform.position = slot;
-            formation_Moves.Add(formation_Move.transform);
+            // 진형 슬롯 GameObject는 더 이상 만들지 않습니다.
+            //
+            // 예전에는 유닛마다 빈 GameObject를 하나씩 두어 부대 기준점의
+            // 자식으로 붙였습니다. 9,600명이면 그만큼의 Transform이 씬에
+            // 존재했고, 위치를 읽을 때마다 네이티브 왕복이 발생했습니다.
+            // 이제 슬롯은 Formation_Slots가 전부 들고 있습니다.
 
-            GameObject uiObject = Instantiate(this.UIData, slot, spawnRotation);
-            UI_Unit uiUnit = uiObject.GetComponent<UI_Unit>();
-            uiUnit._Start(army_Data);
-            uI_Units.Add(uiUnit);
+            // 진형 마커(UI_Unit)도 여기서 만들지 않습니다.
+            //
+            // 마커는 '우클릭 드래그로 진형을 그리는 동안'에만 보입니다.
+            // (Draw_Formation_UI / Erase_Formation_UI 호출부가 전부 그 경로입니다)
+            // 그런데 예전에는 유닛마다 하나씩, 9,600개를 씬에 상주시켰습니다.
+            // 평소에는 전부 꺼져 있으면서도 Transform과 SpriteRenderer로서
+            // 존재해 씬 순회와 컬링 비용을 냈습니다.
+            //
+            // 이제 필요한 순간에만 풀에서 꺼내 씁니다. (Ensure_Markers)
         }
 
-        // 3. 이제 uI_Units가 채워졌으므로 진형 마커 위치를 한 번 더 맞춰 줍니다.
-        for (int i = 0; i < army_Data.unit_Num && i < uI_Units.Count; i++)
-        {
-            Vector3 slot = i < slots.Count ? slots[i] : formation_Move_Transform.position;
-            uI_Units[i].transform.position = slot;
-        }
+        // 3-1. 슬롯 배열의 초기값을 채웁니다.
+        //
+        //      Set_Formation_Move는 명령을 내려야 호출되므로, 그전까지
+        //      배열이 비어 있으면 유닛이 갈 자리가 없습니다.
+        //      방금 유닛을 세운 그 자리를 그대로 첫 슬롯으로 삼습니다.
+        Store_Slots_From_Spawn(slots);
 
         // 4. 물리 엔진이 이번 프레임의 위치 변경을 즉시 반영하도록 강제합니다.
         //    이게 없으면 첫 FixedUpdate까지 옛 위치로 충돌을 계산할 수 있습니다.
@@ -1358,25 +1646,88 @@ public partial class Army : MonoBehaviour
         GameEvents.RaiseArmySelectionChanged(this, true);
     }
 
+    // =====================================================================
+    // 전과 통계
+    //
+    // 이 값들은 시뮬레이션에 되먹임되지 않습니다. 오직 읽기 전용 기록입니다.
+    // 그래서 결정론에 영향을 주지 않으며, 언제 집계해도 전투 결과가 같습니다.
+    //
+    // 왜 Army가 들고 있는가:
+    // 킬 귀속은 이미 killerArmyIndex로 O(1)에 부대를 찾습니다.
+    // 그 지점에서 바로 세는 것이 가장 싸고, 별도 집계 계층을 두면
+    // 같은 정보를 두 곳에서 관리하게 됩니다.
+    // =====================================================================
+
+    /// <summary>이 부대가 쓰러뜨린 적 유닛 수입니다.</summary>
+    public int killCount { get; private set; }
+
+    /// <summary>이 부대가 잃은 유닛 수입니다. 전투 시작 이후 누적입니다.</summary>
+    public int lossCount { get; private set; }
+
     /// <summary>
-    /// 킬 수를 증가시킵니다. (현재 로직은 비어있습니다.)
+    /// 킬 수를 하나 늘립니다.
+    ///
+    /// 호출 지점은 사망 유닛의 부대(_Update_Dead)이며, 인자로 넘어온
+    /// killerArmyIndex가 가리키는 '가해 부대'에서 이 함수가 호출됩니다.
     /// </summary>
     public void AddKillCount()
     {
-        // 킬 수 증가 로직 추가 예정
+        killCount++;
+    }
+
+    /// <summary>
+    /// 손실 수를 하나 늘립니다. 이 부대의 유닛이 죽을 때마다 호출됩니다.
+    /// </summary>
+    public void AddLossCount()
+    {
+        lossCount++;
+    }
+
+    /// <summary>
+    /// 교환비입니다. 잃은 1명당 몇 명을 잡았는가를 뜻합니다.
+    ///
+    /// 손실이 없으면 나눗셈이 성립하지 않으므로 킬 수를 그대로 돌려줍니다.
+    /// (한 명도 잃지 않고 10명을 잡았다면 10.0으로 읽는 편이 자연스럽습니다)
+    /// </summary>
+    public float GetKillRatio()
+    {
+        return lossCount > 0 ? (float)killCount / lossCount : killCount;
     }
 
     /// <summary>
     /// 부대 진형 UI를 보이게 합니다.
+    ///
+    /// 마커는 이 시점에 처음 만들어집니다. 진형을 그리는 부대는 보통
+    /// 한 번에 몇 개뿐이므로, 전군의 마커를 미리 만들어 둘 이유가 없습니다.
     /// </summary>
     public void Draw_Formation_UI()
     {
         // 생존 인원만큼만 표시합니다.
-        int count = Mathf.Min(army_Data.unit_Num, uI_Units.Count);
+        int count = army_Data.unit_Num;
+        if (count <= 0) return;
+
+        Ensure_Markers(count);
+
+        // 방금 만든 마커는 아직 제자리에 있지 않습니다.
+        //
+        // 예전에는 생성 시점에 배치해 두고 계속 따라다녔지만, 이제는
+        // 보여 주기 직전에 현재 진형 좌표로 한 번 맞춥니다.
+        // 이 호출이 없으면 첫 프레임에 마커가 부대 기준점에 뭉쳐 보입니다.
+        if (formation_Data != null)
+        {
+            Update_Markers(formation_Data.formation, count,
+                           Formation_Util.Facing_From_Line(formation_Data.direction));
+        }
+
+        // UIData 프리팹이 배선되지 않은 부대는 마커가 없습니다.
+        // (Ensure_Markers가 그대로 반환하므로 목록이 비어 있습니다)
+        if (uI_Units == null) return;
+
+        count = Mathf.Min(count, uI_Units.Count);
 
         for (int i = 0; i < count; i++)
         {
-            uI_Units[i].Visible();
+            if (uI_Units[i] != null) uI_Units[i].Visible();
         }
     }
 
@@ -1385,12 +1736,59 @@ public partial class Army : MonoBehaviour
     /// </summary>
     public void Erase_Formation_UI()
     {
+        if (uI_Units == null) return;
+
         // 숨길 때는 전부 순회해야 합니다.
         // 인원이 많던 시절에 켜진 마커가 전사 후 unit_Num 밖으로 밀려나면
         // 영원히 켜진 채 남기 때문입니다.
         for (int i = 0; i < uI_Units.Count; i++)
         {
-            uI_Units[i].Invisible();
+            if (uI_Units[i] != null) uI_Units[i].Invisible();
+        }
+    }
+
+    /// <summary>
+    /// 진형 마커를 필요한 개수만큼 확보합니다. 모자라면 그때 만듭니다.
+    ///
+    /// 왜 지연 생성인가:
+    /// 마커는 진형을 그리는 동안에만 보이는 임시 UI입니다. 그런데 예전에는
+    /// 유닛마다 하나씩 생성 시점에 만들어, 9,600명이면 9,600개가 씬에
+    /// 영구히 상주했습니다. 평소에는 전부 꺼져 있어도 GameObject와
+    /// SpriteRenderer로서 존재하므로 씬 순회와 컬링 대상이 됩니다.
+    ///
+    /// 실제로 마커가 필요한 부대는 '지금 명령을 내리는 부대'뿐이고,
+    /// 보통 한 번에 몇 개입니다. 한 번 만든 마커는 재사용합니다.
+    /// </summary>
+    /// <param name="count">필요한 마커 수입니다.</param>
+    private void Ensure_Markers(int count)
+    {
+        if (UIData == null) return;
+
+        if (uI_Units == null) uI_Units = new List<UI_Unit>(count);
+
+        // 파괴된 항목이 섞여 있으면 걷어냅니다.
+        // (씬 재시작이나 수동 삭제로 생길 수 있습니다)
+        for (int i = uI_Units.Count - 1; i >= 0; i--)
+        {
+            if (uI_Units[i] == null) uI_Units.RemoveAt(i);
+        }
+
+        Quaternion rotation = formation_Move_Transform.rotation;
+
+        while (uI_Units.Count < count)
+        {
+            GameObject uiObject = Instantiate(
+                UIData, formation_Move_Transform.position, rotation);
+
+            UI_Unit marker = uiObject.GetComponent<UI_Unit>();
+            if (marker == null)
+            {
+                Destroy(uiObject);
+                break;
+            }
+
+            marker._Start(army_Data);
+            uI_Units.Add(marker);
         }
     }
 

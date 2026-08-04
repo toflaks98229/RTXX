@@ -1,4 +1,4 @@
-using Unity.Burst;
+﻿using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
@@ -63,8 +63,12 @@ public static class Spatial_Grid
     /// 원거리 사거리는 '실제로 원거리 공격이 가능한 부대'만 반영합니다.
     /// 근접 부대에까지 원거리 사거리를 적용하면 셀이 불필요하게 커져
     /// 격자를 쓰는 의미가 사라집니다. (_Update_Target의 판정 조건과 동일하게 맞춥니다)
+    ///
+    /// 공개인 이유: 교전 상대가 여럿일 때 셀 크기는 '그 부대들 전부'의
+    /// 최대 사거리여야 합니다. 두 부대만 받는 <see cref="GetCellSize"/>로는
+    /// 표현할 수 없어 호출부가 직접 최댓값을 구합니다. (Army_Fight)
     /// </summary>
-    private static float GetReach(in Army_Data army)
+    public static float GetReach(in Army_Data army)
     {
         float reach = army.GetMeleeRange();
 
@@ -92,6 +96,8 @@ public struct Spatial_Grid_Build_Job : IJobParallelFor
     /// <summary>해시 키 -> 유닛 인덱스 맵입니다.</summary>
     public NativeParallelMultiHashMap<int, int>.ParallelWriter grid;
 
+    /// <summary>유닛 하나를 자기 위치의 격자 셀에 등록합니다.</summary>
+    /// <param name="index">처리할 유닛의 인덱스입니다.</param>
     public void Execute(int index)
     {
         Unit_Data unit_Data = unit_Datas[index];

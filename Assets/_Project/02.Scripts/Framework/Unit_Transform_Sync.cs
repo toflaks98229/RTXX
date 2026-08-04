@@ -1,4 +1,4 @@
-using Unity.Burst;
+﻿using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
@@ -69,6 +69,9 @@ public class Unit_Transform_Sync
         int n = units.Count;
         if (n == 0) return;
 
+        // units와 같은 길이로 만듭니다.
+        // 죽어서 null이 된 자리도 건너뛰지 않고 유지해야
+        // Controller의 bodies[i]와 positions[i]가 같은 유닛을 가리킵니다.
         var array = new Transform[n];
         var sprites = new Transform[n];
 
@@ -196,8 +199,12 @@ public class Unit_Transform_Sync
 [BurstCompile]
 public struct Read_Position_Job : IJobParallelForTransform
 {
+    /// <summary>읽어 온 위치를 담을 배열입니다.</summary>
     [WriteOnly] public NativeArray<Vector3> positions;
 
+    /// <summary>Transform 하나의 위치를 배열에 옮겨 담습니다.</summary>
+    /// <param name="index">배열 인덱스입니다. units 리스트와 1:1로 대응합니다.</param>
+    /// <param name="transform">읽어 올 Transform입니다.</param>
     public void Execute(int index, TransformAccess transform)
     {
         positions[index] = transform.position;
@@ -208,9 +215,15 @@ public struct Read_Position_Job : IJobParallelForTransform
 [BurstCompile]
 public struct Write_Transform_Job : IJobParallelForTransform
 {
+    /// <summary>Transform에 쓸 위치 배열입니다.</summary>
     [ReadOnly] public NativeArray<Vector3> positions;
+
+    /// <summary>Transform에 쓸 회전 배열입니다.</summary>
     [ReadOnly] public NativeArray<Quaternion> rotations;
 
+    /// <summary>계산된 위치와 회전을 Transform 하나에 반영합니다.</summary>
+    /// <param name="index">배열 인덱스입니다.</param>
+    /// <param name="transform">값을 쓸 Transform입니다.</param>
     public void Execute(int index, TransformAccess transform)
     {
         transform.position = positions[index];
@@ -228,10 +241,18 @@ public struct Write_Transform_Job : IJobParallelForTransform
 [BurstCompile]
 public struct Write_Sprite_Job : IJobParallelForTransform
 {
+    /// <summary>스프라이트가 카메라를 향하도록 하는 회전 배열입니다.</summary>
     [ReadOnly] public NativeArray<Quaternion> rotations;
+
+    /// <summary>피격 반동과 좌우 반전이 반영된 스케일 배열입니다. X 부호가 반전을 뜻합니다.</summary>
     [ReadOnly] public NativeArray<Vector3> scales;
+
+    /// <summary>공격 시 내지르기가 반영된 로컬 위치 배열입니다.</summary>
     [ReadOnly] public NativeArray<Vector3> localPositions;
 
+    /// <summary>스프라이트 Transform 하나에 자세와 연출을 반영합니다.</summary>
+    /// <param name="index">배열 인덱스입니다.</param>
+    /// <param name="transform">값을 쓸 스프라이트 Transform입니다.</param>
     public void Execute(int index, TransformAccess transform)
     {
         transform.rotation = rotations[index];

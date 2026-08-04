@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
@@ -17,12 +17,14 @@ using UnityEngine;
 /// </summary>
 public static class Struct_Size_Probe
 {
+    /// <summary>주요 구조체의 크기를 재어 로그로 남깁니다.</summary>
     [MenuItem("RTXX/구조체 크기 조사")]
     public static void Run()
     {
         Debug.Log(Build_Report());
     }
 
+    /// <summary>배치모드에서 구조체 크기 측정을 실행하고 종료합니다.</summary>
     public static void Run_From_CLI()
     {
         Debug.Log(Build_Report());
@@ -107,6 +109,7 @@ public static class Struct_Size_Probe
     /// <summary>역참조 비용 재현용 관리 객체입니다.</summary>
     private class Holder
     {
+        /// <summary>크기 측정 대상 구조체입니다. 필드 하나만 두어 순수 크기를 재기 위함입니다.</summary>
         public Unit_Data data;
     }
 
@@ -127,12 +130,15 @@ public static class Struct_Size_Probe
         Debug.Log(Build_Slot_Report());
     }
 
+    /// <summary>배치모드에서 진형 슬롯 읽기 비용을 측정하고 종료합니다.</summary>
     public static void Measure_Slot_Cost_From_CLI()
     {
         Debug.Log(Build_Slot_Report());
         EditorApplication.Exit(0);
     }
 
+    /// <summary>슬롯 읽기 비용 측정 결과를 표로 만듭니다.</summary>
+    /// <returns>사람이 읽을 수 있는 결과 문자열입니다.</returns>
     private static string Build_Slot_Report()
     {
         const int units = 9600;
@@ -200,6 +206,8 @@ public static class Struct_Size_Probe
         return sb.ToString();
     }
 
+    /// <summary>구조체 크기 측정 결과를 표로 만듭니다.</summary>
+    /// <returns>사람이 읽을 수 있는 결과 문자열입니다.</returns>
     private static string Build_Report()
     {
         StringBuilder sb = new StringBuilder(1024);

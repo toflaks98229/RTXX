@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// 메인 카메라를 캐시해 두는 정적 접근점입니다.
@@ -14,7 +14,9 @@ using UnityEngine;
 /// </summary>
 public static class Main_Camera
 {
+    /// <summary>캐시된 메인 카메라입니다. 씬을 다시 로드하면 무효가 됩니다.</summary>
     private static Camera cached;
+    /// <summary>캐시된 카메라의 Transform입니다.</summary>
     private static Transform cachedTransform;
 
     /// <summary>메인 카메라를 반환합니다. 없으면 null입니다.</summary>

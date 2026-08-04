@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Text;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -26,6 +26,7 @@ using UnityEngine;
 /// </summary>
 public static class Mass_Battle_Runner
 {
+    /// <summary>실행할 대규모 전투 씬의 경로입니다.</summary>
     private const string scenePath = "Assets/_Project/01.Scenes/Scene_MassBattle.unity";
 
     /// <summary>측정할 틱 수입니다. 60틱 = 시뮬레이션 1초입니다.</summary>
@@ -37,6 +38,12 @@ public static class Mass_Battle_Runner
     /// <summary>결과를 적을 파일 경로입니다.</summary>
     private static string outputPath = "massbattle_result.txt";
 
+    /// <summary>
+    /// 배치모드에서 씬을 열고 플레이 모드로 진입해 검증을 시작합니다.
+    ///
+    /// 주의: -quit을 함께 주면 플레이 모드가 시작되기 전에 에디터가 종료됩니다.
+    /// 종료는 Mass_Battle_Probe가 스스로 처리하므로 -quit을 빼야 합니다.
+    /// </summary>
     public static void Run_From_CLI()
     {
         string[] args = System.Environment.GetCommandLineArgs();
@@ -84,7 +91,9 @@ public static class Mass_Battle_Runner
         EditorApplication.EnterPlaymode();
     }
 
+    /// <summary>플레이 모드 진입을 기다린 프레임 수입니다. 무한 대기를 막습니다.</summary>
     private static int framesWaited;
+    /// <summary>플레이 모드에 한 번이라도 진입했는지 여부입니다.</summary>
     private static bool bstarted;
 
     /// <summary>
@@ -186,6 +195,17 @@ public static class Mass_Battle_Runner
 
         int moraleSum = 0;
         int armies = 0;
+
+        // 전과 합계입니다. 킬 귀속이 실제로 동작하는지 배치모드에서 확인하는
+        // 유일한 수단이므로 함께 기록합니다.
+        //
+        // 검증 포인트: playerKills는 enemyLosses와, enemyKills는 playerLosses와
+        // 같아야 합니다. 어긋나면 킬 귀속이 새고 있다는 뜻입니다.
+        // (전멸한 부대는 파괴되어 목록에서 빠지므로 완전히 일치하지 않을 수
+        //  있습니다. 그 경우 kills <= losses 관계만 성립합니다)
+        int playerKills = 0, enemyKills = 0;
+        int playerLosses = 0, enemyLosses = 0;
+
         if (controller.armies != null)
         {
             for (int i = 0; i < controller.armies.Count; i++)
@@ -194,6 +214,17 @@ public static class Mass_Battle_Runner
                 if (a == null) continue;
                 armies++;
                 moraleSum += Mathf.RoundToInt(a.army_Data.morale);
+
+                if (a.army_Data.bplayer)
+                {
+                    playerKills += a.killCount;
+                    playerLosses += a.lossCount;
+                }
+                else
+                {
+                    enemyKills += a.killCount;
+                    enemyLosses += a.lossCount;
+                }
             }
         }
 
@@ -204,6 +235,10 @@ public static class Mass_Battle_Runner
         sb.AppendLine($"alive={alive}");
         sb.AppendLine($"totalHp={totalHp}");
         sb.AppendLine($"moraleSum={moraleSum}");
+        sb.AppendLine($"playerKills={playerKills}");
+        sb.AppendLine($"enemyKills={enemyKills}");
+        sb.AppendLine($"playerLosses={playerLosses}");
+        sb.AppendLine($"enemyLosses={enemyLosses}");
         sb.AppendLine($"stateHash={hash:X16}");
 
         System.IO.File.WriteAllText(outputPath, sb.ToString());
@@ -211,6 +246,10 @@ public static class Mass_Battle_Runner
         Debug.Log($"[MassBattleRunner] 결과 기록: {outputPath}\n{sb}");
     }
 
+    /// <summary>부동소수점의 비트 표현을 FNV-1a 해시에 섞습니다.</summary>
+    /// <param name="hash">지금까지 누적된 해시입니다.</param>
+    /// <param name="value">섞어 넣을 값입니다.</param>
+    /// <returns>갱신된 해시입니다.</returns>
     private static ulong Mix(ulong hash, float value)
     {
         unchecked
@@ -228,6 +267,8 @@ public static class Mass_Battle_Runner
         }
     }
 
+    /// <summary>에디터 콜백을 해제하고 지정한 코드로 종료합니다.</summary>
+    /// <param name="exitCode">프로세스 종료 코드입니다. 0이 정상입니다.</param>
     private static void Finish(int exitCode)
     {
         EditorApplication.update -= Tick;

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 /// <summary>
@@ -57,6 +57,13 @@ public static class GameEvents
 
     // 발행 메서드
     // 구독자 예외가 시뮬레이션 루프를 중단시키지 않도록 각 발행을 보호합니다.
+    /// <summary>
+    /// 유닛 사망을 알립니다.
+    /// 구독자에서 난 예외가 시뮬레이션 루프를 끊지 않도록 보호합니다.
+    /// </summary>
+    /// <param name="unit">사망한 유닛입니다.</param>
+    /// <param name="victimArmy">사망 유닛이 속한 부대입니다.</param>
+    /// <param name="killerArmy">킬을 기록한 부대입니다. 귀속 대상이 없으면 null입니다.</param>
     public static void RaiseUnitKilled(Unit unit, Army victimArmy, Army killerArmy)
     {
         if (OnUnitKilled == null) return;
@@ -64,6 +71,13 @@ public static class GameEvents
         catch (Exception e) { Debug.LogException(e); }
     }
 
+    /// <summary>
+    /// 유닛이 피해를 입었음을 알립니다.
+    /// 구독자에서 난 예외가 시뮬레이션 루프를 끊지 않도록 보호합니다.
+    /// </summary>
+    /// <param name="unit">피격된 유닛입니다.</param>
+    /// <param name="damage">확정된 피해량입니다.</param>
+    /// <param name="direction">피해가 들어온 방향입니다.</param>
     public static void RaiseUnitDamaged(Unit unit, float damage, Vector3 direction)
     {
         if (OnUnitDamaged == null) return;
@@ -71,6 +85,12 @@ public static class GameEvents
         catch (Exception e) { Debug.LogException(e); }
     }
 
+    /// <summary>
+    /// 부대가 교전을 시작했음을 알립니다.
+    /// 구독자에서 난 예외가 시뮬레이션 루프를 끊지 않도록 보호합니다.
+    /// </summary>
+    /// <param name="army">교전을 시작한 부대입니다.</param>
+    /// <param name="target">교전 상대 부대입니다.</param>
     public static void RaiseArmyEngaged(Army army, Army target)
     {
         if (OnArmyEngaged == null) return;
@@ -78,6 +98,11 @@ public static class GameEvents
         catch (Exception e) { Debug.LogException(e); }
     }
 
+    /// <summary>
+    /// 부대가 전멸했음을 알립니다.
+    /// 구독자에서 난 예외가 시뮬레이션 루프를 끊지 않도록 보호합니다.
+    /// </summary>
+    /// <param name="army">전멸한 부대입니다.</param>
     public static void RaiseArmyWiped(Army army)
     {
         if (OnArmyWiped == null) return;
@@ -85,6 +110,11 @@ public static class GameEvents
         catch (Exception e) { Debug.LogException(e); }
     }
 
+    /// <summary>
+    /// 부대가 사기 붕괴로 패주를 시작했음을 알립니다.
+    /// 구독자에서 난 예외가 시뮬레이션 루프를 끊지 않도록 보호합니다.
+    /// </summary>
+    /// <param name="army">붕괴한 부대입니다.</param>
     public static void RaiseArmyRouted(Army army)
     {
         if (OnArmyRouted == null) return;
@@ -92,6 +122,11 @@ public static class GameEvents
         catch (Exception e) { Debug.LogException(e); }
     }
 
+    /// <summary>
+    /// 패주하던 부대가 재결집했음을 알립니다.
+    /// 구독자에서 난 예외가 시뮬레이션 루프를 끊지 않도록 보호합니다.
+    /// </summary>
+    /// <param name="army">재결집한 부대입니다.</param>
     public static void RaiseArmyRallied(Army army)
     {
         if (OnArmyRallied == null) return;
@@ -99,6 +134,11 @@ public static class GameEvents
         catch (Exception e) { Debug.LogException(e); }
     }
 
+    /// <summary>
+    /// 부대가 와해되어 재결집이 불가능해졌음을 알립니다.
+    /// 구독자에서 난 예외가 시뮬레이션 루프를 끊지 않도록 보호합니다.
+    /// </summary>
+    /// <param name="army">와해된 부대입니다.</param>
     public static void RaiseArmyShattered(Army army)
     {
         if (OnArmyShattered == null) return;
@@ -106,6 +146,11 @@ public static class GameEvents
         catch (Exception e) { Debug.LogException(e); }
     }
 
+    /// <summary>
+    /// 장군 부대가 전멸했음을 알립니다.
+    /// 구독자에서 난 예외가 시뮬레이션 루프를 끊지 않도록 보호합니다.
+    /// </summary>
+    /// <param name="army">전멸한 장군 부대입니다.</param>
     public static void RaiseGeneralDied(Army army)
     {
         if (OnGeneralDied == null) return;
@@ -113,6 +158,12 @@ public static class GameEvents
         catch (Exception e) { Debug.LogException(e); }
     }
 
+    /// <summary>
+    /// 부대가 돌격을 시작했음을 알립니다.
+    /// 구독자에서 난 예외가 시뮬레이션 루프를 끊지 않도록 보호합니다.
+    /// </summary>
+    /// <param name="army">돌격하는 부대입니다.</param>
+    /// <param name="target">돌격 대상 부대입니다.</param>
     public static void RaiseArmyCharged(Army army, Army target)
     {
         if (OnArmyCharged == null) return;
@@ -120,6 +171,12 @@ public static class GameEvents
         catch (Exception e) { Debug.LogException(e); }
     }
 
+    /// <summary>
+    /// 부대의 선택 상태가 바뀌었음을 알립니다.
+    /// 구독자에서 난 예외가 시뮬레이션 루프를 끊지 않도록 보호합니다.
+    /// </summary>
+    /// <param name="army">상태가 바뀐 부대입니다.</param>
+    /// <param name="selected">선택되었으면 true입니다.</param>
     public static void RaiseArmySelectionChanged(Army army, bool selected)
     {
         if (OnArmySelectionChanged == null) return;
@@ -131,6 +188,13 @@ public static class GameEvents
     /// 모든 구독을 해지합니다.
     /// 정적 이벤트는 플레이 모드를 나가도 살아남으므로(도메인 리로드 비활성 시),
     /// 씬 시작 시 반드시 호출해 이전 세션의 구독자를 제거해야 합니다.
+    /// </summary>
+    /// <summary>
+    /// 모든 구독을 해지합니다.
+    ///
+    /// 정적 이벤트는 도메인 리로드를 끄면 플레이 모드를 나가도 살아남습니다.
+    /// 씬 시작 시 반드시 호출해 이전 세션의 죽은 구독자를 제거해야 합니다.
+    /// 그러지 않으면 파괴된 객체가 호출되어 예외가 납니다.
     /// </summary>
     public static void ClearAll()
     {

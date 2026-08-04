@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -131,17 +131,10 @@ partial class Controller
             formation_Length = formation_Length + armies_Selected[i].GetFormation_Length();
         }
 
-        Vector3 formation_Position = new Vector3();
-        formation_Position = formation_Position - formation_Direction.normalized * formation_Length * 0.5f;
-
-        for (int i = 0; i < armies_Selected.Count; i++)
-        {
-            formation_Position =
-                formation_Position
-                + formation_Direction.normalized
-                * armies_Selected[i].Set_Formation(formation_Direction, formation_Position).GetNum()
-                * armies_Selected[i].army_Data.GetInterval();
-        }
+        // 예전에는 여기서 월드 원점을 기준으로 Set_Formation을 한 바퀴 돌렸습니다.
+        // 그 결과값은 곧바로 버려지고 아래에서 formation_Start 기준으로 다시
+        // 계산했으므로, 실제 효과는 '진형 마커가 원점 근처로 한 번 튀는' 것뿐이었습니다.
+        // 진형 규약을 정리하면서 함께 제거합니다.
 
         // 헝가리안 알고리즘을 사용하여 부대와 진형 위치를 매칭합니다.
         List<Vector3> armies_position = new List<Vector3>();
@@ -156,13 +149,24 @@ partial class Controller
         int[] _matchX = Formation_Matcher.Match(armies_position, armies_formation_position);
         if (_matchX == null) return;
 
-        formation_Position = formation_Start;
-        formation_Position = formation_Position - formation_Direction.normalized * formation_Length * 0.5f;
+        // 부대들을 전열축을 따라 나란히 세웁니다.
+        //
+        // edge는 '다음 부대가 시작할 가장자리'이고, 각 부대에 넘기는 값은
+        // '그 부대 대열의 한가운데'입니다. 진형 좌표 규약이 중심이므로
+        // 여기서 절반 길이만큼 안쪽으로 넣어 줘야 합니다.
+        // (가장자리라는 개념을 가진 곳은 이 함수뿐입니다)
+        Vector3 lineDirection = formation_Direction.normalized;
+        Vector3 edge = formation_Start - lineDirection * (formation_Length * 0.5f);
 
         for (int i = 0; i < armies_Selected.Count; i++)
         {
-            armies_Selected[_matchX[i]].Move_Start(formation_Direction, formation_Position);
-            formation_Position = formation_Position + formation_Direction.normalized * armies_Selected[_matchX[i]].GetFormation_Length();
+            Army army = armies_Selected[_matchX[i]];
+
+            float length = army.GetFormation_Length();
+
+            army.Move_Start(formation_Direction, edge + lineDirection * (length * 0.5f));
+
+            edge = edge + lineDirection * length;
         }
     }
 
@@ -239,6 +243,16 @@ partial class Controller
         int guard = 0;
         const int guard_Max = 10000;
 
+        // 드래그한 길이를 선택된 부대들에 나눠 줍니다.
+        //
+        // 배분 방식:
+        // 부대마다 한 칸(interval)씩 돌아가며 늘립니다. 한 부대에 몰아주지
+        // 않고 번갈아 늘리므로, 드래그 길이가 모자라도 전 부대가 고르게
+        // 좁아집니다. 앞쪽 부대만 넓고 뒤쪽은 한 줄이 되는 일이 없습니다.
+        //
+        // 종료 조건은 둘입니다.
+        //   1) 합계가 드래그 길이를 넘음   -> 더 넓힐 공간이 없음
+        //   2) 전 부대가 자기 최대 폭 도달 -> 더 넓힐 이유가 없음
         while (bformation)
         {
             if (++guard > guard_Max)
@@ -248,9 +262,12 @@ partial class Controller
                 break;
             }
 
+            // 이번 회차에 '더 이상 넓힐 수 없는' 부대 수입니다.
             int formationLength_Max_Num = 0;
+
             for (int i = 0; i < armies_Selected.Count; i++)
             {
+                // 아직 여유가 있으면 한 칸 넓힙니다.
                 if (formation_Lengths[i] < armies_Selected[i].formationLength_Max)
                 {
                     formation_Lengths[i] += armies_Selected[i].army_Data.GetInterval();
@@ -260,17 +277,23 @@ partial class Controller
                     formationLength_Max_Num += 1;
                 }
 
+                // 한 칸 늘릴 때마다 합계를 다시 확인합니다.
+                //
+                // 회차가 끝난 뒤에 확인하면 마지막 회차에서 여러 부대가
+                // 동시에 넘겨 드래그 길이를 크게 초과할 수 있습니다.
                 formation_Length = 0.0f;
                 for (int j = 0; j < armies_Selected.Count; j++)
                 {
                     formation_Length += formation_Lengths[j];
                 }
 
+                // 종료 조건 1: 드래그한 길이를 다 썼습니다.
                 if (formation_Length > formation_Direction.magnitude)
                 {
                     bformation = false;
                     break;
                 }
+                // 종료 조건 2: 전 부대가 최대 폭에 도달했습니다.
                 else if (formationLength_Max_Num == armies_Selected.Count)
                 {
                     bformation = false;
@@ -279,26 +302,38 @@ partial class Controller
             }
         }
 
+        // 드래그한 선을 따라 부대들을 나란히 세웁니다.
+        //
+        // formation_Position은 '다음 부대가 시작할 가장자리'입니다.
+        // 각 부대에 실제로 넘기는 값은 그 부대 대열의 '한가운데'이므로,
+        // 미리 구한 실제 길이의 절반만큼 안쪽으로 넣습니다.
+        // (진형 좌표 규약은 언제나 중심입니다. Army_Formation.cs 참조)
+        //
+        // 실제 길이를 Predict_Formation_Length로 미리 묻는 이유:
+        // 요청 길이는 간격과 최대 폭 보정을 거쳐 달라질 수 있습니다.
+        // 요청값으로 중심을 잡고 실제값으로 가장자리를 밀면 부대 사이가
+        // 조금씩 어긋나 누적됩니다. 두 곳 모두 실제 길이를 써야 합니다.
+        Vector3 lineDirection = formation_Direction.normalized;
         formation_Position = formation_Start;
 
-        if (bMove)
+        for (int i = 0; i < armies_Selected.Count; i++)
         {
-            for (int i = 0; i < armies_Selected.Count; i++)
+            Army army = armies_Selected[i];
+
+            float length = army.Predict_Formation_Length(formation_Lengths[i]);
+            Vector3 center = formation_Position + lineDirection * (length * 0.5f);
+
+            if (bMove)
             {
-                armies_Selected[i].Move_Start(formation_Lengths[i], formation_Direction, formation_Position);
-                formation_Position = formation_Position + formation_Direction.normalized * armies_Selected[i].GetFormation_Length();
+                army.Move_Start(formation_Lengths[i], formation_Direction, center);
             }
-        }
-        else
-        {
-            for (int i = 0; i < armies_Selected.Count; i++)
+            else
             {
-                formation_Position =
-                    formation_Position
-                    + formation_Direction.normalized
-                    * armies_Selected[i].Set_Formation(formation_Lengths[i], formation_Direction, formation_Position).GetNum()
-                * armies_Selected[i].army_Data.GetInterval();
+                // 드래그 미리보기입니다. 이동 명령 없이 진형만 계산해 마커를 갱신합니다.
+                army.Set_Formation(formation_Lengths[i], formation_Direction, center);
             }
+
+            formation_Position = formation_Position + lineDirection * length;
         }
     }
 }

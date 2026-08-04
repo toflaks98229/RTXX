@@ -87,9 +87,25 @@ public struct Unit_Fight_Job : IJobParallelFor
     /// <summary>내 부대의 스탯입니다. (방어 측 계산에 사용)</summary>
     [ReadOnly]
     public Army_Data armyData;
-    /// <summary>적 부대의 스탯입니다. (공격 측 계산에 사용)</summary>
+
+    /// <summary>
+    /// armyIndex로 색인된 전 부대의 스탯입니다. (공격 측 계산에 사용)
+    ///
+    /// 왜 배열인가:
+    /// 예전에는 targetArmyData 하나만 들고 있었습니다. 그때는 공격자가
+    /// 언제나 '내 부대의 targetArmy' 소속이라고 가정할 수 있었기 때문입니다.
+    ///
+    /// 그 가정이 곧 결함이었습니다. 나를 때리는 부대가 내 표적이 아니면
+    /// 그 타격은 통째로 버려졌습니다. 실측에서 명중이 성립한 1,426회 중
+    /// 실제로 HP를 깎은 것은 228회(16%)뿐이었고, 그래서 9,600명이
+    /// 701틱을 싸워도 사망자가 한 자릿수였습니다.
+    ///
+    /// 이제 여러 부대의 유닛이 한 배열(target_Unit_Datas)에 섞여 들어오므로,
+    /// 공격자의 부대 스탯은 그 유닛의 armyIndex로 찾아야 합니다.
+    /// Controller가 매 틱 채워 넘기며, 전처리(지형/위치) 결과가 반영된 값입니다.
+    /// </summary>
     [ReadOnly]
-    public Army_Data targetArmyData;
+    public NativeArray<Army_Data> armyDatas;
     /// <summary>
     /// 적 유닛의 공간 격자입니다. 해시 키 -> target_Unit_Datas 인덱스.
     /// 사거리 안의 적만 추려내기 위해 사용합니다. (읽기 전용)
@@ -106,6 +122,15 @@ public struct Unit_Fight_Job : IJobParallelFor
     /// 방어구 랜덤 감산 같은 확률 요소가 아예 성립하지 않습니다.
     /// </summary>
     public uint randomSeed;
+
+    /// <summary>
+    /// 이 부대가 표적을 새로 잡을 수 있는지 여부입니다.
+    ///
+    /// 무너진(패주) 부대는 false입니다. 그래도 이 Job은 그대로 돌아야 합니다.
+    /// 여기가 '내가 맞는 피해'를 정산하는 유일한 자리이기 때문입니다.
+    /// 표적 획득만 막고 피격은 그대로 두어야 '패주하는 적을 벤다'가 성립합니다.
+    /// </summary>
+    public bool bcanAcquireTarget;
 
     // Public methods
     /// <summary>Job의 메인 실행 함수입니다. 각 유닛별로 병렬 실행됩니다.</summary>
@@ -150,7 +175,8 @@ public struct Unit_Fight_Job : IJobParallelFor
                     if (enemy.bdead) continue;
 
                     // 1. 지금 잡고 있는 타겟이면 위치를 갱신합니다.
-                    if (defender.btarget && enemy.num == defender.unit_Target_Data.num)
+                    if (bcanAcquireTarget
+                        && defender.btarget && enemy.num == defender.unit_Target_Data.num)
                     {
                         if (defender.Refresh_Target(enemy, armyData))
                             btargetStillValid = true;
@@ -167,16 +193,19 @@ public struct Unit_Fight_Job : IJobParallelFor
                     // 실행마다 갈리고, 그 차이가 전투 전체로 번집니다.
                     // 유닛 고유 번호가 작은 쪽으로 고정하면 순회 순서와
                     // 무관하게 언제나 같은 표적이 선택됩니다.
-                    float score = defender.Get_Target_Score(enemy, armyData);
-
-                    bool bbetter = score < bestScore
-                                || (score == bestScore && enemy.num < bestNum);
-
-                    if (bbetter)
+                    if (bcanAcquireTarget)
                     {
-                        bestScore = score;
-                        bestIndex = enemyIndex;
-                        bestNum = enemy.num;
+                        float score = defender.Get_Target_Score(enemy, armyData);
+
+                        bool bbetter = score < bestScore
+                                    || (score == bestScore && enemy.num < bestNum);
+
+                        if (bbetter)
+                        {
+                            bestScore = score;
+                            bestIndex = enemyIndex;
+                            bestNum = enemy.num;
+                        }
                     }
 
                     // 3. 저 적이 나를 노리고 이번 틱에 타격을 성립시켰다면 피해를 받습니다.
@@ -214,13 +243,13 @@ public struct Unit_Fight_Job : IJobParallelFor
         // 기존 타겟이 여전히 유효하면 유지합니다. (매 틱 표적이 바뀌면 전투가 산만해집니다)
         if (!btargetStillValid)
         {
-            if (bestIndex >= 0)
+            if (bcanAcquireTarget && bestIndex >= 0)
             {
                 defender.Set_Target(target_Unit_Datas[bestIndex], armyData);
             }
             else if (defender.btarget)
             {
-                // 사거리 안에 아무도 없습니다.
+                // 사거리 안에 아무도 없거나, 무너져서 더는 싸우지 않습니다.
                 defender.Lose_Target();
             }
         }
@@ -270,16 +299,27 @@ public struct Unit_Fight_Job : IJobParallelFor
     /// <summary>
     /// 나(defender)가 공격자에게 맞았을 때의 피해를 처리합니다.
     /// 공격 타입은 '공격자가 무엇으로 쳤는가'이므로 attacker에서 읽습니다.
+    ///
+    /// 공격자의 부대 스탯은 그 유닛의 armyIndex로 찾습니다.
+    /// 여러 부대의 유닛이 한 배열에 섞여 들어오므로, 고정된 '적 부대' 하나를
+    /// 가정할 수 없습니다. 색인이 범위를 벗어나면 피해를 적용하지 않습니다.
+    /// (부대 목록이 재구성되는 틱에 잠깐 어긋날 수 있으며, 그때는 한 틱
+    ///  건너뛰는 편이 엉뚱한 부대의 공격력으로 때리는 것보다 낫습니다)
     /// </summary>
     private void GetDamage(in Unit_Data attacker, ref Unity.Mathematics.Random random)
     {
+        int attackerArmyIndex = attacker.armyIndex;
+        if (attackerArmyIndex < 0 || attackerArmyIndex >= armyDatas.Length) return;
+
+        Army_Data attackerArmy = armyDatas[attackerArmyIndex];
+
         switch (attacker.e_Unit_AttackType)
         {
             case E_Unit_AttackType.Melee:
-                GetDamage_Melee(attacker, ref random);
+                GetDamage_Melee(attacker, attackerArmy, ref random);
                 break;
             case E_Unit_AttackType.Range:
-                GetDamage_Range(attacker, ref random);
+                GetDamage_Range(attacker, attackerArmy, ref random);
                 break;
         }
     }
@@ -332,21 +372,23 @@ public struct Unit_Fight_Job : IJobParallelFor
     /// <summary>
     /// 근접 공격에 의한 피해를 계산하고 적용합니다.
     ///
-    /// 방향 주의: armyData가 방어자(나)의 부대, targetArmyData가 공격자의 부대입니다.
+    /// 방향 주의: armyData가 방어자(나)의 부대, attackerArmy가 공격자의 부대입니다.
     /// 이 Job은 '내가 맞는 쪽'을 계산하므로 두 이름의 의미가 뒤집혀 보입니다.
     /// </summary>
     /// <param name="attacker">나를 친 적 유닛입니다.</param>
-    private void GetDamage_Melee(in Unit_Data attacker, ref Unity.Mathematics.Random random)
+    /// <param name="attackerArmy">그 유닛이 속한 부대의 스탯입니다.</param>
+    private void GetDamage_Melee(in Unit_Data attacker, in Army_Data attackerArmy,
+                                 ref Unity.Mathematics.Random random)
     {
         // 피로도: 지친 쪽은 덜 맞히고 덜 아프게 때립니다.
-        // 공격 측은 적 부대(targetArmyData), 방어 측은 내 부대(armyData) 기준입니다.
-        float attackerFatigue = targetArmyData.GetFatigueRate();
+        // 공격 측은 적 부대(attackerArmy), 방어 측은 내 부대(armyData) 기준입니다.
+        float attackerFatigue = attackerArmy.GetFatigueRate();
         float defenderFatigue = armyData.GetFatigueRate();
 
         // 돌격 보너스: 충돌 직후 최대이며 시간에 따라 사라집니다.
         // 지친 부대의 돌격은 위력이 떨어집니다.
         float chargeBonus = attacker.chargeBonus
-                            * targetArmyData.GetMeleeChargeBonus()
+                            * attackerArmy.GetMeleeChargeBonus()
                             * attackerFatigue;
 
         // 돌격 저항: 방패벽/창벽은 정면으로 들어온 돌격을 받아냅니다.
@@ -367,14 +409,14 @@ public struct Unit_Fight_Job : IJobParallelFor
 
         // 상성 보너스: 공격자가 '내 병종'을 상대로 갖는 보너스입니다.
         // 창병이 기병을 막고, 기병이 보병을 휩쓰는 가위바위보가 여기서 나옵니다.
-        // (여기서 targetArmyData는 공격자, armyData는 방어자인 나입니다)
-        float bonusVsTarget = targetArmyData.GetBonusVsTarget(armyData);
+        // (여기서 attackerArmy는 공격자, armyData는 방어자인 나입니다)
+        float bonusVsTarget = attackerArmy.GetBonusVsTarget(armyData);
 
         // 고지에서 내려치는 쪽이 유리합니다. (공격자 기준 보정)
-        float attack = (targetArmyData.GetMeleeAttack()
+        float attack = (attackerArmy.GetMeleeAttack()
                         + chargeBonus
                         + bonusVsTarget
-                        + targetArmyData.GetHighGroundAttack())
+                        + attackerArmy.GetHighGroundAttack())
                        * attackerFatigue;
 
         // 지치면 방어 자세도 무너집니다.
@@ -427,8 +469,8 @@ public struct Unit_Fight_Job : IJobParallelFor
         // 양쪽이 지치는 순간 서로 아무도 죽일 수 없는 교착에 빠집니다.
         float reduction = Roll_Armour_Reduction(armor + shieldArmor, ref random);
 
-        float baseDamage = (targetArmyData.GetMeleeDamage() + chargeBonus) * (1.0f - reduction);
-        float apDamage = targetArmyData.GetMeleeDamageAP();
+        float baseDamage = (attackerArmy.GetMeleeDamage() + chargeBonus) * (1.0f - reduction);
+        float apDamage = attackerArmy.GetMeleeDamageAP();
 
         float damage = baseDamage + apDamage;
         if (damage < Constant.damage_Min) damage = Constant.damage_Min;
@@ -439,18 +481,20 @@ public struct Unit_Fight_Job : IJobParallelFor
 
     /// <summary>
     /// 원거리 공격에 의한 피해를 계산하고 적용합니다.
-    /// armyData가 방어자(나), targetArmyData가 공격자의 부대입니다.
+    /// armyData가 방어자(나), attackerArmy가 공격자의 부대입니다.
     /// </summary>
     /// <param name="attacker">나를 쏜 적 유닛입니다.</param>
-    private void GetDamage_Range(in Unit_Data attacker, ref Unity.Mathematics.Random random)
+    /// <param name="attackerArmy">그 유닛이 속한 부대의 스탯입니다.</param>
+    private void GetDamage_Range(in Unit_Data attacker, in Army_Data attackerArmy,
+                                 ref Unity.Mathematics.Random random)
     {
-        float attackerFatigue = targetArmyData.GetFatigueRate();
+        float attackerFatigue = attackerArmy.GetFatigueRate();
 
-        float bonusVsTarget = targetArmyData.GetBonusVsTarget(armyData);
+        float bonusVsTarget = attackerArmy.GetBonusVsTarget(armyData);
 
-        float attack = (targetArmyData.GetRangeAccuracy()
+        float attack = (attackerArmy.GetRangeAccuracy()
                         + bonusVsTarget
-                        + targetArmyData.GetHighGroundAttack())
+                        + attackerArmy.GetHighGroundAttack())
                        * attackerFatigue;
 
         // 방패벽은 화살을 막아내고, 창벽은 밀집해 있어 오히려 잘 맞습니다.
@@ -465,8 +509,8 @@ public struct Unit_Fight_Job : IJobParallelFor
         float reduction = Roll_Armour_Reduction(
             armyData.GetArmor() + armyData.GetShieldArmor(), ref random);
 
-        float baseDamage = targetArmyData.GetRangeDamage() * (1.0f - reduction);
-        float apDamage = targetArmyData.GetRangeDamageAP();
+        float baseDamage = attackerArmy.GetRangeDamage() * (1.0f - reduction);
+        float apDamage = attackerArmy.GetRangeDamageAP();
 
         float damage = baseDamage + apDamage;
         if (damage < Constant.damage_Min) damage = Constant.damage_Min;
@@ -495,9 +539,13 @@ public struct Raycast_Setup_Job : IJobParallelFor
     [ReadOnly] public NativeArray<Unit_Data> unit_Datas;
     [WriteOnly] public NativeArray<RaycastCommand> commands;
 
+    /// <summary>레이캐스트 질의 조건입니다. 레이어 마스크 등을 담습니다.</summary>
     public QueryParameters parameters;
+    /// <summary>레이의 최대 길이입니다. 이보다 먼 것은 막힌 것으로 보지 않습니다.</summary>
     public float maxDistance;
 
+    /// <summary>유닛 하나의 전방 레이캐스트 명령을 만듭니다.</summary>
+    /// <param name="index">처리할 유닛의 인덱스입니다.</param>
     public void Execute(int index)
     {
         Unit_Data data = unit_Datas[index];
@@ -506,6 +554,118 @@ public struct Raycast_Setup_Job : IJobParallelFor
 
         commands[index] = new RaycastCommand(
             data.position, direction, parameters, maxDistance);
+    }
+}
+
+/// <summary>
+/// 유닛 이동 후처리를 Burst로 옮긴 잡입니다.
+///
+/// 무엇을 하는가:
+/// 예전 Unit._Update_Move() -> Move()의 본문 그대로입니다.
+/// 이동량을 위치에 더하고, 배정받은 진형 슬롯을 목표로 삼습니다.
+///
+/// 왜 이제서야 가능한가:
+/// 이 로직은 슬롯 위치를 알아야 하는데, 슬롯이 Transform이던 시절에는
+/// 그 값을 메인 스레드가 모아 넘겨야 했습니다. 그 수집 비용이 Job으로
+/// 아낀 것을 도로 까먹어, 과거 세 번의 전환 시도가 모두 실패했습니다.
+///   ① 부대별 Job + 즉시 Complete : Apply 4.66 -> 7.22 ms
+///   ② 전 부대 배치 후 1회 Complete: Apply        7.26 ms
+///   ③ 슬롯을 필요분만 읽기        : Apply        5.66 ms
+///
+/// 이제 슬롯이 부대가 소유한 배열이므로 그 배열을 통째로 넘기면 됩니다.
+/// 수집 루프가 아예 없어졌습니다.
+///
+/// ---------------------------------------------------------------------
+/// 현재 사용되지 않습니다. (전환을 시도했다가 되돌렸습니다)
+/// ---------------------------------------------------------------------
+/// 슬롯 데이터화를 마친 뒤 실제로 전환해 측정한 결과입니다. (9,600명)
+///
+///   Transform + 메인스레드         Apply 4.03 ms
+///   배열      + 메인스레드         Apply 2.59 ms  <- 채택된 구성
+///   배열      + Job(즉시 Complete)  Apply 3.51 ms
+///   배열      + Job(지연 Complete)  Apply 3.25 ms
+///
+/// 입력 수집을 없앤 뒤에도 Job이 메인 스레드보다 느렸습니다.
+/// 지연 Complete로 스케줄 왕복을 줄여도 0.26 ms만 회복됩니다.
+///
+/// 원인은 '유닛당 작업량'입니다. 이 후처리는 벡터 몇 번 더하고 분기 두 개를
+/// 타는 것이 전부라, 워커에 일감을 나눠 주고 거둬들이는 비용이 계산 자체보다
+/// 큽니다. 반면 unit_Datas는 이미 조밀한 배열이라 메인 스레드 순회도
+/// 충분히 캐시 친화적입니다.
+///
+/// 즉 과거 세 번의 실패 원인을 '입력 수집'으로만 진단한 것은 부분적으로만
+/// 옳았습니다. 입력을 공짜로 만들어도 이 작업량에서는 Job이 이기지 못합니다.
+///
+/// 이 구조체를 남겨 두는 이유: 유닛당 작업량이 크게 늘어나면(예: 유닛별
+/// 경로탐색, 개별 회피 조향) 판단이 뒤집힐 수 있습니다. 그때 다시
+/// 측정해 보라는 뜻으로 남깁니다. 지우면 같은 길을 처음부터 다시 갑니다.
+/// </summary>
+[BurstCompile]
+public struct Unit_Post_Move_Job : IJobParallelFor
+{
+    /// <summary>유닛 데이터입니다. 위치와 목표가 여기서 갱신됩니다.</summary>
+    public NativeArray<Unit_Data> unit_Datas;
+
+    /// <summary>
+    /// 부대의 진형 슬롯 월드 좌표입니다.
+    ///
+    /// 이 배열이 이 Job의 존재 이유입니다.
+    /// Transform 시절에는 넘길 수 없었던 값입니다.
+    /// </summary>
+    [ReadOnly]
+    public NativeArray<Vector3> slotWorld;
+
+    /// <summary>각 유닛이 배정받은 슬롯 인덱스입니다. -1이면 배정 없음입니다.</summary>
+    [ReadOnly]
+    public NativeArray<int> slotIndices;
+
+    /// <summary>유닛 하나의 이동 후처리를 수행합니다.</summary>
+    /// <param name="index">처리할 유닛의 인덱스입니다.</param>
+    public void Execute(int index)
+    {
+        Unit_Data data = unit_Datas[index];
+
+        // 이동량을 위치에 반영합니다.
+        Vector3 delta = data.GetMovementVector();
+
+        if (delta.sqrMagnitude >= 0.0000001f)
+        {
+            data.position += delta;
+        }
+
+        // 조향 목표의 기본값은 '가야 할 자리'입니다.
+        data.steeringTarget = data.location;
+
+        switch (data.e_Unit_Move)
+        {
+            case E_Unit_Move.Move:
+            {
+                int slot = slotIndices[index];
+
+                if (data.btargetMoveTo && slot >= 0 && slot < slotWorld.Length)
+                {
+                    Vector3 world = slotWorld[slot];
+
+                    data.location = world;
+                    data.targetVector = world;
+                    data.steeringTarget = world;
+                }
+                break;
+            }
+
+            case E_Unit_Move.Idle:
+                if (data.btarget)
+                {
+                    // 교전 중에는 표적 쪽으로 향합니다.
+                    data.steeringTarget = data.unit_Target_Data.position;
+                }
+                break;
+        }
+
+        // Move_Stop()과 같은 처리입니다. (bstop을 소비해 내립니다)
+        if (data.bstop) data.bstop = false;
+
+        unit_Datas[index] = data;
     }
 }
 
@@ -527,7 +687,9 @@ public struct Raycast_Setup_Job : IJobParallelFor
 /// </summary>
 public struct Unit_Pose
 {
+    /// <summary>유닛의 위치입니다.</summary>
     public Vector3 position;
+    /// <summary>유닛의 회전입니다.</summary>
     public Quaternion rotation;
 }
 
@@ -543,6 +705,8 @@ public struct Unit_Pose_Extract_Job : IJobParallelFor
     [ReadOnly] public NativeArray<Unit_Data> unit_Datas;
     [WriteOnly] public NativeArray<Unit_Pose> poses;
 
+    /// <summary>유닛 하나의 자세(위치/회전)를 애니메이션용 배열로 옮깁니다.</summary>
+    /// <param name="index">처리할 유닛의 인덱스입니다.</param>
     public void Execute(int index)
     {
         Unit_Data data = unit_Datas[index];

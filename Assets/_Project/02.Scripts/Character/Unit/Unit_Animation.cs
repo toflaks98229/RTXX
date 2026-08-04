@@ -3,6 +3,17 @@ using System.Collections.Generic;
 
 using UnityEngine;
 
+/// <summary>
+/// 스프라이트가 카메라를 향하도록 만드는 빌보드 계산 데이터입니다.
+///
+/// 이 게임의 유닛은 3D 공간에 선 2D 스프라이트입니다. 따라서 카메라가
+/// 어느 각도에서 보든 스프라이트가 정면을 향해야 하고, 유닛이 왼쪽을
+/// 보는지 오른쪽을 보는지에 따라 좌우로 뒤집혀야 합니다.
+/// 그 두 가지를 여기서 계산합니다.
+///
+/// 값 타입인 이유:
+/// 애니메이션 Job에서 병렬로 갱신되므로 참조 타입을 담을 수 없습니다.
+/// </summary>
 public struct Unit_Animation_Data
 {
     /// <summary>애니메이션의 위치입니다.</summary>
@@ -42,6 +53,17 @@ public struct Unit_Animation_Data
     }
 }
 
+/// <summary>
+/// 유닛 하나의 스프라이트 표현을 담당하는 컴포넌트입니다.
+///
+/// 담는 것: 빌보드 자세 반영, 피격 점멸, 돌격 충돌 점멸, 근접 타격 시 내지르기.
+/// 공통점은 전부 '시뮬레이션 결과를 눈에 보이게 하는' 일이라는 점입니다.
+/// 여기서 전투 판정을 하지 않습니다. 피해와 명중은 이미 Job에서 끝난 뒤입니다.
+///
+/// 점멸이 필요한 이유:
+/// 수천 명이 뒤엉킨 화면에서는 개별 타격이 묻혀 보이지 않습니다.
+/// 맞은 순간 잠깐 색이 튀어야 플레이어가 어디서 무슨 일이 일어나는지 읽습니다.
+/// </summary>
 public class Unit_Animation : MonoBehaviour
 {
     // Public member variables
@@ -202,9 +224,17 @@ public class Unit_Animation : MonoBehaviour
             {
                 float idleScale = size;
 
+                // 반전이 필요할 때만 X를 음수로 둡니다.
+                //
+                // 예전에는 부호가 반대였습니다. bflip이 true(반전해야 함)일 때
+                // 오히려 양수 스케일을 주고, false일 때 음수를 주고 있었습니다.
+                // 그래서 병사들이 자기가 향한 쪽의 반대를 보고 서 있었습니다.
+                //
+                // DCSS 타일은 원본이 오른쪽을 보고 그려져 있으므로,
+                // 반전하지 않은 상태(+X)가 곧 '오른쪽을 봄'입니다.
                 spriteScale = bflip
-                    ? new Vector3(idleScale, idleScale, idleScale)
-                    : new Vector3(-idleScale, idleScale, idleScale);
+                    ? new Vector3(-idleScale, idleScale, idleScale)
+                    : new Vector3(idleScale, idleScale, idleScale);
 
                 spriteLocalPosition = baseLocalPosition;
 
@@ -225,9 +255,10 @@ public class Unit_Animation : MonoBehaviour
         float scale = size * (1.0f + punchScale * flash);
 
         // 좌우 반전은 X 스케일 부호로 표현합니다.
+        // 위 대기 상태 분기와 부호가 반드시 같아야 합니다.
         spriteScale = bflip
-            ? new Vector3(scale, scale, scale)
-            : new Vector3(-scale, scale, scale);
+            ? new Vector3(-scale, scale, scale)
+            : new Vector3(scale, scale, scale);
 
         // Transform은 여기서 만지지 않습니다.
         // Controller가 틱 마지막에 Write_Sprite_Job으로 전 유닛의

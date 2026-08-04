@@ -3,10 +3,31 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// 유닛의 "전투" 책임을 담당하는 부분 구조체입니다.
+///
+/// 담는 것: 표적 선정과 갱신, 공격 상태 머신, 돌격 보너스 감쇠, 피해 적용.
+/// 공통점은 전부 '유닛 하나가 눈앞의 상대와 주고받는' 일이라는 점입니다.
+/// 어느 부대를 칠지(Army_Fight)는 상위에서 이미 정해져 넘어옵니다.
+///
+/// 값 타입인 이유:
+/// 이 구조체는 Unit_Fight_Job 안에서 병렬로 갱신됩니다. 참조 타입을 담으면
+/// Burst 컴파일이 불가능해지므로, 부대 스탯조차 필드로 들지 않고
+/// 메서드마다 in Army_Data로 넘겨받습니다. (in은 복사 없는 읽기 전용 전달입니다)
+///
+/// 상태 머신:
+///   Attack_Able    : 표적이 있으면 공격을 시작합니다.
+///   Attack         : 공격 속도 타이머를 돌리고, 끝나면 명중을 판정합니다.
+///   Attack_Disable : 공격 딜레이를 소모한 뒤 다시 Attack_Able로 돌아갑니다.
+/// </summary>
 partial struct Unit_Data
 {
     // Public methods
-    /// <summary>유닛의 전투 상태를 업데이트합니다.</summary>
+    /// <summary>
+    /// 이번 틱의 전투 상태를 갱신합니다. 돌격 상태를 먼저 정리한 뒤
+    /// 공격 상태 머신을 한 단계 진행합니다.
+    /// </summary>
+    /// <param name="armyData">소속 부대의 스탯입니다. 사거리와 공격 속도를 여기서 읽습니다.</param>
     public void _Update_Fight(in Army_Data armyData)
     {
         if (bhitTarget)
@@ -41,6 +62,12 @@ partial struct Unit_Data
     /// 자기 대열을 가로질러 버립니다. 그래서 '정면'에 가중치를 둡니다.
     /// (토탈워에서 병사는 자기 앞의 상대와 짝지어 싸웁니다)
     /// </summary>
+    /// <param name="enemy">평가할 적 유닛입니다.</param>
+    /// <param name="armyData">소속 부대의 스탯입니다. 사거리 판정에 사용합니다.</param>
+    /// <returns>
+    /// 우선순위 점수입니다. 낮을수록 좋은 표적이며,
+    /// 아군이거나 이미 죽었거나 사거리 밖이면 float.MaxValue를 반환합니다.
+    /// </returns>
     public float Get_Target_Score(in Unit_Data enemy, in Army_Data armyData)
     {
         if (enemy.bPlayer == bPlayer) return float.MaxValue;
@@ -77,7 +104,10 @@ partial struct Unit_Data
 
     /// <summary>
     /// 이미 잡고 있는 타겟의 위치/공격 타입을 갱신합니다.
+    /// 근접 사거리 안이면 Melee로, 그 밖이지만 사격이 가능하면 Range로 전환합니다.
     /// </summary>
+    /// <param name="enemy">현재 표적으로 잡고 있는 적 유닛입니다.</param>
+    /// <param name="armyData">소속 부대의 스탯입니다. 사거리 판정에 사용합니다.</param>
     /// <returns>계속 유효한 타겟이면 true, 사거리를 벗어났으면 false입니다.</returns>
     public bool Refresh_Target(in Unit_Data enemy, in Army_Data armyData)
     {
@@ -114,6 +144,8 @@ partial struct Unit_Data
     /// 원거리 병종이어야 하고, 탄약이 남아 있어야 합니다.
     /// 부대 스탯의 ammunition이 0 이하이면 무한으로 취급합니다.
     /// </summary>
+    /// <param name="armyData">소속 부대의 스탯입니다. 병종과 사거리를 여기서 읽습니다.</param>
+    /// <returns>사격이 가능하면 true, 근접 병종이거나 탄약이 떨어졌으면 false입니다.</returns>
     public bool Can_Shoot(in Army_Data armyData)
     {
         if (armyData.GetE_Unit_AttackType() != E_Unit_AttackType.Range
@@ -132,7 +164,10 @@ partial struct Unit_Data
 
     /// <summary>
     /// 새 타겟을 확정합니다. 후보 전체를 평가한 뒤 한 번만 호출해야 합니다.
+    /// 표적과의 거리에 따라 근접/원거리 공격 타입도 함께 정해집니다.
     /// </summary>
+    /// <param name="enemy">표적으로 확정할 적 유닛입니다.</param>
+    /// <param name="armyData">소속 부대의 스탯입니다. 근접 사거리 판정에 사용합니다.</param>
     public void Set_Target(in Unit_Data enemy, in Army_Data armyData)
     {
         btarget = true;
@@ -147,7 +182,10 @@ partial struct Unit_Data
             : E_Unit_AttackType.Range;
     }
 
-    /// <summary>공격을 시작합니다.</summary>
+    /// <summary>
+    /// 공격을 시작합니다. 공격 타입에 맞는 속도로 타이머를 걸고 Attack 상태로 넘어갑니다.
+    /// </summary>
+    /// <param name="armyData">소속 부대의 스탯입니다. 공격 속도를 여기서 읽습니다.</param>
     public void Attack_Start(in Army_Data armyData)
     {
         switch (e_Unit_AttackType)
@@ -175,7 +213,13 @@ partial struct Unit_Data
         }
     }
 
-    /// <summary>유닛이 피해를 입었을 때 HP를 감소시킵니다.</summary>
+    /// <summary>
+    /// 유닛이 피해를 입었을 때 HP를 감소시킵니다. HP가 0 이하가 되면 사망 처리합니다.
+    /// </summary>
+    /// <param name="damage">
+    /// 확정 피해량입니다. 방어력이 공격력을 넘어 음수로 넘어오면
+    /// 회복으로 뒤집히지 않도록 0으로 잘라 냅니다.
+    /// </param>
     public void GetDamage(float damage)
     {
         // 이미 사망한 유닛은 추가 피해를 받지 않습니다.
@@ -199,6 +243,10 @@ partial struct Unit_Data
     /// 돌격 상태와 보너스 감쇠를 갱신합니다.
     /// 돌격은 '충돌 순간'에 몰린 보너스이며, 접촉하는 즉시 난전으로 전환됩니다.
     /// </summary>
+    /// <param name="armyData">
+    /// 소속 부대의 스탯입니다. 부대의 이동 상태(돌격 중인지)와
+    /// 돌진 속도 비율을 여기서 읽습니다.
+    /// </param>
     private void _Update_Charge(in Army_Data armyData)
     {
         // 부대가 더 이상 돌격 중이 아니면 '먼저' 상태를 해제합니다.
@@ -308,6 +356,8 @@ partial struct Unit_Data
     ///   - 부호가 뒤집혀 공격자 쪽으로 밀려나는
     /// 이중 오류가 났습니다. (예: -50 -> 50 m/s로 역방향 발사)
     /// </remarks>
+    /// <param name="damage">확정 피해량입니다. 음수로 넘어오면 0으로 잘라 냅니다.</param>
+    /// <param name="damageVector">피해가 들어온 방향입니다. 넉백 방향으로 사용합니다.</param>
     public void GetDamage(float damage, Vector3 damageVector)
     {
         if (bdead) return;
@@ -320,6 +370,8 @@ partial struct Unit_Data
     }
 
     /// <summary>공격자 정보를 포함하여 피해를 적용합니다. 사망 시 킬 기여자를 기록합니다.</summary>
+    /// <param name="damage">확정 피해량입니다. 음수로 넘어오면 0으로 잘라 냅니다.</param>
+    /// <param name="damageVector">피해가 들어온 방향입니다. 넉백 방향으로 사용합니다.</param>
     /// <param name="attackerNum">가해자 유닛의 고유 번호입니다.</param>
     /// <param name="attackerArmyIndex">
     /// 가해자가 속한 부대의 인덱스입니다.
@@ -340,7 +392,10 @@ partial struct Unit_Data
     }
 
     // Private methods
-    /// <summary>공격을 처리합니다.</summary>
+    /// <summary>
+    /// 공격 진행 중 상태를 처리합니다. 공격 속도 타이머가 다 차면 타격을 판정합니다.
+    /// </summary>
+    /// <param name="armyData">소속 부대의 스탯입니다. 명중 판정에 사거리를 사용합니다.</param>
     private void Attack(in Army_Data armyData)
     {
         timer_AttackSpeed._Update();
@@ -351,7 +406,14 @@ partial struct Unit_Data
         }
     }
 
-    /// <summary>공격을 종료하고 딜레이를 설정합니다.</summary>
+    /// <summary>
+    /// 공격을 종료하고 명중을 판정한 뒤 딜레이 상태로 넘어갑니다.
+    ///
+    /// 타격 시점에 사거리를 다시 재는 이유는, 공격을 시작한 뒤 표적이
+    /// 달아났을 수 있기 때문입니다. 휘두르기 시작했다고 반드시 맞는 것은 아닙니다.
+    /// 원거리 타격이 성립하면 화살을 한 발 소모합니다.
+    /// </summary>
+    /// <param name="armyData">소속 부대의 스탯입니다. 사거리와 탄약 정책을 여기서 읽습니다.</param>
     private void Attack_End(in Army_Data armyData)
     {
         timer_AttackDelay.ReSetTimer();
@@ -386,6 +448,15 @@ partial struct Unit_Data
     }
 }
 
+/// <summary>
+/// 유닛 전투의 "표현" 책임을 담당하는 부분 클래스입니다.
+///
+/// 위의 Unit_Data가 값 타입으로 병렬 정산한 결과를, 여기서 눈과 귀에
+/// 보이는 것으로 옮깁니다. 피해 판정은 이미 Job에서 끝났으므로
+/// 이 계층이 하는 일은 전부 순수한 표현입니다.
+///
+/// 담는 것: 근접 타격 시 내지르기, 발사 궤적, 피격 점멸, 넉백, 피격 이벤트 발행.
+/// </summary>
 partial class Unit
 {
     // Private methods
@@ -395,14 +466,49 @@ partial class Unit
     /// </summary>
     private static Projectile_Renderer projectileRenderer;
 
-    /// <summary>투사체 렌더러를 찾아 캐시합니다. 없으면 null을 유지합니다.</summary>
+    /// <summary>
+    /// 이번 세션에서 투사체 렌더러를 이미 찾아봤는지 여부입니다.
+    ///
+    /// 왜 필요한가:
+    /// 예전에는 projectileRenderer가 null이면 매번 FindAnyObjectByType을 불렀습니다.
+    /// 씬에 렌더러가 '없으면' 그 탐색은 언제나 null을 돌려주므로 캐시가 채워지지
+    /// 않고, 결과적으로 발사하는 유닛마다 매 틱 씬 전체를 훑게 됩니다.
+    ///
+    /// 실측(9,600명): U_Fight 평균 0.51 ms인데 최악이 16.46 ms였습니다.
+    /// 궁병은 일제히 쏘므로 같은 틱에 수백 명이 동시에 이 경로를 타고,
+    /// 그 틱만 32배로 튀어 프레임이 끊깁니다.
+    ///
+    /// 이 플래그는 '찾아봤지만 없었다'와 '아직 안 찾아봤다'를 구분합니다.
+    /// 없으면 두 번 다시 찾지 않습니다. (투사체는 순수 표현이라 없어도 무방합니다)
+    /// </summary>
+    private static bool bprojectileRendererSearched;
+
+    /// <summary>
+    /// 씬 재시작 시 탐색 상태를 초기화합니다.
+    ///
+    /// 정적 필드는 도메인 리로드를 끄면 플레이 모드를 나가도 살아남습니다.
+    /// 초기화하지 않으면 다음 세션이 '없다'는 낡은 판정을 그대로 물려받아,
+    /// 렌더러를 넣어 두어도 투사체가 영원히 보이지 않습니다.
+    /// </summary>
+    public static void Reset_Projectile_Renderer()
+    {
+        projectileRenderer = null;
+        bprojectileRendererSearched = false;
+    }
+
+    /// <summary>투사체 렌더러를 찾아 반환합니다. 없으면 null입니다.</summary>
+    /// <returns>씬의 투사체 렌더러이며, 없으면 null입니다.</returns>
     private static Projectile_Renderer Get_Projectile_Renderer()
     {
         // Unity의 == 오버로드 덕분에 파괴된 객체도 null로 판정됩니다.
-        if (projectileRenderer == null)
-        {
-            projectileRenderer = FindAnyObjectByType<Projectile_Renderer>();
-        }
+        if (projectileRenderer != null) return projectileRenderer;
+
+        // 한 번 찾아서 없었으면 다시 찾지 않습니다.
+        // 이 한 줄이 위 주석의 16.46 ms 스파이크를 없앱니다.
+        if (bprojectileRendererSearched) return null;
+
+        bprojectileRendererSearched = true;
+        projectileRenderer = FindAnyObjectByType<Projectile_Renderer>();
 
         return projectileRenderer;
     }
@@ -444,13 +550,25 @@ partial class Unit
         {
             unit_Data.bfiredThisTick = false;
 
-            Projectile_Renderer renderer = Get_Projectile_Renderer();
-            if (renderer != null)
+            // 표적이 유효할 때만 궤적을 그립니다.
+            //
+            // unit_Target_Data.position은 표적이 없으면 Vector3.positiveInfinity입니다.
+            // (Unit_target_Data.RemoveTarget) 발사 플래그가 선 뒤 같은 틱에 표적을
+            // 잃으면 그 무한대가 그대로 넘어가고, 궤적 계산에서 NaN이 되어
+            // Unity 렌더러가 'IsFinite' 어서션을 매 프레임 쏟아냅니다.
+            //
+            // Fire()에도 같은 검사가 있지만, 여기서 먼저 막으면 표적을 잃은
+            // 유닛이 헛발사한 것으로 기록되지도 않습니다.
+            if (unit_Data.btarget)
             {
-                Vector3 from = unit_Data.position + Vector3.up * 1.0f;
-                Vector3 to = unit_Data.unit_Target_Data.position + Vector3.up * 0.8f;
+                Projectile_Renderer renderer = Get_Projectile_Renderer();
+                if (renderer != null)
+                {
+                    Vector3 from = unit_Data.position + Vector3.up * 1.0f;
+                    Vector3 to = unit_Data.unit_Target_Data.position + Vector3.up * 0.8f;
 
-                renderer.Fire(from, to);
+                    renderer.Fire(from, to);
+                }
             }
         }
 
@@ -464,6 +582,10 @@ partial class Unit
 
         if (damage > 0.0f)
         {
+            // 실제로 HP가 깎인 타격을 셉니다.
+            // '명중 성립' 수와 비교해야 피해가 전달되고 있는지 알 수 있습니다.
+            Tick_Profiler.Count_Damage_Applied();
+
             // 피격 점멸: 대규모 전투에서 개별 타격이 묻히지 않도록 시각화합니다.
             if (unit_Animation != null) unit_Animation.Flash_Hit(damage);
 

@@ -17,14 +17,27 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "UnitStat_", menuName = "RTXX/Unit Stat", order = 0)]
 public class UnitStatSO : ScriptableObject
 {
+    // 공개 멤버 변수
+    /// <summary>
+    /// 에디터에서 이 병종을 알아보기 위한 표시 이름입니다.
+    /// 게임 로직은 이 값을 읽지 않습니다.
+    /// </summary>
     [Header("병종 식별")]
     [Tooltip("에디터에서 알아보기 위한 이름입니다. 게임 로직에는 쓰이지 않습니다.")]
     public string displayName = "New Unit";
 
+    /// <summary>
+    /// 이 병종의 밸런싱 의도를 적어 두는 메모입니다.
+    /// 수치만 남으면 '왜 이 값인가'가 사라지므로 근거를 남기십시오.
+    /// </summary>
     [TextArea]
     [Tooltip("이 병종에 대한 메모입니다. 밸런싱 의도를 적어두면 좋습니다.")]
     public string description;
 
+    /// <summary>
+    /// 이 병종의 실제 스탯입니다.
+    /// Army.unit_Stat_Asset이 이 에셋을 가리키면 _Start에서 부대에 복사됩니다.
+    /// </summary>
     [Header("스탯")]
     public Unit_Stat stat;
 

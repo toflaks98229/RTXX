@@ -261,6 +261,58 @@ partial class Army
     }
 
     /// <summary>
+    /// 이 부대의 피해 전달 실태를 계측기에 넘깁니다.
+    ///
+    /// 무엇을 재는가:
+    /// 몸을 맞댄 적 부대가 몇 개이고, 그중 몇 개가 실제로 나에게 피해를
+    /// 줄 수 있는지를 셉니다. 두 수가 같아야 정상입니다.
+    ///
+    /// 피해를 줄 수 있다는 것의 정의:
+    /// <see cref="Collect_Fight_Armies"/>가 피해원으로 삼는 조건과 같아야
+    /// 합니다. 그쪽이 좁아지면 이 지표가 즉시 0이 아니게 되어 드러납니다.
+    /// 두 곳이 따로 놀지 않도록 판정을 <see cref="Is_Damage_Source"/> 하나로
+    /// 모아 두었습니다.
+    ///
+    /// 시야 탐지(bsighted)만 된 상대는 접촉 수에 넣지 않습니다.
+    /// 아직 칼이 닿지 않은 것은 정상이므로 '막혔다'고 볼 수 없습니다.
+    /// </summary>
+    public void Measure_Damage_Path()
+    {
+        if (army_Detected == null) return;
+
+        int contact = 0;
+        int sources = 0;
+
+        for (int i = 0; i < army_Detected.Count; i++)
+        {
+            Army_Count detected = army_Detected[i];
+
+            if (detected.army == null) continue;
+            if (detected.num <= 0) continue;
+            if (detected.army.army_Data.bplayer == army_Data.bplayer) continue;
+
+            contact++;
+            if (Is_Damage_Source(detected.army)) sources++;
+        }
+
+        Tick_Profiler.Count_Engagement(contact, sources);
+
+        // 이번 틱에 '때리는 데까지 성공한' 유닛 수를 셉니다.
+        //
+        // 이 자리에서만 셀 수 있습니다. bhitTarget은 Unit_Job이 세우고
+        // 다음 틱의 _Update_Fight가 첫 줄에서 내리므로, Apply가 끝난
+        // 지금이 이번 틱의 값을 볼 수 있는 유일한 시점입니다.
+        //
+        // 이 값과 Tick_Profiler.damageApplied를 나란히 보면
+        // "공격은 성립하는데 피해가 전달되지 않는" 상태가 드러납니다.
+        for (int i = 0; i < units.Count; i++)
+        {
+            if (units[i] == null) continue;
+            if (units[i].unit_Data.bhitTarget) Tick_Profiler.Count_Attack_Landed();
+        }
+    }
+
+    /// <summary>
     /// 상대 부대와의 접촉을 1 늘립니다.
     /// OnCollisionEnter를 대신해 자체 충돌 결과로 호출됩니다.
     /// </summary>

@@ -77,7 +77,7 @@ Material:
     - _QueueOffset: 0
     - _WeggleIntance: 0.3
     - _Weggle_Intance: 0.2
-    - _moveLength: 0.3
+    - _moveLength: 0.15
     - _moveSpeed: 2
     - _pixelize: 32
     m_Colors:

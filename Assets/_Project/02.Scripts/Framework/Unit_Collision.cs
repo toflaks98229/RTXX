@@ -1,4 +1,4 @@
-using Unity.Burst;
+﻿using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
@@ -44,8 +44,16 @@ public static class Unit_Collision
 [BurstCompile]
 public struct Collision_Grid_Build_Job : IJobParallelFor
 {
+    /// <summary>색인할 전 유닛의 충돌 정보입니다.</summary>
     [ReadOnly] public NativeArray<Collision_Body> bodies;
+
+    /// <summary>
+    /// 격자 셀 크기입니다.
+    /// '가장 큰 두 유닛이 닿을 수 있는 거리'와 같아야 3x3 탐색이 정확합니다.
+    /// </summary>
     public float cellSize;
+
+    /// <summary>해시 키 -> 유닛 인덱스 맵입니다. 여러 워커가 동시에 씁니다.</summary>
     public NativeParallelMultiHashMap<int, int>.ParallelWriter grid;
 
     /// <summary>해소 잡의 안쪽 루프가 쓸 조밀 위치 배열입니다. (출력)</summary>
@@ -55,6 +63,12 @@ public struct Collision_Grid_Build_Job : IJobParallelFor
     [WriteOnly] [NativeDisableParallelForRestriction]
     public NativeArray<float> radii;
 
+    /// <summary>조밀 진영 배열입니다. (출력) true면 플레이어 측입니다.</summary>
+    [WriteOnly] [NativeDisableParallelForRestriction]
+    public NativeArray<bool> sides;
+
+    /// <summary>유닛 하나를 격자에 넣고 조밀 배열에도 값을 복사합니다.</summary>
+    /// <param name="index">처리할 유닛의 인덱스입니다.</param>
     public void Execute(int index)
     {
         Collision_Body body = bodies[index];
@@ -64,6 +78,7 @@ public struct Collision_Grid_Build_Job : IJobParallelFor
         // (격자에는 넣지 않으므로 이웃으로 잡히지는 않습니다)
         positions[index] = body.position;
         radii[index] = body.bdead ? 0.0f : body.radius;
+        sides[index] = body.bplayer;
 
         if (body.bdead) return;
 
@@ -118,6 +133,9 @@ public struct Collision_Body
 [BurstCompile]
 public struct Collision_Resolve_Job : IJobParallelFor
 {
+    /// <summary>
+    /// 유닛들의 충돌 정보입니다. 각 항목은 자기 인덱스만 쓰므로 병렬 제한을 해제합니다.
+    /// </summary>
     [NativeDisableParallelForRestriction]
     public NativeArray<Collision_Body> bodies;
 
@@ -134,9 +152,31 @@ public struct Collision_Resolve_Job : IJobParallelFor
     /// <summary>반지름만 따로 담은 조밀 배열입니다. 같은 이유입니다.</summary>
     [ReadOnly] public NativeArray<float> radii;
 
+    /// <summary>
+    /// 진영만 따로 담은 조밀 배열입니다. true면 플레이어 측입니다.
+    ///
+    /// 왜 따로 두는가:
+    /// 적과 아군의 판정 반지름을 다르게 하려면 **겹침을 판정하기 전에**
+    /// 진영을 알아야 합니다. 그런데 Collision_Body는 60바이트가 넘어,
+    /// 그것을 읽는 순간 1단계 필터(무거운 구조체를 안 읽는 것)의 이점이
+    /// 사라집니다. bool 1바이트짜리 배열이면 캐시 라인 하나에 64개가
+    /// 들어오므로 사실상 공짜입니다.
+    /// </summary>
+    [ReadOnly] public NativeArray<bool> sides;
+
+    /// <summary>이웃을 빠르게 찾기 위한 공간 격자입니다.</summary>
     [ReadOnly] public NativeParallelMultiHashMap<int, int> grid;
+
+    /// <summary>격자 셀 크기입니다. 구축 잡과 반드시 같은 값이어야 합니다.</summary>
     public float cellSize;
 
+    /// <summary>
+    /// 유닛 하나의 겹침을 해소하고 적 접촉 여부를 판정합니다.
+    ///
+    /// 주변 3x3 셀만 훑습니다. 셀 크기가 최대 상호작용 거리와 같으므로
+    /// 그 범위를 벗어난 유닛은 애초에 닿을 수 없습니다.
+    /// </summary>
+    /// <param name="index">처리할 유닛의 인덱스입니다.</param>
     public void Execute(int index)
     {
         Collision_Body me = bodies[index];
@@ -186,7 +226,28 @@ public struct Collision_Resolve_Job : IJobParallelFor
                     float dzp = me.position.z - yourPos.z;
                     float distSqr = dxp * dxp + dzp * dzp;
 
+                    // 적은 더 큰 반지름으로 판정합니다.
+                    //
+                    // 왜 그런가:
+                    // 이것이 '적과 아군이 걸리는 충돌체를 다르게' 만드는
+                    // 실질입니다. 판정 반지름을 키우면 실제로 몸이 닿기
+                    // 전에 먼저 밀리기 시작하므로, 전진 명령이 세도
+                    // 적 사이로 비집고 들어갈 틈이 줄어듭니다.
+                    //
+                    // 콜라이더 레이어를 나누지 않는 이유:
+                    // 그러면 격자를 두 번 순회해야 합니다. 9,600 유닛에서
+                    // 비용이 두 배가 됩니다. 같은 순회 안에서 계수만
+                    // 바꾸면 비용이 늘지 않습니다.
+                    //
+                    // 여기서 bodies[other]를 미리 읽지 않는 것에 주의하십시오.
+                    // 1단계 필터의 목적이 '무거운 구조체를 안 읽는 것'이라,
+                    // 진영 판정을 위해 읽어 버리면 최적화가 무너집니다.
+                    // 그래서 진영은 조밀 배열(sides)에서 읽습니다.
+                    bool bfoe = sides[other] != me.bplayer;
+
                     float sum = myR + radii[other];
+                    if (bfoe) sum *= Constant.collide_Enemy_Radius_Rate;
+
                     if (distSqr >= sum * sum) continue;
 
                     // 2단계: 실제로 겹친 상대만 전체 정보를 읽습니다.
@@ -212,10 +273,31 @@ public struct Collision_Resolve_Job : IJobParallelFor
                     float total = me.mass + you.mass;
                     float share = total > 0.0001f ? you.mass / total : 0.5f;
 
-                    push += dir * (overlap * share * Unit_Collision.separationRate);
+                    float rate = Unit_Collision.separationRate;
+
+                    if (bfoe)
+                    {
+                        // 적은 더 세게 튕겨냅니다. 겹침이 빨리 풀릴수록
+                        // 파고들 틈이 줄어듭니다.
+                        rate *= Constant.collide_Enemy_Separation_Rate;
+
+                        // 다만 질량이 크게 앞서면 뚫고 들어갈 수 있어야
+                        // 합니다. 그것이 돌격의 의미입니다. 토탈워에서도
+                        // 질량이 큰 유닛은 대열을 헤집고 후방으로 들어갑니다.
+                        //
+                        // 완전히 막으면 기병 돌격이 보병 벽에 부딪혀
+                        // 그대로 서 버립니다.
+                        if (you.mass > 0.0001f
+                            && me.mass / you.mass >= Constant.collide_Push_Through_Mass_Rate)
+                        {
+                            rate *= Constant.collide_Push_Through_Block_Rate;
+                        }
+                    }
+
+                    push += dir * (overlap * share * rate);
 
                     // 적과 닿았는지 기록합니다. (전진 차단 판정에 씁니다)
-                    if (you.bplayer != me.bplayer)
+                    if (bfoe)
                     {
                         contactSum += -dir;   // 적이 있는 방향
                         contactCount++;

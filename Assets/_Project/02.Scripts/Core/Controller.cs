@@ -126,7 +126,6 @@ public partial class Controller : MonoBehaviour
     // 되돌아갈 물리 경로가 더 이상 존재하지 않으므로 스위치도 의미가 없습니다.
     // (프리팹에서 Rigidbody/Collider를 뗀 시점부터 이미 그러했습니다)
 
-    [Header("결정론")]
     /// <summary>
     /// 이 전투의 기준 난수 시드입니다.
     ///
@@ -136,10 +135,10 @@ public partial class Controller : MonoBehaviour
     ///
     /// 0이면 실행할 때마다 다른 전투가 되도록 시각에서 뽑습니다.
     /// </summary>
+    [Header("결정론")]
     [Tooltip("전투 난수의 기준 시드입니다. 같은 값이면 같은 전투가 재현됩니다. 0이면 매번 무작위입니다.")]
     public uint simulationSeed = 1;
 
-    [Header("LOD")]
     /// <summary>
     /// 교전하지 않는 부대의 갱신을 여러 틱에 나눠 처리합니다.
     ///
@@ -150,6 +149,7 @@ public partial class Controller : MonoBehaviour
     ///
     /// 1이면 전부 매 틱 갱신합니다. (LOD 끔)
     /// </summary>
+    [Header("LOD")]
     [Tooltip("교전하지 않는 부대를 몇 틱에 한 번 갱신할지입니다. 1이면 LOD를 끕니다.")]
     [Range(1, 4)]
     public int idleArmyTickInterval = 2;
@@ -254,6 +254,11 @@ public partial class Controller : MonoBehaviour
         GameEvents.ClearAll();
         Main_Camera.Clear();
 
+        // 투사체 렌더러 탐색 결과도 정적 상태입니다.
+        // 초기화하지 않으면 이전 세션의 '없다' 판정이 남아 렌더러를 넣어도
+        // 투사체가 보이지 않습니다.
+        Unit.Reset_Projectile_Renderer();
+
         // 애플리케이션의 목표 프레임 속도를 설정합니다.
         Application.targetFrameRate = Constant.targetFrameRate;
 
@@ -340,6 +345,7 @@ public partial class Controller : MonoBehaviour
         if (collisionGrid.IsCreated) collisionGrid.Dispose();
         if (collisionPositions.IsCreated) collisionPositions.Dispose();
         if (collisionRadii.IsCreated) collisionRadii.Dispose();
+        if (collisionSides.IsCreated) collisionSides.Dispose();
         transformSync.Dispose();
         groundSync.Dispose();
     }
@@ -349,9 +355,25 @@ public partial class Controller : MonoBehaviour
     /// </summary>
     private void Update()
     {
-        // 마우스 버튼 입력에 따른 선택 및 명령 업데이트를 처리합니다.
-        _Update_MouseButton_Select();
-        _Update_MouseButton_Command();
+        // HUD 위에서 누른 것이면 전장 조작을 하지 않습니다.
+        //
+        // 왜 필요한가:
+        // HUD는 IMGUI로 그리고 여기서는 Input을 직접 읽습니다. 둘은
+        // 서로를 모르므로, IMGUI에서 Event.Use()로 소비해도 이 경로는
+        // 그대로 실행됩니다. 그래서 부대 카드를 눌러도 같은 프레임에
+        // '빈 땅 클릭'으로 판정되어 선택이 곧바로 풀렸습니다.
+        //
+        // 태세 버튼도 마찬가지였습니다. 누르는 순간 선택이 사라져
+        // 명령이 아무 부대에도 적용되지 않았습니다.
+        //
+        // 단축키(태세 1~5)는 막지 않습니다. 마우스가 HUD 위에 있어도
+        // 키보드 명령은 유효해야 합니다.
+        if (!UI_Input_Guard.IsOverUI())
+        {
+            _Update_MouseButton_Select();
+            _Update_MouseButton_Command();
+        }
+
         _Update_Stance_Command();
     }
 
@@ -518,6 +540,21 @@ public partial class Controller : MonoBehaviour
 
         Tick_Profiler.End();
 
+        // 3-1-b. 부대 스탯 스냅샷을 전처리 결과로 갱신합니다.
+        //
+        //     전투 Job은 공격자의 부대 스탯을 이 배열에서 armyIndex로 꺼냅니다.
+        //     그런데 2번 단계에서 담은 값은 상태 머신 갱신 직후라,
+        //     방금 전처리가 채운 지형(고지 우위·경사)과 위치가 빠져 있습니다.
+        //     그대로 쓰면 공격자만 고지 보정을 못 받아 좌우가 어긋납니다.
+        //
+        //     전 부대가 같은 시점의 스냅샷을 보게 되므로 결정론에도 유리합니다.
+        //     (부대 수는 많아야 수십 개라 이 복사는 비용이 없습니다)
+        for (int i = 0; i < armies.Count; i++)
+        {
+            if (armies[i] == null) continue;
+            army_Datas[i] = armies[i].army_Data;
+        }
+
         // 3-2. Job 스케줄만 (여기서 기다리지 않습니다)
         Tick_Profiler.Begin(Tick_Profiler.Phase.Schedule);
 
@@ -525,7 +562,7 @@ public partial class Controller : MonoBehaviour
         {
             if (armies[i] == null) continue;
             if (!bupdateArmy[i]) continue;
-            armies[i]._Update_Schedule(unitDataMap);
+            armies[i]._Update_Schedule(unitDataMap, army_Datas);
         }
 
         Tick_Profiler.End();
@@ -571,9 +608,20 @@ public partial class Controller : MonoBehaviour
         //    모든 부대의 갱신이 끝난 지금은 아무도 남의 상태를 건드리지 않으므로,
         //    여기서 적용하면 순서와 무관하게 같은 결과가 나옵니다.
         //    1번 단계의 유닛 스냅샷과 같은 목적(결정론)을 사기에 대해 달성합니다.
+        // 5. 피해 전달 실태를 셉니다. (계측이 켜져 있을 때만)
+        //
+        //    표적이 확정되고 접촉 집계도 끝난 지금이 유일하게 올바른 시점입니다.
+        //    이 자리보다 앞이면 이번 틱의 접촉이 아직 반영되지 않았습니다.
+        bool bmeasure = Tick_Profiler.benabled;
+
         for (int i = 0; i < armies.Count; i++)
         {
-            armies[i].Commit_Pending_Morale_Shock();
+            Army army = armies[i];
+            if (army == null) continue;
+
+            army.Commit_Pending_Morale_Shock();
+
+            if (bmeasure) army.Measure_Damage_Path();
         }
 
         Tick_Profiler.End_Tick();

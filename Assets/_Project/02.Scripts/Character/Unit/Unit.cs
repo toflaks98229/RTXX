@@ -32,8 +32,19 @@ public partial class Unit : MonoBehaviour
     /// 매 틱 GetComponent를 호출하지 않기 위해 _Start에서 한 번만 구합니다.
     /// </summary>
     public EntityId colliderEntityId;
-    /// <summary>유닛이 이동할 목표 지점의 트랜스폼입니다.</summary>
-    public Transform targetMoveTo;
+    // targetMoveTo(진형 슬롯 Transform)는 제거되었습니다.
+    // 유닛은 이제 슬롯 '인덱스'만 들고, 위치는 부대의 배열에서 꺼냅니다.
+
+    /// <summary>
+    /// 배정받은 진형 슬롯의 인덱스입니다. -1이면 배정 없음입니다.
+    ///
+    /// 왜 Transform이 아니라 인덱스인가:
+    /// Transform을 들고 있으면 위치를 읽을 때마다 네이티브 왕복이 발생합니다.
+    /// 9,600명이면 그것만으로 틱당 2.955 ms입니다. 인덱스로 두면 부대가
+    /// 소유한 배열에서 꺼내므로 0.029 ms로 끝나고, 무엇보다 그 배열을
+    /// Burst Job에 통째로 넘길 수 있습니다. (Transform은 넘길 수 없습니다)
+    /// </summary>
+    public int targetSlotIndex = -1;
     /// <summary>유닛이 사망했는지 여부를 나타냅니다.</summary>
     public bool bDead = false;
     /// <summary>유닛의 애니메이션을 제어하는 컴포넌트입니다.</summary>
@@ -89,6 +100,21 @@ public partial class Unit : MonoBehaviour
             sprite_Weapon.sprite = army.images_Weapon[Random.Range(0, army.images_Weapon.Count)];
         if (army.images_Shield.Count > 0)
             sprite_Shield.sprite = army.images_Shield[Random.Range(0, army.images_Shield.Count)];
+
+        // 몸통에 맞춰 무기·방패 위치를 보정합니다.
+        //
+        // 몸통을 고른 뒤에 해야 합니다. DCSS는 몸통 타일마다 손 위치가
+        // 달라서 장비를 픽셀 단위로 밀어 줘야 손에 들립니다.
+        // 여기서는 몸통을 무작위로 고르므로 병사마다 값이 달라집니다.
+        //
+        // 몸통과 크기를 함께 넘기는 이유:
+        // Unit_Animation이 몸통에 크기 배율과 들어올림을 겁니다. 그런데
+        // 무기와 방패가 몸통 아래에 매달렸는지 형제인지에 따라 그것을
+        // 물려받는 정도가 다릅니다. 계산이 갈리므로 둘 다 필요합니다.
+        // (자세한 내용은 Unit_Hand_Offset.Apply의 주석 참조)
+        Unit_Hand_Offset.Apply(sprite_Unit.sprite, sprite_Unit,
+                               sprite_Weapon, sprite_Shield,
+                               army.army_Data.GetSize());
     }
 
     /// <summary>매 프레임마다 호출되어 유닛의 상태를 업데이트합니다.</summary>

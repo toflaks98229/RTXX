@@ -145,6 +145,23 @@ partial class Army
         // 향해 달리게 됩니다. (유닛 자체는 지면 동기화로 붙어 있습니다)
         Clamp_Pivot_To_NavMesh();
 
+        // 기준점을 지면 높이에 맞춥니다.
+        //
+        // 위의 Clamp_Pivot_To_NavMesh는 '내브메시를 벗어났는가'만 봅니다.
+        // 그런데 내브메시 표면은 지형과 높이가 다를 수 있어(경사·단차),
+        // 내브메시 위에 잘 있어도 기준점이 지형에서 떠 있을 수 있습니다.
+        //
+        // 기준점이 뜨면 진형 슬롯도 함께 뜨고, 유닛은 닿을 수 없는 자리를
+        // 향해 달립니다. Move_Stop이 같은 이유로 이미 지면 스냅을 합니다.
+        //
+        // 왜 이제야 드러났는가:
+        // 패주는 사기가 무너져야 일어나는데, 전투가 성립하지 않던 동안에는
+        // 붕괴가 한 번도 발생하지 않아 이 경로 자체가 실행된 적이 없었습니다.
+        // 전투가 돌기 시작하자(2,000틱에서 붕괴 44회) 검증기가 8.7~9.7m
+        // 이격을 잡아냈습니다.
+        formation_Move_Transform.position =
+            Snap_To_Ground(formation_Move_Transform.position);
+
         // 달아나는 쪽을 바라보게 합니다.
         Quaternion lookRotation = Quaternion.LookRotation(direction, Vector3.up);
         formation_Move_Transform.rotation = Quaternion.RotateTowards(
@@ -190,12 +207,43 @@ partial class Army
 
     /// <summary>
     /// 부대를 목표 방향으로 회전시킵니다.
+    ///
+    /// ---------------------------------------------------------------------
+    /// navMeshAgent.steeringTarget을 쓰면 안 되는 이유
+    /// ---------------------------------------------------------------------
+    /// 이 부대의 에이전트는 _Start()에서 isStopped = true로 세워 둡니다.
+    /// 경로를 따라 걷게 하지 않고 Move()가 직접 밀기 때문입니다.
+    /// 그런데 멈춰 선 에이전트의 steeringTarget은 '다음 경로 지점'이 아니라
+    /// **자기 위치 그대로**입니다. 따라서 방향이 언제나 영벡터가 됩니다.
+    ///
+    /// 그 결과 두 가지가 벌어졌습니다.
+    ///   1) Quaternion.LookRotation이 "viewing vector is zero" 오류를 냅니다.
+    ///      실측에서 701틱 동안 20,493회, 즉 이동 중인 부대 전부가 매 틱입니다.
+    ///   2) 오류 시 항등 회전이 돌아오므로, RotateTowards가 부대를 월드
+    ///      정면(+Z)으로 서서히 돌립니다. Move()는 그 forward 방향으로
+    ///      전진하므로, **부대가 명령한 곳이 아니라 +Z로 행군합니다.**
+    ///
+    /// 이것이 60개 부대가 서로 만나지 못하고 701틱 동안 사망자가 2명뿐이던
+    /// 원인입니다. 전투가 성립하지 않으니 밸런스 수치도 검증된 적이 없었습니다.
+    ///
+    /// 방향은 '가야 할 곳'에서 직접 구합니다. locationMoveTo는 명령이
+    /// 확정한 목적지이므로 에이전트 상태와 무관하게 언제나 유효합니다.
     /// </summary>
     void Rotation()
     {
-        Vector3 direction = (navMeshAgent.steeringTarget - formation_Move_Transform.position);
-        Quaternion lookRotation = Quaternion.LookRotation(direction, Vector3.up);
-        formation_Move_Transform.rotation = Quaternion.RotateTowards(formation_Move_Transform.rotation, lookRotation, army_Data.GetRotationSpeed() * Time.fixedDeltaTime);
+        Vector3 direction = locationMoveTo - formation_Move_Transform.position;
+        direction.y = 0.0f;
+
+        // 이미 도착했으면 방향을 바꿀 이유가 없습니다.
+        // (여기서 막지 않으면 위 1)번 오류가 그대로 재발합니다)
+        if (direction.sqrMagnitude < 0.0001f) return;
+
+        Quaternion lookRotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
+
+        formation_Move_Transform.rotation = Quaternion.RotateTowards(
+            formation_Move_Transform.rotation,
+            lookRotation,
+            army_Data.GetRotationSpeed() * Time.fixedDeltaTime);
     }
 
     /// <summary>
@@ -273,6 +321,19 @@ partial class Army
         Vector3 position = GetPosition();
         Vector3 direction = locationMoveTo - GetPosition();
 
+        // 이미 목적지에 서 있으면 방향을 정할 수 없습니다.
+        //
+        // 아래 두 분기가 LookAt을 부르는데, 영벡터를 넘기면 Unity가
+        // "Look rotation viewing vector is zero" 오류를 내고 회전이
+        // 망가집니다. 제자리 재편성처럼 목적지가 곧 현재 위치인 경우가
+        // 실제로 있으므로 여기서 걸러야 합니다.
+        // (기준점 높이만 지면에 맞추고 방향은 그대로 둡니다)
+        if (direction.sqrMagnitude < 0.0001f)
+        {
+            formation_Move_Transform.position = Snap_To_Ground(position);
+            return;
+        }
+
         if (Vector3.Angle(direction, formation_Move_Transform.forward) < 45.0f)
         {
             position = formation_Move_Transform.position;
@@ -290,7 +351,12 @@ partial class Army
             formation_Move_Transform.LookAt(locationMoveTo, Vector3.up);
         }
 
-        formation_Move_Transform.position = position;
+        // 기준점은 언제나 지면 위에 있어야 합니다.
+        //
+        // position은 부대 평균 위치(GetPosition)나 기존 기준점에서 유도되므로
+        // 그 Y가 이미 어긋나 있으면 그대로 물려받습니다. 한 번 잠기면
+        // 명령을 내릴 때마다 계속 잠긴 채 이어집니다.
+        formation_Move_Transform.position = Snap_To_Ground(position);
     }
 
     // 공개 메서드
@@ -320,37 +386,7 @@ partial class Army
     /// <param name="position">이동 위치입니다.</param>
     public void Move_Start(float length, Vector3 direction, Vector3 position)
     {
-        bformation_Move = false;
-        army_Data.e_Army_Move = E_Army_Move.Move;
-        Formation_Data formation_Data = Set_Formation(length, direction, position);
-        locationMoveTo = formation_Data.formation[0];
-        Set_Army_Move_Position();
-        Set_Formation_Data(formation_Data);
-        Set_Formation_Move();
-
-        int[] _matchX = Match_Units_To_Slots(Get_Formation_Move_Positions());
-        if (_matchX == null) return;
-
-        for (int i = 0; i < units.Count; i++)
-        {
-            units[i].Move_Start(formation_Moves[_matchX[i]]);
-            if (_matchX[i] == 0)
-            {
-                unit_Bearing_Flag = units[i];
-            }
-        }
-
-        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.P_SetDestination);
-        navMeshAgent.SetDestination(locationMoveTo);
-        Tick_Profiler.End_Sub();
-        Tick_Profiler.Count_Path_Request();
-
-        // uI_Units는 생성 시점 인원, formation은 현재 생존 인원 기준이라 길이가 다릅니다.
-        int uiCount = Mathf.Min(uI_Units.Count, formation_Data.formation.Count);
-        for (int i = 0; i < uiCount; i++)
-        {
-            uI_Units[i]._Update(formation_Data.formation[i], direction);
-        }
+        Move_Start_Internal(Set_Formation(length, direction, position), direction);
     }
 
     /// <summary>
@@ -361,12 +397,40 @@ partial class Army
     /// <param name="position">이동 위치입니다.</param>
     public void Move_Start(int num, Vector3 direction, Vector3 position)
     {
+        Move_Start_Internal(Set_Formation(num, direction, position), direction);
+    }
+
+    /// <summary>
+    /// 이동 시작의 공통 구현입니다.
+    ///
+    /// 두 공개 오버로드는 진형 폭을 '길이(m)'로 주느냐 '인원 수'로 주느냐만
+    /// 다릅니다. 그 차이는 Set_Formation 호출 한 줄에서 이미 흡수되므로,
+    /// 그 뒤의 절차는 완전히 같습니다.
+    ///
+    /// 예전에는 이 35줄이 두 오버로드에 그대로 복사되어 있었습니다.
+    /// 한쪽만 고치면 플레이어 명령과 AI 명령이 다르게 동작하는 구조였고,
+    /// 실제로 마커 방향이 그렇게 갈렸습니다.
+    /// </summary>
+    /// <param name="formationData">이미 계산된 진형 데이터입니다.</param>
+    /// <param name="lineDirection">전열축 방향입니다. 마커 정면 계산에 씁니다.</param>
+    private void Move_Start_Internal(Formation_Data formationData, Vector3 lineDirection)
+    {
+        // 전멸했거나 진형 계산이 실패하면 배치할 것이 없습니다.
+        // (formation[0] 접근이 IndexOutOfRange를 내는 것을 막습니다)
+        if (formationData == null || formationData.formation.Count == 0) return;
+
         bformation_Move = false;
         army_Data.e_Army_Move = E_Army_Move.Move;
-        Formation_Data formation_Data = Set_Formation(num, direction, position);
-        locationMoveTo = formation_Data.formation[0];
+
+        // 행군 목적지는 '대열의 한가운데'입니다.
+        //
+        // 예전에는 formation[0](첫 슬롯)을 썼습니다. 그때는 저장된 position이
+        // 곧 첫 슬롯이라 사실상 같은 값이었지만, 규약이 중심으로 바뀐 지금은
+        // 짝수 폭에서 간격의 절반만큼 어긋납니다. 중심을 직접 쓰는 편이
+        // 뜻이 분명하고 폭의 홀짝에 흔들리지 않습니다.
+        locationMoveTo = formationData.position;
         Set_Army_Move_Position();
-        Set_Formation_Data(formation_Data);
+        Set_Formation_Data(formationData);
         Set_Formation_Move();
 
         int[] _matchX = Match_Units_To_Slots(Get_Formation_Move_Positions());
@@ -374,8 +438,11 @@ partial class Army
 
         for (int i = 0; i < units.Count; i++)
         {
-            units[i].Move_Start(formation_Moves[_matchX[i]]);
-            if (_matchX[i] == 0)
+            int slot = _matchX[i];
+
+            units[i].Move_Start(slot, Get_Slot_World(slot));
+
+            if (slot == 0)
             {
                 unit_Bearing_Flag = units[i];
             }
@@ -386,11 +453,34 @@ partial class Army
         Tick_Profiler.End_Sub();
         Tick_Profiler.Count_Path_Request();
 
-        // uI_Units는 생성 시점 인원, formation은 현재 생존 인원 기준이라 길이가 다릅니다.
-        int uiCount = Mathf.Min(uI_Units.Count, formation_Data.formation.Count);
-        for (int i = 0; i < uiCount; i++)
+        // 마커는 유닛이 실제로 설 방향(전열의 정면)을 가리켜야 합니다.
+        //
+        // 예전에는 전열축(direction)을 그대로 넘겨, 마커가 대열이 늘어선
+        // 방향을 보고 있었습니다. Set_Formation이 세워 둔 방향과도 달라
+        // 명령 직후 마커가 한 번 홱 돌아갔습니다.
+        Vector3 markerFacing = Formation_Util.Facing_From_Line(lineDirection);
+
+        // 이미 만들어진 마커만 갱신합니다. (없으면 건너뜁니다)
+        Update_Markers(formationData.formation, formationData.formation.Count, markerFacing);
+
+        // 배치 단계에서는 걸어가지 않고 즉시 자리를 잡습니다.
+        //
+        // 왜 필요한가:
+        // 배치 중에는 Controller가 시뮬레이션 틱을 통째로 멈춥니다.
+        // 위에서 Move_Start로 목적지를 정해도 그것을 실행할 주체가
+        // 없어서, 명령을 내려도 병사들이 제자리에 그대로 서 있습니다.
+        //
+        // 배치는 '전투 전에 진형을 잡는' 단계이므로 결과가 즉시 보여야
+        // 합니다. 걸어가는 모습을 보려고 배치를 하는 것이 아닙니다.
+        if (Battle_Manager.bdeploying)
         {
-            uI_Units[i]._Update(formation_Data.formation[i], direction);
+            Snap_Units_To_Slots();
+
+            // 이동 상태를 대기로 되돌립니다.
+            //
+            // 그러지 않으면 전투가 시작되는 순간 '아직 이동 중'으로
+            // 판정되어, 이미 도착한 자리를 향해 다시 걸어가려 합니다.
+            army_Data.e_Army_Move = E_Army_Move.Idle;
         }
     }
 
@@ -464,12 +554,25 @@ partial class Army
         }
         else
         {
-            movementVector = (navMeshAgent.steeringTarget - formation_Move_Transform.position).normalized;
-            movementVector = movementVector * army_Data.GetMoveSpeed() * army_Data.GetFatigueRate();
-            movementVector = movementVector * Time.fixedDeltaTime;
+            // 진형 이동 단계입니다. 기준점이 목적지에 닿을 때까지 나아갑니다.
+            //
+            // steeringTarget / remainingDistance를 쓰지 않는 이유는
+            // Rotation()의 주석과 같습니다. 멈춰 세운 에이전트에서는
+            // steeringTarget이 자기 위치라 이동 벡터가 영벡터가 되고,
+            // remainingDistance는 0으로 굳어 **진형 이동에 들어가는 순간
+            // 곧바로 Move_Stop()이 걸렸습니다.**
+            //
+            // 목적지까지의 실제 거리로 판정하면 두 문제가 함께 사라집니다.
+            Vector3 toDestination = locationMoveTo - formation_Move_Transform.position;
+            toDestination.y = 0.0f;
 
-            if (navMeshAgent.remainingDistance > Constant.distance_Stop)
+            if (toDestination.sqrMagnitude > Constant.distance_Stop * Constant.distance_Stop)
             {
+                movementVector = toDestination.normalized
+                                 * army_Data.GetMoveSpeed()
+                                 * army_Data.GetFatigueRate()
+                                 * Time.fixedDeltaTime;
+
                 Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.P_AgentMove);
                 navMeshAgent.Move(movementVector);
                 Tick_Profiler.End_Sub();
@@ -642,10 +745,21 @@ partial class Army
     void Move_Stop()
     {
         army_Data.e_Army_Move = E_Army_Move.Idle;
-        formation_Move_Transform.position = locationMoveTo;
-        Quaternion direction = Quaternion.LookRotation(GetFormation_Direction(), Vector3.up);
-        direction = direction * Quaternion.Euler(new Vector3(0, -90.0f, 0));
-        formation_Move_Transform.rotation = direction;
+
+        // 기준점을 지면 높이에 맞춰 내려놓습니다.
+        //
+        // 왜 필요한가:
+        // locationMoveTo는 진형 좌표(formation[0])에서 오고, 그 Y는 명령 시점의
+        // 기준점 Y를 그대로 물려받습니다. 즉 한 번 어긋나면 계속 어긋난 채
+        // 이어집니다. 기준점이 지면 아래로 내려가면 진형 슬롯도 함께 잠기고,
+        // 유닛은 '땅속의 자리'를 향해 걷게 됩니다.
+        //
+        // 유닛 자체는 Unit_Ground_Sync가 지면에 붙여 주지만, 기준점은
+        // 그 대상이 아니었습니다. 여기가 그 구멍이었습니다.
+        formation_Move_Transform.position = Snap_To_Ground(locationMoveTo);
+
+        formation_Move_Transform.rotation =
+            Formation_Util.Rotation_From_Line(GetFormation_Direction());
     }
 
     /// <summary>
@@ -719,9 +833,7 @@ partial class Army
         if (lineDirection.sqrMagnitude < 0.0001f) return;
 
         // Move_Stop과 동일한 규약입니다. (정면 = 전열축을 -90도 회전)
-        Quaternion lookRotation =
-            Quaternion.LookRotation(lineDirection.normalized, Vector3.up)
-            * Quaternion.Euler(new Vector3(0.0f, -90.0f, 0.0f));
+        Quaternion lookRotation = Formation_Util.Rotation_From_Line(lineDirection);
 
         formation_Move_Transform.rotation = Quaternion.RotateTowards(
             formation_Move_Transform.rotation,
@@ -763,14 +875,14 @@ partial class Army
         lineDirection = lineDirection.normalized;
 
         // 전열이 바라보는 방향은 전열축에서 유도합니다. (적 위치와 무관)
-        Vector3 facing = Quaternion.AngleAxis(-90.0f, Vector3.up) * lineDirection;
+        Vector3 facing = Formation_Util.Facing_From_Line(lineDirection);
 
         Vector3 armyCenter = GetPosition();
         Vector3 center = Get_Contact_Line_Center(armyCenter, facing);
 
-        Vector3 start = center - lineDirection * (GetFormation_Length() * 0.5f);
-
-        Formation_Data reformed = Set_Formation(GetFormation_Num(), lineDirection, start);
+        // 진형 좌표 규약이 '중심'이므로 왼쪽 끝으로 밀어 줄 필요가 없습니다.
+        // (예전에는 여기서 center - lineDirection * 절반폭을 넘겼습니다)
+        Formation_Data reformed = Set_Formation(GetFormation_Num(), lineDirection, center);
         if (reformed.formation.Count == 0) return;
 
         Set_Formation_Data(reformed);
@@ -848,18 +960,21 @@ partial class Army
     }
 
     /// <summary>
-    /// formation_Moves 트랜스폼들의 현재 위치를 리스트로 모읍니다.
+    /// 진형 슬롯들의 현재 월드 좌표를 리스트로 모읍니다.
+    ///
+    /// 예전에는 formation_Moves(Transform)를 하나씩 읽었습니다.
+    /// 이제 배열이 슬롯의 주인이므로 월드 캐시에서 그대로 꺼냅니다.
     /// </summary>
     private List<Vector3> Get_Formation_Move_Positions()
     {
-        // 전사로 formation_Moves가 실제 인원보다 길 수 있습니다.
-        // 매칭에는 갱신된 슬롯(생존 인원 수)만 넘깁니다.
-        int count = Mathf.Min(formation_Moves.Count, Mathf.Max(units.Count, army_Data.unit_Num));
+        // 슬롯 배열은 생성 시점 인원만큼이고 전사해도 줄지 않습니다.
+        // 매칭에는 현재 인원까지만 넘깁니다.
+        int count = Mathf.Min(SlotCount, Mathf.Max(units.Count, army_Data.unit_Num));
 
         List<Vector3> positions = new List<Vector3>(count);
         for (int i = 0; i < count; i++)
         {
-            positions.Add(formation_Moves[i].position);
+            positions.Add(Get_Slot_World(i));
         }
         return positions;
     }
@@ -875,6 +990,15 @@ partial class Army
         if (slots == null || units.Count == 0) return null;
         if (slots.Count < units.Count) return null;
 
-        return Formation_Matcher.Match(Get_Unit_Positions(), slots);
+        // 스파이크 용의자라 따로 잽니다.
+        // 3초마다 부대별로 발동하는 O(n*s^2) 동기 계산입니다.
+        Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.A_Match);
+        Tick_Profiler.Count_Match();
+
+        int[] result = Formation_Matcher.Match(Get_Unit_Positions(), slots);
+
+        Tick_Profiler.End_Sub();
+
+        return result;
     }
 }

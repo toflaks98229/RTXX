@@ -122,9 +122,13 @@ public class Camera_Player : MonoBehaviour
     private ScriptableRendererFeature pixelizeRendererFeature;
 
     // 이동 상태를 나타내는 플래그 변수들
+    /// <summary>이번 프레임에 왼쪽 이동 입력이 있었는지 여부입니다.</summary>
     private bool bmoveLeft = false;
+    /// <summary>이번 프레임에 오른쪽 이동 입력이 있었는지 여부입니다.</summary>
     private bool bmoveRight = false;
+    /// <summary>이번 프레임에 전진 입력이 있었는지 여부입니다.</summary>
     private bool bmoveForward = false;
+    /// <summary>이번 프레임에 후진 입력이 있었는지 여부입니다.</summary>
     private bool bmoveBack = false;
 
     // Unity 이벤트 함수
@@ -148,6 +152,28 @@ public class Camera_Player : MonoBehaviour
     /// <summary>
     /// 매 프레임마다 호출됩니다.
     /// </summary>
+    // 공개 메서드
+    /// <summary>
+    /// 카메라를 지정한 월드 지점 위로 옮깁니다.
+    ///
+    /// 미니맵 클릭처럼 '저기를 보여 달라'는 요청에 씁니다.
+    /// 높이와 각도는 그대로 두고 수평 위치만 바꿉니다.
+    /// 각도까지 바꾸면 플레이어가 방향 감각을 잃습니다.
+    /// </summary>
+    /// <param name="worldPosition">바라볼 지면 위의 월드 좌표입니다.</param>
+    public void Move_To(Vector3 worldPosition)
+    {
+        // 이 컴포넌트의 Transform이 카메라 리그의 기준점입니다.
+        // 실제 카메라(cameraTransform)는 그 자식으로 매달려 있으므로,
+        // 기준점만 옮기면 각도와 줌이 그대로 따라옵니다.
+        Vector3 p = transform.position;
+
+        p.x = worldPosition.x;
+        p.z = worldPosition.z;
+
+        transform.position = p;
+    }
+
     private void Update()
     {
         // 마우스의 현재 위치와 화면 크기를 업데이트합니다.

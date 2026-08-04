@@ -409,11 +409,22 @@ public struct Army_Data
                     timer_Reformation.ReSetTimer();
                 }
                 break;
-            case E_Army_Move.Move:
-                timer_Reformation.ReSetTimer();
-                breformation = false;
-                break;
-            case E_Army_Move.MoveToTarget:
+            // 대기가 아닌 모든 상태에서는 재정비를 걷어냅니다.
+            //
+            // 왜 한 덩어리로 묶는가:
+            // 예전에는 Move와 MoveToTarget만 case가 있었고 MoveCharge와
+            // MoveEscape는 빠져 있었습니다. 그래서 돌격이나 패주 중에
+            // breformation이 켜져 있으면 **아무도 내려 주지 않아** 그 상태로
+            // 남았습니다. 대기로 돌아오는 순간 의도하지 않은 재정비가
+            // 한 번 걸립니다.
+            //
+            // 특히 패주는 _Update_Morale이 이 switch보다 먼저 상태를
+            // MoveEscape로 바꾸므로, 태세 변경 직후 사기가 무너지면 그
+            // 재정비 예약이 패주 내내 살아남습니다.
+            //
+            // 열거형에 상태가 추가되어도 기본 동작이 '정비하지 않음'이
+            // 되도록 default로 받습니다. 재정비는 대기 상태의 행동입니다.
+            default:
                 timer_Reformation.ReSetTimer();
                 breformation = false;
                 break;
@@ -785,78 +796,166 @@ public struct Army_Data
     private static float NonNegative(float value) => value < 0.0f ? 0.0f : value;
 
     // 이동
+    /// <summary><see cref="Unit_Stat.moveSpeed"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetMoveSpeed() => NonNegative(unit_Stat.moveSpeed);
+    /// <summary><see cref="Unit_Stat.moveSpeed"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddMoveSpeed(float v) => unit_Stat.moveSpeed += v;
 
+    /// <summary><see cref="Unit_Stat.rotationSpeed"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetRotationSpeed() => NonNegative(unit_Stat.rotationSpeed);
+    /// <summary><see cref="Unit_Stat.rotationSpeed"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddRotationSpeed(float v) => unit_Stat.rotationSpeed += v;
 
+    /// <summary><see cref="Unit_Stat.acceleration"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetAcceleration() => NonNegative(unit_Stat.acceleration);
+    /// <summary><see cref="Unit_Stat.acceleration"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddAccelerationd(float v) => unit_Stat.acceleration += v;
 
+    /// <summary><see cref="Unit_Stat.mass"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetMass() => NonNegative(unit_Stat.mass);
+    /// <summary><see cref="Unit_Stat.mass"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddMass(float v) => unit_Stat.mass += v;
 
+    /// <summary><see cref="Unit_Stat.drag"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetDrag() => NonNegative(unit_Stat.drag);
+    /// <summary><see cref="Unit_Stat.drag"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddDrag(float v) => unit_Stat.drag += v;
 
     // 근접 전투
+    /// <summary><see cref="Unit_Stat.meleeDamage"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetMeleeDamage() => NonNegative(unit_Stat.meleeDamage);
+    /// <summary><see cref="Unit_Stat.meleeDamage"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddMeleeDamage(float v) => unit_Stat.meleeDamage += v;
 
     /// <summary>근접 방어구 관통(AP) 피해량입니다. 방어구 감산을 받지 않습니다.</summary>
     public float GetMeleeDamageAP() => NonNegative(unit_Stat.meleeDamageAP);
+    /// <summary><see cref="Unit_Stat.meleeDamageAP"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddMeleeDamageAP(float v) => unit_Stat.meleeDamageAP += v;
 
+    /// <summary><see cref="Unit_Stat.meleeAttack"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetMeleeAttack() => NonNegative(unit_Stat.meleeAttack);
+    /// <summary><see cref="Unit_Stat.meleeAttack"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddMeleeAttack(float v) => unit_Stat.meleeAttack += v;
 
+    /// <summary><see cref="Unit_Stat.meleeAttackSpeed"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetMeleeAttackSpeed() => NonNegative(unit_Stat.meleeAttackSpeed);
+    /// <summary><see cref="Unit_Stat.meleeAttackSpeed"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddMeleeAttackSpeed(float v) => unit_Stat.meleeAttackSpeed += v;
 
+    /// <summary><see cref="Unit_Stat.meleeDiffense"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetMeleeDiffense() => NonNegative(unit_Stat.meleeDiffense);
+    /// <summary><see cref="Unit_Stat.meleeDiffense"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddMeleeDiffense(float v) => unit_Stat.meleeDiffense += v;
 
+    /// <summary><see cref="Unit_Stat.meleeRange"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetMeleeRange() => NonNegative(unit_Stat.meleeRange);
+    /// <summary><see cref="Unit_Stat.meleeRange"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddMeleeRange(float v) => unit_Stat.meleeRange += v;
 
+    /// <summary><see cref="Unit_Stat.meleeChargeSpeed"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetMeleeChargeSpeed() => NonNegative(unit_Stat.meleeChargeSpeed);
+    /// <summary><see cref="Unit_Stat.meleeChargeSpeed"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddMeleeChargeSpeed(float v) => unit_Stat.meleeChargeSpeed += v;
 
+    /// <summary><see cref="Unit_Stat.meleeChargeRange"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetMeleeChargeRange() => NonNegative(unit_Stat.meleeChargeRange);
+    /// <summary><see cref="Unit_Stat.meleeChargeRange"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddMeleeChargeRange(float v) => unit_Stat.meleeChargeRange += v;
 
+    /// <summary><see cref="Unit_Stat.meleeChargeBonus"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetMeleeChargeBonus() => NonNegative(unit_Stat.meleeChargeBonus);
+    /// <summary><see cref="Unit_Stat.meleeChargeBonus"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddMeleeChargeBonus(float v) => unit_Stat.meleeChargeBonus += v;
 
     // 방어구
+    /// <summary><see cref="Unit_Stat.armor"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetArmor() => NonNegative(unit_Stat.armor);
+    /// <summary><see cref="Unit_Stat.armor"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddArmor(float v) => unit_Stat.armor += v;
 
+    /// <summary><see cref="Unit_Stat.shieldArmor"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetShieldArmor() => NonNegative(unit_Stat.shieldArmor);
+    /// <summary><see cref="Unit_Stat.shieldArmor"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddShieldArmor(float v) => unit_Stat.shieldArmor += v;
 
     // 원거리 전투
+    /// <summary><see cref="Unit_Stat.brangeAttackAble"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public bool IsRangeAttackAble() => unit_Stat.brangeAttackAble;
+    /// <summary><see cref="Unit_Stat.brangeAttackAble"/> 값을 설정합니다.</summary>
+    /// <param name="value">설정할 값입니다.</param>
     public void SetRangeAttackAble(bool value) => unit_Stat.brangeAttackAble = value;
 
+    /// <summary><see cref="Unit_Stat.rangeDamage"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetRangeDamage() => NonNegative(unit_Stat.rangeDamage);
+    /// <summary><see cref="Unit_Stat.rangeDamage"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddRangeDamage(float v) => unit_Stat.rangeDamage += v;
 
     /// <summary>원거리 방어구 관통(AP) 피해량입니다. 방어구 감산을 받지 않습니다.</summary>
     public float GetRangeDamageAP() => NonNegative(unit_Stat.rangeDamageAP);
+    /// <summary><see cref="Unit_Stat.rangeDamageAP"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddRangeDamageAP(float v) => unit_Stat.rangeDamageAP += v;
 
+    /// <summary><see cref="Unit_Stat.rangeAttackSpeed"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetRangeAttackSpeed() => NonNegative(unit_Stat.rangeAttackSpeed);
+    /// <summary><see cref="Unit_Stat.rangeAttackSpeed"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddRangeAttackSpeed(float v) => unit_Stat.rangeAttackSpeed += v;
 
+    /// <summary><see cref="Unit_Stat.rangeDiffense"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetRangeDiffense() => NonNegative(unit_Stat.rangeDiffense);
+    /// <summary><see cref="Unit_Stat.rangeDiffense"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddRangeDiffense(float v) => unit_Stat.rangeDiffense += v;
 
+    /// <summary><see cref="Unit_Stat.rangeAccuracy"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetRangeAccuracy() => NonNegative(unit_Stat.rangeAccuracy);
+    /// <summary><see cref="Unit_Stat.rangeAccuracy"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddRangeAccuracy(float v) => unit_Stat.rangeAccuracy += v;
 
+    /// <summary><see cref="Unit_Stat.rangeRange"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetRangeRange() => NonNegative(unit_Stat.rangeRange);
+    /// <summary><see cref="Unit_Stat.rangeRange"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddRangeRange(float v) => unit_Stat.rangeRange += v;
 
     /// <summary>유닛 1인의 총 탄약 수입니다. 0 이하이면 무한입니다.</summary>
@@ -866,24 +965,107 @@ public struct Army_Data
     public bool IsAmmunitionLimited() => unit_Stat.ammunition > 0;
 
     // 공격 지연
+    /// <summary><see cref="Unit_Stat.attackDelay"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetAttackDelay() => NonNegative(unit_Stat.attackDelay);
+    /// <summary><see cref="Unit_Stat.attackDelay"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddAttackDelay(float v) => unit_Stat.attackDelay += v;
 
     // 크기 / 충돌
+    /// <summary><see cref="Unit_Stat.size"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetSize() => NonNegative(unit_Stat.size);
+    /// <summary><see cref="Unit_Stat.size"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddSize(float v) => unit_Stat.size += v;
 
-    public float GetInterval() => NonNegative(unit_Stat.interval);
+    /// <summary>
+    /// 병사 간격을 반환합니다. **현재 태세의 밀집도가 반영된 값**입니다.
+    ///
+    /// 왜 여기서 곱하는가:
+    /// 진형 계산·재정비·슬롯 마커가 전부 이 함수를 거칩니다. 여기 한
+    /// 곳에서 배율을 걸면 태세를 바꾸는 순간 대열 폭, 열 수, 마커가
+    /// 한꺼번에 따라옵니다. 호출부마다 곱하면 어느 하나를 빠뜨립니다.
+    ///
+    /// 밀집도의 뜻:
+    ///   방패벽·창벽  좁게 (돌격에 버티고 화살에 잘 맞음)
+    ///   느슨·산개    넓게 (화살을 피하고 돌격에 무너짐)
+    /// 수치 효과(방어 보정)는 이미 따로 계산되고 있으므로, 여기서는
+    /// 그것을 눈에 보이게 만드는 역할만 합니다.
+    ///
+    /// 하한을 두는 이유:
+    /// 간격이 유닛 지름보다 좁아지면 병사가 겹쳐 서고, 충돌 해소가
+    /// 매 틱 밀어내 대열이 진동합니다. 조밀한 태세라도 이 선은 지킵니다.
+    /// </summary>
+    /// <returns>태세가 반영된 간격입니다. 음수는 0으로 보정합니다.</returns>
+    public float GetInterval()
+    {
+        float interval = NonNegative(unit_Stat.interval);
+
+        // 스탯이 비어 있으면 배율을 걸어도 0입니다. 호출부가 자체 경고와
+        // 대체값을 갖고 있으므로 여기서는 그대로 넘깁니다.
+        if (interval <= 0.0f) return interval;
+
+        interval *= GetDensityRate();
+
+        // 겹쳐 서지 않을 최소 간격입니다.
+        float min = GetRadius() * 2.0f * Constant.density_Min_Radius_Rate;
+
+        return interval < min ? min : interval;
+    }
+
+    /// <summary>
+    /// 현재 태세의 간격 배율입니다.
+    ///
+    /// 절대값이 아니라 배율인 이유: 병종마다 기본 간격이 다릅니다.
+    /// (기병은 보병보다 넓게 섭니다) 배율이어야 그 차이가 유지됩니다.
+    /// </summary>
+    /// <returns>1.0이면 기준, 1보다 크면 넓게, 작으면 조밀하게 섭니다.</returns>
+    public float GetDensityRate()
+    {
+        switch (e_Army_Stance)
+        {
+            case E_Army_Stance.Loose: return Constant.density_Loose;
+            case E_Army_Stance.ShieldWall: return Constant.density_ShieldWall;
+            case E_Army_Stance.SpearWall: return Constant.density_SpearWall;
+            case E_Army_Stance.Skirmish: return Constant.density_Skirmish;
+            default: return Constant.density_Line;
+        }
+    }
+
+    /// <summary>태세 배율을 뺀 원래 간격입니다. 표시나 진단에 씁니다.</summary>
+    /// <returns>스탯에 적힌 그대로의 간격입니다.</returns>
+    public float GetBaseInterval() => NonNegative(unit_Stat.interval);
+
+    /// <summary>
+    /// 겹쳐 서지 않을 최소 간격입니다. 진단 도구가 하한 적용 여부를
+    /// 확인하는 데 씁니다.
+    /// </summary>
+    /// <returns>이 값보다 좁은 간격은 나오지 않습니다.</returns>
+    public float GetMinInterval() => GetRadius() * 2.0f * Constant.density_Min_Radius_Rate;
+    /// <summary><see cref="Unit_Stat.interval"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddInterval(float v) => unit_Stat.interval += v;
 
+    /// <summary><see cref="Unit_Stat.radius"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetRadius() => NonNegative(unit_Stat.radius);
+    /// <summary><see cref="Unit_Stat.height"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetHeight() => NonNegative(unit_Stat.height);
 
     // 체력
+    /// <summary><see cref="Unit_Stat.HP"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetHP() => NonNegative(unit_Stat.HP);
+    /// <summary><see cref="Unit_Stat.HP"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddHP(float v) => unit_Stat.HP += v;
 
     // 공격 타입
+    /// <summary><see cref="Unit_Stat.e_Unit_AttackType"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public E_Unit_AttackType GetE_Unit_AttackType() => unit_Stat.e_Unit_AttackType;
 
     // 병종 / 상성
@@ -893,10 +1075,18 @@ public struct Army_Data
     /// <summary>이 부대가 대형으로 취급되는지 여부입니다.</summary>
     public bool IsLarge() => Unit_Class_Util.IsLarge(unit_Stat.e_Unit_Class);
 
+    /// <summary><see cref="Unit_Stat.bonusVsLarge"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetBonusVsLarge() => NonNegative(unit_Stat.bonusVsLarge);
+    /// <summary><see cref="Unit_Stat.bonusVsLarge"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddBonusVsLarge(float v) => unit_Stat.bonusVsLarge += v;
 
+    /// <summary><see cref="Unit_Stat.bonusVsInfantry"/> 값을 반환합니다. 음수는 0으로 보정합니다.</summary>
+    /// <returns>보정된 스탯 값입니다.</returns>
     public float GetBonusVsInfantry() => NonNegative(unit_Stat.bonusVsInfantry);
+    /// <summary><see cref="Unit_Stat.bonusVsInfantry"/> 값에 증감분을 더합니다.</summary>
+    /// <param name="v">더할 값입니다. 음수면 감소합니다.</param>
     public void AddBonusVsInfantry(float v) => unit_Stat.bonusVsInfantry += v;
 
     /// <summary>
