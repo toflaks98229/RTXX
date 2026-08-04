@@ -126,6 +126,9 @@ public class Mass_Battle_Probe : MonoBehaviour
             // 뒤쪽 줌 단계(넓게 보이는 구간)가 통째로 측정되지 않습니다.
             // 그 구간이 정확히 알고 싶은 부분이므로 치명적입니다.
             if (args[i] == "-zoomSweep") bzoomSweepMode = true;
+
+            // 배치 단계 목표 정합만 검사하고 끝냅니다.
+            if (args[i] == "-deployCheck") bdeployCheck = true;
         }
 
         Tick_Profiler.Reset();
@@ -162,6 +165,21 @@ public class Mass_Battle_Probe : MonoBehaviour
             tickCount++;
         }
 
+        // 배치 단계 목표 정합 검사입니다. (-deployCheck)
+        //
+        // 이 검사만은 배치 단계를 켠 채로 돌아야 합니다. 다른 검증은 전부
+        // 시뮬레이션이 도는 것을 전제하지만, 여기서 보려는 결함은
+        // '틱이 멈춘 동안 순간이동한 유닛이 어떤 목적지를 들고 있는가'이기
+        // 때문입니다. 그래서 틱이 아니라 프레임 수로 시점을 잡습니다.
+        if (bdeployCheck)
+        {
+            deployFrames++;
+
+            // 유닛 생성과 첫 배치가 끝나기를 기다립니다.
+            if (deployFrames >= 120 && !breported) Report_Deploy_Check();
+            return;
+        }
+
         // 전투가 자리를 잡은 뒤 강제 패주를 겁니다.
         // 시작하자마자 걸면 부대가 아직 배치 중이라 도주 방향이 정해지지 않습니다.
         if (bforceRout && !broutForced && tickCount > 120)
@@ -172,7 +190,14 @@ public class Mass_Battle_Probe : MonoBehaviour
 
         // 주기적으로 시뮬레이션 상태를 검증합니다.
         // 매 틱 전수 검사하면 그 비용이 측정값을 오염시키므로 간격을 둡니다.
-        if (tickCount % 60 == 0) Validate();
+        if (tickCount % 60 == 0)
+        {
+            Validate();
+
+            // 진형 인덱스 규약과 슬롯 이탈은 읽기 전용 검사입니다.
+            // (선두 지정 1단계: 동작을 바꾸지 않고 근거만 모읍니다)
+            Validate_Formation_Index();
+        }
 
         // 패주 검사는 더 자주 합니다.
         //
@@ -270,6 +295,78 @@ public class Mass_Battle_Probe : MonoBehaviour
         Record(armyIndexMismatch > 0,
                $"틱 {tickCount}: armyIndex 불일치 {armyIndexMismatch}건 " +
                "(킬 귀속이 엉뚱한 부대로 기록됩니다)");
+    }
+
+    // =====================================================================
+    // 진형 인덱스 규약 검증 + 슬롯 이탈 실측
+    //
+    // 무엇을 확인하는가:
+    //   1) 슬롯 인덱스가 유효 범위 안인가, 두 유닛이 같은 슬롯을 들고 있지 않은가
+    //   2) file/rank 유도(Formation_Slots)가 '실제 슬롯 좌표'와 맞는가
+    //   3) 유닛이 자기 슬롯에서 평균/최대 얼마나 벗어나 있는가
+    //
+    // 2번이 핵심입니다. file/rank 규약은 Formation_Job이 좌표를 펼치는
+    // 순서에서 유도한 것인데, 그 관계가 코드 두 곳에 나뉘어 있습니다.
+    // 한쪽이 바뀌어도 예외는 나지 않고 대열만 이상해지므로, 추론이 아니라
+    // 좌표로 대조해야 합니다.
+    //
+    // 3번은 선두 지정 전환의 판단 근거입니다. 이탈이 이미 크다면 슬롯은
+    // 사실상 느슨한 안내선이고, 작다면 강체 결합에 의존하는 동작이
+    // 있다는 뜻입니다.
+    // =====================================================================
+
+    /// <summary>슬롯 이탈 거리의 누적 합입니다. 평균을 내는 데 씁니다.</summary>
+    private double slotDeviationSum;
+    /// <summary>슬롯 이탈을 잰 표본 수입니다.</summary>
+    private int slotDeviationSamples;
+    /// <summary>관측된 최대 슬롯 이탈 거리입니다.</summary>
+    private float worstSlotDeviation;
+
+    /// <summary>file/rank 유도가 실제 슬롯 좌표와 어긋난 횟수입니다.</summary>
+    private int fileRankMismatch;
+    /// <summary>두 유닛이 같은 슬롯을 든 횟수입니다.</summary>
+    private int slotCollision;
+    /// <summary>선두 조회가 실패한 오의 수입니다.</summary>
+    private int leaderMissing;
+
+    /// <summary>
+    /// 진형 인덱스 규약이 실제 기하와 맞는지 확인하고 슬롯 이탈을 잽니다.
+    ///
+    /// 동작을 바꾸지 않는 읽기 전용 검사입니다.
+    /// (선두 지정 1단계: 조회만 추가하고 이동은 그대로 둡니다)
+    /// </summary>
+    private void Validate_Formation_Index()
+    {
+        List<Army> armies = controller != null ? controller.armies : Army.allArmies;
+        if (armies == null) return;
+
+        // 판정은 Formation_Index_Check 한 곳에만 있습니다.
+        // 에디터 메뉴(Formation_Index_Probe)도 같은 함수를 쓰므로
+        // 두 경로가 어긋날 수 없습니다.
+        for (int a = 0; a < armies.Count; a++)
+        {
+            Formation_Index_Check.Result r = Formation_Index_Check.Measure(armies[a]);
+            if (!r.bvalid) continue;
+
+            slotDeviationSum += r.deviationSum;
+            slotDeviationSamples += r.samples;
+            if (r.worstDeviation > worstSlotDeviation) worstSlotDeviation = r.worstDeviation;
+
+            slotCollision += r.slotCollision;
+            if (r.bfileRankMismatch) fileRankMismatch++;
+            if (r.bleaderMissing) leaderMissing++;
+        }
+
+        Record(slotCollision > 0,
+               $"틱 {tickCount}: 같은 슬롯을 든 유닛 {slotCollision}건 " +
+               "(선두 지정이 엉뚱한 유닛을 가리킵니다)");
+
+        Record(fileRankMismatch > 0,
+               $"틱 {tickCount}: file/rank 유도가 슬롯 좌표와 어긋남 {fileRankMismatch}건 " +
+               "(Formation_Job의 배치 순서와 Formation_Slots의 역변환이 갈렸습니다)");
+
+        Record(leaderMissing > 0,
+               $"틱 {tickCount}: 선두를 찾지 못한 오 {leaderMissing}건");
     }
 
     /// <summary>
@@ -545,6 +642,119 @@ public class Mass_Battle_Probe : MonoBehaviour
     /// <summary>패주 부대 기준점의 최대 지면 이격입니다.</summary>
     private float worstRoutPivotGap;
 
+    // =====================================================================
+    // 배치 단계 목표 정합 검사 (-deployCheck)
+    // =====================================================================
+
+    /// <summary>배치 단계 목표 정합만 검사하고 끝낼지 여부입니다.</summary>
+    private bool bdeployCheck;
+
+    /// <summary>배치 검사 모드에서 지난 프레임 수입니다.</summary>
+    private int deployFrames;
+
+    /// <summary>
+    /// 배치 중 태세를 바꾼 뒤, 순간이동한 유닛이 제자리를 목적지로
+    /// 들고 있는지 검사하고 결과를 남긴 뒤 종료합니다.
+    ///
+    /// 왜 태세를 바꾸는가:
+    /// 생성 직후에는 유닛이 놓인 자리가 곧 목적지라 문제가 드러나지
+    /// 않습니다. 진형을 한 번 다시 만들어야 순간이동 경로를 지나갑니다.
+    /// 간격이 크게 달라지는 태세를 골라야 되돌아감이 있을 때 크게 보입니다.
+    /// </summary>
+    private void Report_Deploy_Check()
+    {
+        breported = true;
+
+        StringBuilder sb = new StringBuilder(512);
+        sb.AppendLine("========== 배치 단계 목표 정합 검증 ==========");
+        sb.AppendLine($"배치 단계 = {Battle_Manager.bdeploying}");
+
+        // 배치 단계가 아니면 이 검사는 성립하지 않습니다.
+        //
+        // 배치가 아닐 때 Set_Stance는 순간이동이 아니라 '걸어서 재정비'를
+        // 지시합니다. 그 경로에서는 유닛이 목적지를 향해 걷는 것이 정상이고,
+        // 목표 이격이 크게 나오는 것도 정상입니다. 그것을 실패로 세면
+        // 검사기가 엉뚱한 것을 잡습니다.
+        if (!Battle_Manager.bdeploying)
+        {
+            sb.AppendLine("[건너뜀] 배치 단계가 아닙니다. " +
+                          "buseDeployment가 켜진 씬에서 실행하십시오.");
+            sb.AppendLine("==========================================");
+            Debug.LogError(sb.ToString());
+
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.Exit(2);
+#else
+            Application.Quit(2);
+#endif
+            return;
+        }
+
+        List<Army> armies = controller != null ? controller.armies : Army.allArmies;
+
+        int checkedArmies = 0;
+        int failed = 0;
+        float worstGap = 0.0f;
+        float worstSlotGap = 0.0f;
+
+        for (int i = 0; i < armies.Count; i++)
+        {
+            Army army = armies[i];
+            if (army == null) continue;
+            if (army.units == null || army.units.Count < 2) continue;
+
+            // 간격이 크게 달라지는 태세로 바꿔 진형을 다시 만들게 합니다.
+            E_Army_Stance original = army.GetStance();
+            E_Army_Stance other = original == E_Army_Stance.Skirmish
+                ? E_Army_Stance.ShieldWall
+                : E_Army_Stance.Skirmish;
+
+            army.Set_Stance(other);
+
+            Deploy_Target_Check.Result result = Deploy_Target_Check.Measure(army);
+            if (result.counted == 0) continue;
+
+            checkedArmies++;
+            if (result.worstGap > worstGap) worstGap = result.worstGap;
+            if (result.slotGap > worstSlotGap) worstSlotGap = result.slotGap;
+
+            if (!result.IsClean)
+            {
+                failed++;
+
+                // 처음 몇 개만 자세히 남깁니다. 60개가 전부 실패하면 로그가 넘칩니다.
+                if (failed <= 3) sb.AppendLine(Deploy_Target_Check.Describe(result, army.name));
+            }
+        }
+
+        sb.AppendLine($"검사 부대 {checkedArmies}개 / 실패 {failed}개");
+        sb.AppendLine($"목표 이격 최대 {worstGap:F3} m " +
+                      $"(허용 {Deploy_Target_Check.gapTolerance:F2})");
+        sb.AppendLine($"슬롯 이격 최대 {worstSlotGap:F3} m " +
+                      $"(허용 {Deploy_Target_Check.slotTolerance:F2})");
+        sb.AppendLine(failed == 0
+            ? "[정상] 순간이동한 유닛이 모두 제자리를 목적지로 들고 있습니다."
+            : "[문제] 전투가 시작되면 진형이 한 번 뭉개집니다.");
+        sb.AppendLine("==========================================");
+
+        Debug.Log(sb.ToString());
+
+        if (!string.IsNullOrEmpty(resultPath))
+        {
+            System.IO.File.WriteAllText(resultPath,
+                $"deployCheckArmies={checkedArmies}\n" +
+                $"deployCheckFailed={failed}\n" +
+                $"deployWorstGap={worstGap:F4}\n" +
+                $"deployWorstSlotGap={worstSlotGap:F4}\n");
+        }
+
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.Exit(failed == 0 ? 0 : 1);
+#else
+        Application.Quit(failed == 0 ? 0 : 1);
+#endif
+    }
+
     /// <summary>지면에서 떨어진 정도의 최댓값입니다. 검증 결과에 남깁니다.</summary>
     private float worstGroundGap;
 
@@ -717,6 +927,27 @@ public class Mass_Battle_Probe : MonoBehaviour
         sb.AppendLine($"패주 이격   : {worstRoutGap:F2} m (표본 {routSamples}회)");
         sb.AppendLine($"패주 기준점 : {worstRoutPivotGap:F2} m");
         sb.AppendLine($"Transform차 : {worstTransformDrift:F2} m (시뮬 위치와의 어긋남)");
+
+        // 선두 지정 전환의 판단 근거입니다.
+        //
+        // 이탈이 크면 슬롯은 사실상 느슨한 안내선이므로 선두 추종으로
+        // 바꿔도 잃을 것이 적습니다. 작으면 강체 결합에 의존하는 동작
+        // (돌격 접촉면, 벽 태세 밀집도)이 있다는 뜻이라 그쪽부터 봐야 합니다.
+        sb.AppendLine("--- 진형 인덱스 / 슬롯 이탈 ---");
+
+        if (slotDeviationSamples > 0)
+        {
+            sb.AppendLine($"슬롯 이탈   : 평균 {slotDeviationSum / slotDeviationSamples:F2} m / " +
+                          $"최대 {worstSlotDeviation:F2} m (표본 {slotDeviationSamples}회)");
+        }
+        else
+        {
+            sb.AppendLine("슬롯 이탈   : 표본 없음 (슬롯 배정을 가진 유닛이 없습니다)");
+        }
+
+        sb.AppendLine($"슬롯 충돌   : {slotCollision}건 (0이어야 정상)");
+        sb.AppendLine($"규약 불일치 : {fileRankMismatch}건 (file/rank 유도 vs 실제 좌표)");
+        sb.AppendLine($"선두 실패   : {leaderMissing}건");
         sb.AppendLine("--- 검증 ---");
 
         // 전투가 실제로 진행되었는지 확인합니다.

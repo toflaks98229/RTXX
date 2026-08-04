@@ -78,8 +78,23 @@ public static class Mass_Battle_Runner
 
         // 배치 단계를 건너뛰고 바로 전투를 시작하게 합니다.
         // 배치모드에는 키 입력이 없으므로 Space를 누를 수 없습니다.
+        //
+        // 예외: -deployCheck는 배치 단계 자체를 검사하므로 켜 둔 채로 돕니다.
+        // (그쪽은 틱이 아니라 프레임 수로 시점을 잡고 스스로 종료합니다)
+        bool bdeployCheck = false;
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (args[i] == "-deployCheck") bdeployCheck = true;
+        }
+
         Battle_Manager manager = Object.FindAnyObjectByType<Battle_Manager>();
-        if (manager != null) manager.buseDeployment = false;
+
+        if (manager != null)
+        {
+            // 대규모 씬은 빌더가 배치 단계를 꺼 둔 채로 만듭니다.
+            // 배치 검사만은 그 단계가 있어야 성립하므로 여기서 켭니다.
+            manager.buseDeployment = bdeployCheck;
+        }
 
         // 결과 기록과 종료는 Mass_Battle_Probe가 맡습니다.
         //

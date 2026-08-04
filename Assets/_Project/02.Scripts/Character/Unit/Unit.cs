@@ -160,6 +160,27 @@ public partial class Unit : MonoBehaviour
         unit_Data.position = position;
         unit_Data.rotation = rotation;
 
+        // 옮겨 놓은 자리를 '가야 할 자리'로도 삼습니다.
+        //
+        // 왜 필요한가:
+        // 이 함수는 유닛을 순간이동시킵니다. 그런데 위치만 옮기고
+        // unit_Data.location(목적지)을 그대로 두면, 시뮬레이션이 도는
+        // 첫 틱에 유닛이 **옛 목표를 향해 걸어갑니다.**
+        //
+        // 배치 단계에서 이 증상이 특히 눈에 띕니다. 틱이 멈춰 있는 동안에는
+        // 대열이 멀쩡해 보이다가, 전투가 시작되는 순간 전원이 직전 대열로
+        // 되돌아가면서 진형이 한 번 뭉개졌다 펴집니다.
+        // (태세를 넓히면 그 되돌아감이 '좁아지는' 모습으로 보입니다)
+        //
+        // 슬롯 배정도 함께 지웁니다. 남겨 두면 다음 틱에 부대 기준점 기준으로
+        // 계산된 옛 슬롯을 따라가므로 같은 일이 벌어집니다.
+        unit_Data.direction = rotation;
+        unit_Data.btargetMoveTo = false;
+        targetSlotIndex = -1;
+
+        // location = position, 속도 0, Idle로 되돌립니다.
+        // (position을 먼저 대입했으므로 여기서 제자리가 목적지가 됩니다)
+        unit_Data.Move_Cancel();
     }
 
     /// <summary>

@@ -64,6 +64,116 @@ partial class Army
     public void Invalidate_Slot_World()
     {
         slots?.Invalidate();
+        bslotOwnerValid = false;
+    }
+
+    // =====================================================================
+    // 슬롯 소유자 역색인 (선두 지정의 토대)
+    //
+    // 유닛은 자기 슬롯 번호(targetSlotIndex)를 압니다. 그 반대 방향
+    // ('이 슬롯에 선 유닛이 누구인가')은 지금까지 물을 수 없었습니다.
+    //
+    // 선두 지정은 그 반대 방향이 필요합니다. 어떤 유닛의 앞줄 유닛을
+    // 찾으려면 '같은 오(file)의 rank 0 슬롯을 든 유닛'을 알아야 합니다.
+    //
+    // 이 단계에서는 조회만 추가하고 이동 로직은 건드리지 않습니다.
+    // 아무도 묻지 않으면 재구축도 일어나지 않으므로 비용이 0입니다.
+    // =====================================================================
+
+    /// <summary>슬롯 번호 -> units 리스트 인덱스입니다. 비어 있으면 -1입니다.</summary>
+    private int[] slotOwners;
+
+    /// <summary>소유자 색인이 지금 기준으로 유효한지 여부입니다.</summary>
+    private bool bslotOwnerValid;
+
+    /// <summary>
+    /// 슬롯 소유자 색인을 다시 만듭니다.
+    ///
+    /// 유닛이 죽거나 슬롯 배정이 바뀌면 낡으므로, 월드 좌표 캐시와 같은
+    /// 시점(매 틱 시작)에 무효화하고 '처음 물을 때' 다시 만듭니다.
+    /// </summary>
+    private void Rebuild_Slot_Owners()
+    {
+        int count = SlotCount;
+
+        if (slotOwners == null || slotOwners.Length < count)
+        {
+            slotOwners = new int[Mathf.Max(count, 16)];
+        }
+
+        for (int i = 0; i < count; i++) slotOwners[i] = -1;
+
+        for (int i = 0; i < units.Count; i++)
+        {
+            if (units[i] == null) continue;
+
+            int slot = units[i].targetSlotIndex;
+            if (slot < 0 || slot >= count) continue;
+
+            // 같은 슬롯을 둘이 들고 있으면 앞선 유닛을 남깁니다.
+            // 정상 상태에서는 일어나지 않으며, 검증기가 그 수를 셉니다.
+            if (slotOwners[slot] < 0) slotOwners[slot] = i;
+        }
+
+        bslotOwnerValid = true;
+    }
+
+    /// <summary>
+    /// 이 슬롯에 배정된 유닛입니다. 없으면 null입니다.
+    /// </summary>
+    /// <param name="slotIndex">슬롯 인덱스입니다.</param>
+    public Unit Get_Slot_Owner(int slotIndex)
+    {
+        if (slotIndex < 0 || slotIndex >= SlotCount) return null;
+
+        if (!bslotOwnerValid) Rebuild_Slot_Owners();
+
+        int unitIndex = slotOwners[slotIndex];
+        if (unitIndex < 0 || unitIndex >= units.Count) return null;
+
+        return units[unitIndex];
+    }
+
+    /// <summary>이 슬롯이 속한 오(세로줄) 번호입니다.</summary>
+    /// <param name="slotIndex">슬롯 인덱스입니다.</param>
+    public int Get_Slot_File(int slotIndex)
+    {
+        return Formation_Slots.File_Of(slotIndex, GetFormation_Num());
+    }
+
+    /// <summary>이 슬롯이 속한 열 번호입니다. 0이 맨 앞줄입니다.</summary>
+    /// <param name="slotIndex">슬롯 인덱스입니다.</param>
+    public int Get_Slot_Rank(int slotIndex)
+    {
+        return Formation_Slots.Rank_Of(slotIndex, GetFormation_Num());
+    }
+
+    /// <summary>
+    /// 이 오(세로줄)의 선두 유닛입니다.
+    ///
+    /// 맨 앞줄이 비어 있으면(전사·미배정) 그 뒤에서 가장 앞선 유닛을
+    /// 돌려줍니다. 이것이 곧 선두 승격 규칙이며, 지금은 순수한 조회라
+    /// 어떤 동작도 바꾸지 않습니다.
+    ///
+    /// 반환값이 null이면 그 오에 남은 유닛이 없다는 뜻입니다.
+    /// </summary>
+    /// <param name="file">오 번호입니다.</param>
+    public Unit Get_File_Leader(int file)
+    {
+        int width = GetFormation_Num();
+        if (width <= 0) return null;
+        if (file < 0 || file >= width) return null;
+
+        int count = SlotCount;
+
+        for (int rank = 0; ; rank++)
+        {
+            int slot = Formation_Slots.Index_Of(file, rank, width);
+            if (slot < 0 || slot >= count) return null;
+
+            Unit owner = Get_Slot_Owner(slot);
+            if (owner != null && !owner.IsDead()) return owner;
+        }
     }
 
     // ---------------------------------------------------------------------
