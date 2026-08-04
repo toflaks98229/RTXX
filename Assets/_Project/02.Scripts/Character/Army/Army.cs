@@ -832,6 +832,14 @@ public partial class Army : MonoBehaviour
 
         Tick_Profiler.End_Sub();
 
+        // 뒷열의 목표를 '자기 오의 선두' 기준으로 다시 정합니다.
+        //
+        // 반드시 이 자리여야 합니다. 위 루프가 전 유닛의 unit_Data를 Job
+        // 결과로 채웠고, 아래 u._Update() 루프는 유닛마다 position을
+        // 갱신합니다. 그 사이에서만 전원의 위치가 안정적이라, 선두를 읽는
+        // 순서가 결과를 바꾸지 않습니다.
+        _Update_Leader_Follow();
+
         Tick_Profiler.Begin_Sub(Tick_Profiler.Phase.U_Fight);
 
         for (int i = 0; i < applyCount; i++)
@@ -945,7 +953,7 @@ public partial class Army : MonoBehaviour
         {
             if (units[i] == null) continue;
 
-            units[i].Move_Reformation(formation_Data.formation[match[i]]);
+            units[i].Move_Reformation(formation_Data.formation[match[i]], match[i]);
         }
     }
 

@@ -45,6 +45,19 @@ public partial class Unit : MonoBehaviour
     /// Burst Job에 통째로 넘길 수 있습니다. (Transform은 넘길 수 없습니다)
     /// </summary>
     public int targetSlotIndex = -1;
+
+    /// <summary>
+    /// 이번 틱에 '자기 오의 선두'를 따라가는 중인지 여부입니다.
+    ///
+    /// Army._Update_Leader_Follow가 매 틱 정합니다. 참이면 unit_Data.location에
+    /// 선두 기준으로 계산된 목표가 이미 들어 있으므로, 아래 이동 처리가
+    /// 그것을 슬롯 배열 값으로 덮어쓰면 안 됩니다.
+    ///
+    /// 슬롯 배정(targetSlotIndex)은 그대로 유지됩니다. 그것은 '이 유닛이
+    /// 대열의 어느 자리를 맡았는가'라는 신원이고, 이 플래그는 '이번에
+    /// 어디를 보고 걷는가'라는 별개의 것입니다.
+    /// </summary>
+    public bool bfollowLeader;
     /// <summary>유닛이 사망했는지 여부를 나타냅니다.</summary>
     public bool bDead = false;
     /// <summary>유닛의 애니메이션을 제어하는 컴포넌트입니다.</summary>

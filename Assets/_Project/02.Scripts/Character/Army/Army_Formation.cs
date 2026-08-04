@@ -80,17 +80,53 @@ partial class Army
     // 아무도 묻지 않으면 재구축도 일어나지 않으므로 비용이 0입니다.
     // =====================================================================
 
-    /// <summary>슬롯 번호 -> units 리스트 인덱스입니다. 비어 있으면 -1입니다.</summary>
-    private int[] slotOwners;
+    /// <summary>
+    /// 슬롯 번호 -> 그 슬롯을 맡은 유닛입니다. 비어 있으면 null입니다.
+    ///
+    /// 리스트 인덱스가 아니라 참조를 담는 이유:
+    /// 예전에는 units 리스트의 인덱스를 담았는데, _Update_Dead가 틱 중간에
+    /// 전사자를 리스트에서 제거하면 그 뒤의 인덱스가 한 칸씩 당겨져
+    /// **색인이 엉뚱한 유닛을 가리켰습니다.**
+    ///
+    /// 검증기만 60틱마다 읽던 동안에는 드러나지 않다가, 선두 추종이 매 틱
+    /// 이 색인을 읽기 시작하자 곧바로 터졌습니다.
+    /// (2,000틱에서 슬롯 충돌 4,612건, 대열이 사실상 붕괴)
+    ///
+    /// 참조를 담으면 리스트가 어떻게 바뀌든 가리키는 대상이 변하지 않습니다.
+    /// 파괴된 유닛은 Unity의 == 오버로드로 null이 되므로 자연히 걸러집니다.
+    /// </summary>
+    private Unit[] slotOwners;
 
     /// <summary>소유자 색인이 지금 기준으로 유효한지 여부입니다.</summary>
     private bool bslotOwnerValid;
 
     /// <summary>
+    /// 슬롯 소유자 색인을 지금 즉시 다시 만듭니다.
+    ///
+    /// 왜 '지연 재구축'으로는 부족한가:
+    /// 이 색인은 매 틱 시작(_Update_Begin)에 무효화되고 처음 물을 때
+    /// 다시 만들어집니다. 그런데 **슬롯 배정은 틱 도중에도 바뀝니다.**
+    /// Battle_AI는 자기 FixedUpdate에서 Move_Start를 부르는데, 그 순서는
+    /// Controller의 틱과의 사이에 보장되지 않습니다. 그래서 캐시가 유효
+    /// 표시인 채로 배정만 갈리는 창이 생깁니다.
+    ///
+    /// 실측에서 그 창이 그대로 드러났습니다. 선두 추종이 이 색인을 매 틱
+    /// 읽기 시작하자 첫 검증(틱 0)에서 전 표본 960건이 어긋났고,
+    /// 2,000틱 누적 5,338건이었습니다.
+    ///
+    /// 그래서 색인을 실제로 쓰는 쪽이 쓰기 직전에 이 함수를 부릅니다.
+    /// 비용은 인원수 한 번의 순회이며, 틱당 한 번이라 문제되지 않습니다.
+    /// </summary>
+    public void Refresh_Slot_Owners()
+    {
+        Rebuild_Slot_Owners();
+    }
+
+    /// <summary>
     /// 슬롯 소유자 색인을 다시 만듭니다.
     ///
-    /// 유닛이 죽거나 슬롯 배정이 바뀌면 낡으므로, 월드 좌표 캐시와 같은
-    /// 시점(매 틱 시작)에 무효화하고 '처음 물을 때' 다시 만듭니다.
+    /// 직접 부르지 마십시오. 쓰기 직전이라면 Refresh_Slot_Owners()를,
+    /// 그 밖에는 Get_Slot_Owner()의 지연 재구축을 쓰십시오.
     /// </summary>
     private void Rebuild_Slot_Owners()
     {
@@ -98,21 +134,22 @@ partial class Army
 
         if (slotOwners == null || slotOwners.Length < count)
         {
-            slotOwners = new int[Mathf.Max(count, 16)];
+            slotOwners = new Unit[Mathf.Max(count, 16)];
         }
 
-        for (int i = 0; i < count; i++) slotOwners[i] = -1;
+        for (int i = 0; i < count; i++) slotOwners[i] = null;
 
         for (int i = 0; i < units.Count; i++)
         {
-            if (units[i] == null) continue;
+            Unit unit = units[i];
+            if (unit == null) continue;
 
-            int slot = units[i].targetSlotIndex;
+            int slot = unit.targetSlotIndex;
             if (slot < 0 || slot >= count) continue;
 
             // 같은 슬롯을 둘이 들고 있으면 앞선 유닛을 남깁니다.
             // 정상 상태에서는 일어나지 않으며, 검증기가 그 수를 셉니다.
-            if (slotOwners[slot] < 0) slotOwners[slot] = i;
+            if (slotOwners[slot] == null) slotOwners[slot] = unit;
         }
 
         bslotOwnerValid = true;
@@ -128,10 +165,157 @@ partial class Army
 
         if (!bslotOwnerValid) Rebuild_Slot_Owners();
 
-        int unitIndex = slotOwners[slotIndex];
-        if (unitIndex < 0 || unitIndex >= units.Count) return null;
+        return slotOwners[slotIndex];
+    }
 
-        return units[unitIndex];
+    // =====================================================================
+    // 선두 추종 (3단계)
+    // =====================================================================
+
+    /// <summary>
+    /// 선두 추종을 쓸지 여부입니다. Controller가 씬 시작 시 설정합니다.
+    ///
+    /// 정적인 이유는 Battle_Manager.bdeploying과 같습니다. 부대가 컨트롤러를
+    /// 참조하지 않는다는 구조를 지키면서 전역 스위치를 두려는 우회이며,
+    /// 전역 가변 상태를 하나 늘린 것도 사실입니다. 대조 실험이 끝나면
+    /// 없애는 편이 좋습니다.
+    /// </summary>
+    public static bool buseLeaderFollow = true;
+
+    /// <summary>오별 선두 캐시입니다. 매 틱 한 번만 채웁니다.</summary>
+    private Unit[] leaderCache;
+    /// <summary>그 선두가 서 있는 열 번호입니다. 승격 시 깊이 보정에 씁니다.</summary>
+    private int[] leaderRankCache;
+
+    /// <summary>
+    /// 뒷열 유닛의 목표를 '자기 오의 선두' 기준으로 다시 정합니다.
+    ///
+    /// ---------------------------------------------------------------------
+    /// 왜 필요한가
+    /// ---------------------------------------------------------------------
+    /// 지금까지 9,600명 전원의 목표가 부대 기준점 Transform 하나의 함수였습니다.
+    /// 기준점이 흔들리면 전원이 즉시 따라 흔들립니다. 이번 세션에서 잡은
+    /// 버그 셋이 전부 그 결합에서 나왔습니다.
+    ///   - 회전이 항등으로 굳자 전원이 월드 +Z로 행군
+    ///   - 기준점이 지면에서 9.7m 뜨자 슬롯 전체가 떠 유닛이 허공을 추격
+    ///   - 배치 중 기준점만 출발지에 남자 전원이 14.5m 되돌아감
+    ///
+    /// 뒷열이 '실제로 움직인 앞사람'을 따르면 기준점의 결함이 한 겹 걸러집니다.
+    ///
+    /// ---------------------------------------------------------------------
+    /// 왜 바로 앞 유닛이 아니라 '선두'를 따르는가
+    /// ---------------------------------------------------------------------
+    /// 앞사람을 따라가는 사슬은 자연스러워 보이지만, 8~10열을 거치며 오차가
+    /// 누적되어 대열이 휘어집니다. 선두 기준이면 의존이 언제나 1홉이라
+    /// 누적이 없으면서도 기준점 대신 실제 병사를 따르는 이점은 그대로입니다.
+    ///
+    /// ---------------------------------------------------------------------
+    /// 호출 시점 주의
+    /// ---------------------------------------------------------------------
+    /// 반드시 _Update_Apply에서 '전 유닛의 unit_Data 복사가 끝난 뒤,
+    /// u._Update() 루프가 시작되기 전'에 호출해야 합니다.
+    ///
+    /// u._Update()는 유닛마다 position을 갱신하므로, 그 루프 안에서 선두
+    /// 위치를 읽으면 '그 선두가 이미 갱신되었는가'에 따라 값이 달라집니다.
+    /// 부대 안의 처리 순서가 결과를 바꾸면 결정론이 깨집니다.
+    /// 이 자리에서는 전원의 위치가 Job 결과 그대로라 순서와 무관합니다.
+    /// </summary>
+    private void _Update_Leader_Follow()
+    {
+        // 먼저 전원 해제합니다.
+        // 아래에서 조건이 맞지 않아 중간에 반환하더라도 지난 틱의 플래그가
+        // 남으면, 그 유닛이 갱신되지 않는 목표를 계속 붙들게 됩니다.
+        for (int i = 0; i < units.Count; i++)
+        {
+            if (units[i] != null) units[i].bfollowLeader = false;
+        }
+
+        if (!buseLeaderFollow) return;
+        if (units.Count == 0) return;
+
+        // 무너진 부대는 대열을 버리고 흩어집니다. 따를 선두가 없습니다.
+        if (army_Data.IsBroken()) return;
+
+        int width = GetFormation_Num();
+        if (width <= 0) return;
+
+        float interval = army_Data.GetInterval();
+        if (interval <= 0.0f) return;
+
+        // 열이 쌓이는 방향은 '부대의 전열 방향'에서 구합니다.
+        //
+        // 선두의 회전을 쓰면 안 됩니다. 그 회전은 전열 방향이 아니라
+        // Is_Combat_Footwork가 정하는 '자기 표적을 보는 방향'입니다.
+        // 선두가 교전 중 몸을 틀면 그 오 전체의 목표가 함께 홱 돌아가
+        // 대열이 표적 쪽으로 끌려갑니다.
+        //
+        // 위치는 선두를 따르되 방향은 부대가 정하는 편이, 기준점 결함을
+        // 걸러내면서도 대열을 유지합니다.
+        Vector3 lineFacing = Formation_Util.Facing_From_Line(GetFormation_Direction());
+        Vector3 back = -lineFacing;
+        back.y = 0.0f;
+
+        if (back.sqrMagnitude < 0.0001f) return;
+        back = back.normalized;
+
+        // 소유자 색인을 지금 다시 만듭니다.
+        //
+        // 지연 재구축에 맡기면 안 됩니다. 배정은 Battle_AI의 FixedUpdate처럼
+        // 틱 바깥에서도 바뀌는데, 캐시는 틱 시작에만 무효화되기 때문입니다.
+        // (자세한 내용은 Refresh_Slot_Owners의 주석 참조)
+        Refresh_Slot_Owners();
+
+        // 오별 선두를 먼저 한 번만 구합니다.
+        //
+        // 유닛마다 Get_File_Leader를 부르면 그때마다 rank 0부터 훑으므로
+        // O(인원 x 깊이)가 됩니다. 9,600명 규모에서 그 차이가 그대로
+        // 틱 비용으로 나타납니다. 오는 많아야 수십 개이므로 미리 채워 둡니다.
+        if (leaderCache == null || leaderCache.Length < width)
+        {
+            leaderCache = new Unit[Mathf.Max(width, 16)];
+            leaderRankCache = new int[Mathf.Max(width, 16)];
+        }
+
+        for (int file = 0; file < width; file++)
+        {
+            Unit leader = Get_File_Leader(file);
+
+            leaderCache[file] = leader;
+            leaderRankCache[file] = leader != null
+                ? Formation_Slots.Rank_Of(leader.targetSlotIndex, width)
+                : -1;
+        }
+
+        for (int i = 0; i < units.Count; i++)
+        {
+            Unit unit = units[i];
+            if (unit == null) continue;
+            if (unit.IsDead()) continue;
+
+            int slot = unit.targetSlotIndex;
+            if (slot < 0) continue;
+
+            int rank = Formation_Slots.Rank_Of(slot, width);
+            if (rank <= 0) continue;   // 선두는 슬롯을 따릅니다
+
+            int file = Formation_Slots.File_Of(slot, width);
+            if (file < 0 || file >= width) continue;
+
+            Unit leader = leaderCache[file];
+            if (leader == null || leader == unit) continue;
+
+            // 선두가 승격했을 수 있으므로 실제 깊이 차를 씁니다.
+            // (앞줄이 전사하면 뒷열이 선두가 되고, 그때 rank는 0이 아닙니다)
+            int depth = rank - leaderRankCache[file];
+            if (depth <= 0) continue;
+
+            // 선두의 등 뒤로 depth칸 떨어진 자리입니다.
+            // 방향은 부대 전열이 정하고, 위치만 선두를 따릅니다.
+            unit.unit_Data.location =
+                leader.unit_Data.position + back * (interval * depth);
+
+            unit.bfollowLeader = true;
+        }
     }
 
     /// <summary>이 슬롯이 속한 오(세로줄) 번호입니다.</summary>

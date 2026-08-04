@@ -155,6 +155,17 @@ public partial class Controller : MonoBehaviour
     public int idleArmyTickInterval = 2;
 
     /// <summary>
+    /// 뒷열이 진형 슬롯 대신 '자기 오의 선두'를 따라가게 할지 여부입니다.
+    ///
+    /// 끄면 전원이 기준점 기준 슬롯을 따르는 예전 방식으로 돌아갑니다.
+    /// 대조 실험용이며, 어느 쪽이 나은지는 재 보고 정합니다.
+    /// </summary>
+    [Header("진형")]
+    [Tooltip("뒷열이 진형 슬롯 대신 자기 오의 선두를 따라갑니다.\n" +
+             "끄면 전원이 기준점 기준 슬롯을 따르는 예전 방식입니다.")]
+    public bool buseLeaderFollow = true;
+
+    /// <summary>
     /// 드래그 선택 영역을 저장하는 Rect 구조체입니다.
     /// </summary>
     private Rect select_Box;
@@ -246,6 +257,13 @@ public partial class Controller : MonoBehaviour
         // 다른 난수열로 시작해 '재현되지 않는' 상태가 됩니다.
         Simulation_Clock.Reset();
         Army.Clear_Army_Grid();
+
+        // 진형 추종 방식을 전역에 알립니다.
+        //
+        // 정적 상태이므로 도메인 리로드를 끈 환경에서는 플레이 모드를 나가도
+        // 값이 남습니다. 매 세션 여기서 다시 정해야 이전 실행의 설정이
+        // 조용히 이어지지 않습니다.
+        Army.buseLeaderFollow = buseLeaderFollow;
         Simulation_Random.Set_Master_Seed(
             simulationSeed != 0u ? simulationSeed : (uint)System.DateTime.Now.Ticks);
 

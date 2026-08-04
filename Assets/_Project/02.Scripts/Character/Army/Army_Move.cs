@@ -908,7 +908,7 @@ partial class Army
         for (int i = 0; i < units.Count && i < match.Length; i++)
         {
             if (units[i] == null) continue;
-            units[i].Move_Reformation(reformed.formation[match[i]]);
+            units[i].Move_Reformation(reformed.formation[match[i]], match[i]);
         }
     }
 
@@ -939,7 +939,7 @@ partial class Army
         for (int i = 0; i < units.Count && i < match.Length; i++)
         {
             if (units[i] == null) continue;
-            units[i].Move_Reformation(frontSlots[match[i]]);
+            units[i].Move_Reformation(frontSlots[match[i]], match[i]);
         }
     }
 
@@ -970,7 +970,7 @@ partial class Army
 
         for (int i = 0; i < _matchX.Length; i++)
         {
-            units[i].Move_Reformation(formation_Data.formation[_matchX[i]]);
+            units[i].Move_Reformation(formation_Data.formation[_matchX[i]], _matchX[i]);
         }
     }
 

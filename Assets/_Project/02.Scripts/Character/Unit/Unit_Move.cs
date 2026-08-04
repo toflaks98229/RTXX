@@ -851,7 +851,23 @@ partial class Unit
     /// 진형 재배치 이동을 처리합니다. 교전 중에도 자기 자리로 붙게 하는 경로입니다.
     /// </summary>
     /// <param name="location">새로 배정된 진형 슬롯의 좌표입니다.</param>
-    public void Move_Reformation(Vector3 location)
+    /// <param name="slotIndex">
+    /// 새로 배정된 슬롯의 인덱스입니다. -1이면 슬롯 없이 좌표만 지정합니다.
+    ///
+    /// 왜 인덱스를 함께 받는가:
+    /// 예전에는 좌표만 받아 Move_Start(Vector3)를 탔고, 그 경로가
+    /// targetSlotIndex를 -1로 지웠습니다. 즉 **재정비 한 번이면 슬롯 배정이
+    /// 끊겼습니다.** 실측에서 표본으로 잡힌 유닛이 가능 표본의 절반뿐이었고,
+    /// 슬롯 이탈 평균이 간격의 2.1배(3.12m / interval 1.5m)까지 벌어졌습니다.
+    ///
+    /// 배정이 끊기면 '이 슬롯에 선 유닛이 누구인가'를 물을 수 없습니다.
+    /// 선두 지정은 그 방향이 지속적으로 유지되어야 성립하므로, 재정비가
+    /// 슬롯 번호를 보존하도록 바꿉니다.
+    ///
+    /// 호출부는 전부 이미 매칭 결과(match[i])를 손에 들고 있으므로
+    /// 새로 계산할 것이 없습니다.
+    /// </param>
+    public void Move_Reformation(Vector3 location, int slotIndex = -1)
     {
         unit_Data.location = location;
 
@@ -869,6 +885,24 @@ partial class Unit
         {
             Move_Start(location);
         }
+
+        // 슬롯 배정을 복원합니다. **반드시 위 분기 뒤여야 합니다.**
+        //
+        // Move_Start(Vector3)가 targetSlotIndex를 -1로 지우기 때문입니다.
+        // 그래서 예전에는 재정비 한 번이면 배정이 끊겼고, '이 슬롯에 선
+        // 유닛이 누구인가'를 물을 수 없었습니다.
+        // (실측: 표본으로 잡힌 유닛이 가능 표본의 절반뿐)
+        //
+        // 배정과 이동은 서로 다른 것입니다.
+        //   배정 = 이 유닛이 대열의 어느 자리를 맡았는가 (신원)
+        //   이동 = 이번에 어디로 갈 것인가 (재정비가 방금 계산한 좌표)
+        //
+        // 여기서 배정만 되살리고 이동 방식은 그대로 둡니다.
+        // btargetMoveTo를 건드리지 않는 것이 중요합니다. 그 플래그를 켜면
+        // Unit._Update_Move가 매 틱 location을 슬롯 배열 값으로 덮어쓰는데,
+        // 배열은 마지막 Set_Formation_Move 시점의 값이라 재정비가 방금
+        // 계산한 좌표와 다를 수 있습니다.
+        if (slotIndex >= 0) targetSlotIndex = slotIndex;
     }
 
     /// <summary>유닛의 이동을 취소합니다.</summary>
@@ -968,19 +1002,25 @@ partial class Unit
             case E_Unit_Move.Move:
                 if (unit_Data.btargetMoveTo && targetSlotIndex >= 0)
                 {
-                    // 슬롯 위치를 배열에서 꺼냅니다.
+                    // 갈 자리를 정합니다.
                     //
+                    // 선두를 따르는 중이면 Army._Update_Leader_Follow가 이미
+                    // unit_Data.location에 목표를 넣어 두었으므로 그것을 씁니다.
+                    // 여기서 슬롯 배열로 덮어쓰면 선두 추종이 무효가 됩니다.
+                    //
+                    // 아니면 슬롯 위치를 배열에서 꺼냅니다.
                     // 예전에는 targetMoveTo.position(Transform)을 읽었습니다.
                     // C# -> 네이티브 왕복이라 호출 횟수 자체가 비용이고,
                     // 9,600명이면 틱당 2.955 ms였습니다.
-                    //
                     // 배열은 부대가 틱당 한 번만 월드 좌표로 펼쳐 두므로
                     // 여기서는 단순 인덱싱입니다. (실측 0.029 ms)
-                    Vector3 slot = army.Get_Slot_World(targetSlotIndex);
+                    Vector3 target = bfollowLeader
+                        ? unit_Data.location
+                        : army.Get_Slot_World(targetSlotIndex);
 
-                    unit_Data.location = slot;
-                    unit_Data.targetVector = slot;
-                    unit_Data.steeringTarget = slot;
+                    unit_Data.location = target;
+                    unit_Data.targetVector = target;
+                    unit_Data.steeringTarget = target;
                 }
                 break;
             case E_Unit_Move.Idle:

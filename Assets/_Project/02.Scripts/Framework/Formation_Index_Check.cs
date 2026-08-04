@@ -95,6 +95,13 @@ public static class Formation_Index_Check
         result.width = width;
         result.slotCount = slotCount;
 
+        // 소유자 색인을 지금 다시 만듭니다.
+        //
+        // 검사기가 낡은 캐시를 보면 '배정이 깨졌다'고 잘못 보고합니다.
+        // 슬롯 배정은 틱 도중에도 바뀌므로(Battle_AI의 FixedUpdate 등)
+        // 지연 재구축에 맡길 수 없습니다.
+        army.Refresh_Slot_Owners();
+
         // --- 1. 슬롯 배정의 유일성과 이탈 거리 ---
         int step = maxSamples > 0
             ? Mathf.Max(1, units.Count / maxSamples)

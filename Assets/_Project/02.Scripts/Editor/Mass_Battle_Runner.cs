@@ -67,6 +67,9 @@ public static class Mass_Battle_Runner
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "-noGroundSync") controller.bdisableGroundSync = true;
+
+                // 대조 실험: 선두 추종을 끄고 예전(전원 슬롯 추종) 방식으로 돌립니다.
+                if (args[i] == "-noLeaderFollow") controller.buseLeaderFollow = false;
             }
 
             // 패주 검증 플래그는 프로브가 런타임에 처리합니다.
